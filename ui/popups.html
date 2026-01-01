@@ -1,0 +1,28 @@
+<div id="death-screen">
+    <h1 style="color: #ff4444; font-size: 72px; margin-bottom: 10px;">YOU FELL</h1>
+    <p style="margin-bottom: 40px; font-size: 20px;">Succumbed to the frozen wilderness.</p>
+    <div id="respawn-btn" class="btn" style="background: #cc0000; border-color: #ff4444;">RESPAWN</div>
+</div>
+
+<div id="unit-tooltip">
+    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+        <span id="tt-name" style="font-weight: bold; font-size: 13px;">WOLF</span>
+        <span id="tt-level" style="font-size: 11px; color: var(--primary);">LV. 5</span>
+    </div>
+    <div id="tt-status" style="font-size: 10px; color: #ff4444;">Hostile</div>
+    <div class="bar-container" style="width: 100%; height: 6px; margin-top: 4px;"><div id="tt-health" class="bar-fill" style="background: #ff4444; width: 100%;"></div></div>
+</div>
+
+<div id="shard-map-container">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+        <div>
+            <h2 style="margin: 0; color: var(--primary);">WORLD MAP</h2>
+            <div id="map-coords" style="font-size: 12px; opacity: 0.6;">Pos: 0, 0</div>
+            <div id="map-shard" style="font-size: 12px; opacity: 0.6;">Shard: 0, 0</div>
+        </div>
+        <div style="text-align: right; font-size: 12px;">[Scroll] Zoom | [N] Close</div>
+    </div>
+    <div style="flex-grow: 1; position: relative; border: 1px solid var(--border); overflow: hidden; border-radius: 8px;">
+        <canvas id="shard-map-canvas"></canvas>
+    </div>
+</div>

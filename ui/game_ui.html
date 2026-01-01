@@ -1,0 +1,139 @@
+<div id="ui-layer">
+    <div id="hud-container">
+        <div class="hud-row">
+            <div class="hud-label">HEALTH</div>
+            <div class="bar-container"><div id="health-fill" class="bar-fill"></div><div id="hud-hp-text" class="hud-text"></div></div>
+        </div>
+        <div class="hud-row">
+            <div class="hud-label">STAMINA</div>
+            <div class="bar-container"><div id="stamina-fill" class="bar-fill"></div><div id="hud-stamina-text" class="hud-text"></div></div>
+        </div>
+        <div class="hud-row">
+            <div class="hud-label">CHAKRA</div>
+            <div class="bar-container"><div id="chakra-fill" class="bar-fill"></div><div id="hud-chakra-text" class="hud-text"></div></div>
+        </div>
+        <div class="hud-row">
+            <div class="hud-label">EXPERIENCE</div>
+            <div class="bar-container"><div id="xp-fill" class="bar-fill"></div><div id="hud-xp-text" class="hud-text"></div></div>
+        </div>
+    </div>
+
+    <div id="minimap-container">
+        <div id="minimap-biome-display">FROZEN PEAKS</div>
+        <canvas id="minimap-canvas"></canvas>
+    </div>
+
+    <div id="status-message" style="position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: bold; opacity: 0; transition: all 0.3s; pointer-events: none;"></div>
+
+    <div id="hotbar-wrapper">
+        <div id="hotbar" style="display: flex; gap: 8px;">
+            <div class="hotbar-slot"><span class="slot-key">1</span></div>
+            <div class="hotbar-slot"><span class="slot-key">2</span></div>
+            <div class="hotbar-slot"><span class="slot-key">3</span></div>
+            <div class="hotbar-slot"><span class="slot-key">4</span></div>
+            <div class="hotbar-slot"><span class="slot-key">5</span></div>
+            <div class="hotbar-slot"><span class="slot-key">6</span></div>
+            <div class="hotbar-slot"><span class="slot-key">7</span></div>
+            <div class="hotbar-slot"><span class="slot-key">8</span></div>
+        </div>
+        <div style="width: 2px; background: var(--border); margin: 0 5px;"></div>
+        <div id="slot-lmb" class="ability-slot"><img src="attack_icon.png" class="hotbar-icon"><span class="slot-key">LMB</span></div>
+        <div id="slot-r" class="ability-slot"><span class="slot-key">R</span></div>
+        <div id="slot-x" class="ability-slot"><img src="combat_icon.png" class="hotbar-icon"><span class="slot-key">X</span></div>
+        <div id="slot-c" class="ability-slot"><img src="summoning_circle.png" class="hotbar-icon"><span class="slot-key">C</span></div>
+        <div id="slot-p" class="ability-slot"><img src="profile_icon.png" class="hotbar-icon"><span class="slot-key">P</span></div>
+    </div>
+
+    <div id="build-hotbar-wrapper">
+        <div id="build-hotbar" style="display: flex; gap: 8px;">
+            <div class="build-slot"><img src="wall_icon.png" class="hotbar-icon"><span class="slot-key">1</span></div>
+            <div class="build-slot"><img src="floor_icon.png" class="hotbar-icon"><span class="slot-key">2</span></div>
+            <div class="build-slot"><img src="firepit_icon.png" class="hotbar-icon"><span class="slot-key">3</span></div>
+            <div class="build-slot"><img src="doorway_icon.png" class="hotbar-icon"><span class="slot-key">4</span></div>
+        </div>
+        <div style="margin-left: 15px; display: flex; flex-direction: column; justify-content: center; font-size: 11px;">
+            <span>[R] Rotate</span>
+            <span>[LMB] Place</span>
+            <span>[B] Exit</span>
+        </div>
+    </div>
+
+    <div id="inventory-container" class="modal">
+        <div class="modal-header">EXPLORER POUCH<span id="close-inv" style="cursor:pointer;">&times;</span></div>
+        <div class="inventory-tabs">
+            <div class="inventory-tab active" data-tab="items">ITEMS</div>
+            <div class="inventory-tab" data-tab="crafting">CRAFTING</div>
+        </div>
+        
+        <div class="inventory-content">
+            <div id="inventory-pane-items" class="inventory-pane active">
+                <div class="inventory-grid" id="inventory-grid"></div>
+            </div>
+            
+            <div id="inventory-pane-crafting" class="inventory-pane">
+                <div id="crafting-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ore-modal" class="modal">
+        <div class="modal-header">WORLD RESOURCES<span onclick="this.parentElement.parentElement.style.display='none'" style="cursor:pointer;">&times;</span></div>
+        <div class="inventory-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="inventory-slot" title="Trees"><div id="count-tree" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Trees</div></div>
+            <div class="inventory-slot" title="Rocks"><div id="count-rock" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Rocks</div></div>
+            <div class="inventory-slot" title="Iron"><div id="count-iron" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Iron</div></div>
+            <div class="inventory-slot" title="Wolves"><div id="count-wolf" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Wolves</div></div>
+            <div class="inventory-slot" title="Bears"><div id="count-bear" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Bears</div></div>
+            <div class="inventory-slot" title="Deer"><div id="count-deer" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Deer</div></div>
+        </div>
+    </div>
+
+    <div id="player-preview-container" class="modal">
+        <div class="modal-header">CHARACTER PROFILE<span onclick="this.parentElement.parentElement.style.display='none'" style="cursor:pointer;">&times;</span></div>
+        <div class="inventory-pane active">
+            <div class="profile-left">
+                <div class="creator-label">STATISTICS</div>
+                <div class="stat-row"><span class="stat-label">HEALTH</span><span id="stat-hp" class="stat-value">0/0</span></div>
+                <div class="stat-row"><span class="stat-label">STAMINA</span><span id="stat-stamina" class="stat-value">0/0</span></div>
+                <div class="stat-row"><span class="stat-label">CHAKRA</span><span id="stat-chakra" class="stat-value">0/0</span></div>
+                <div class="stat-row"><span class="stat-label">MINING TIER</span><span id="stat-tier" class="stat-value">0</span></div>
+                
+                <div class="creator-label" style="margin-top: 20px;">EQUIPMENT</div>
+                <div class="equipment-grid">
+                    <div class="equipment-slot" data-slot="helmet" data-label="Head"></div>
+                    <div class="equipment-slot" data-slot="chest" data-label="Torso"></div>
+                    <div class="equipment-slot" data-slot="pants" data-label="Legs"></div>
+                    <div class="equipment-slot" data-slot="shoes" data-label="Feet"></div>
+                    <div class="equipment-slot" data-slot="mainhand" data-label="Main Hand"></div>
+                    <div class="equipment-slot" data-slot="offhand" data-label="Off Hand"></div>
+                </div>
+                
+                <div style="margin-top: 20px; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="invulnerable-toggle">
+                    <label for="invulnerable-toggle" style="font-size: 11px; opacity: 0.7;">GOD MODE (DEV)</label>
+                </div>
+            </div>
+            <div class="profile-right">
+                <div id="preview-canvas-container"></div>
+                <div class="inventory-grid" id="profile-gear-grid" style="max-height: 180px; background: rgba(0,0,0,0.2);"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="skills-container" class="modal">
+        <div class="modal-header">SKILL TREE<span onclick="this.parentElement.parentElement.style.display='none'" style="cursor:pointer;">&times;</span></div>
+        <div class="skills-grid" style="padding: 20px; overflow-y: auto;"></div>
+    </div>
+
+    <div id="skill-selection-menu">
+        <div class="menu-item" data-skill="fireball"><img src="fireball.png" class="menu-icon"> Fireball (20)</div>
+        <div class="menu-item" data-skill="icebolt"><img src="icebolt.png" class="menu-icon"> Icebolt (15)</div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="100" style="display: none;">
+    </div>
+
+    <div id="location-display" style="position: absolute; bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; color: #888;">Shard: 0, 0</div>
+</div>

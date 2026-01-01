@@ -1,0 +1,116 @@
+<div id="character-creator">
+    <div class="creator-sidebar">
+        <h2 style="margin-top: 0; color: var(--primary);">CUSTOMIZE</h2>
+        
+        <div class="creator-section">
+            <div class="creator-label">IDENTITY</div>
+            <input type="text" id="player-name" class="creator-input" placeholder="Enter name..." value="Traveler">
+            <select id="body-type" class="creator-input" style="margin-top: 8px;">
+                <option value="male">MALE</option>
+                <option value="female">FEMALE</option>
+            </select>
+        </div>
+
+        <div class="creator-tabs">
+            <div class="creator-tab active" data-tab="body">BODY</div>
+            <div class="creator-tab" data-tab="outfit">OUTFIT</div>
+            <div class="creator-tab" data-tab="gear">GEAR</div>
+        </div>
+
+        <div id="body-tab" class="tab-content active">
+            <div class="creator-section">
+                <div class="creator-label">SKIN COLOR</div>
+                <input type="color" id="skin-color" class="creator-input" value="#ffdbac">
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">EYE COLOR</div>
+                <input type="color" id="eye-color" class="creator-input" value="#333333">
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">SCALES</div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Head</div>
+                <input type="range" id="head-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Width</div>
+                <input type="range" id="torso-width" min="0.8" max="1.3" step="0.05" value="1.0" style="width:100%">
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Height</div>
+                <input type="range" id="torso-height" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Arms</div>
+                <input type="range" id="arm-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Legs</div>
+                <input type="range" id="leg-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+            </div>
+        </div>
+
+        <div id="outfit-tab" class="tab-content">
+            <div class="creator-section">
+                <div class="creator-label">SHIRT COLOR</div>
+                <input type="color" id="shirt-color" class="creator-input" value="#ffffff">
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">SHIRT PATTERN</div>
+                <select id="shirt-pattern" class="creator-input">
+                    <option value="none">NONE</option>
+                    <option value="stripes">STRIPES</option>
+                    <option value="dots">DOTS</option>
+                    <option value="checkered">CHECKERED</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="gear-tab" class="tab-content">
+            <div class="creator-label">ARMOR & ACCESSORIES</div>
+            <div class="gear-grid">
+                <div class="gear-item" id="gear-leather-armor">
+                    <span class="gear-icon">🧥</span>
+                    <span class="gear-name">Armor</span>
+                </div>
+                <div class="gear-item" id="gear-vest">
+                    <img src="vest.png" class="gear-icon-img">
+                    <span class="gear-name">Vest</span>
+                </div>
+                <div class="gear-item" id="gear-cloak">
+                    <span class="gear-icon">🧣</span>
+                    <span class="gear-name">Cloak</span>
+                </div>
+                <div class="gear-item" id="gear-headband">
+                    <img src="ninja_headband.png" class="gear-icon-img">
+                    <span class="gear-name">Band</span>
+                </div>
+                <div class="gear-item" id="gear-leather-hunters-cap">
+                    <img src="hunters_cap.png" class="gear-icon-img">
+                    <span class="gear-name">Hunter</span>
+                </div>
+                <div class="gear-item" id="gear-assassins-cap">
+                    <img src="assassins_cowl.png" class="gear-icon-img">
+                    <span class="gear-name">Assassin</span>
+                </div>
+                <div class="gear-item" id="gear-leather-gloves">
+                    <span class="gear-icon">🧤</span>
+                    <span class="gear-name">Gloves</span>
+                </div>
+                <div class="gear-item" id="gear-leather-boots">
+                    <img src="leather_boots.png" class="gear-icon-img">
+                    <span class="gear-name">Boots</span>
+                </div>
+                <div class="gear-item" id="gear-pants">
+                    <img src="black_pants.png" class="gear-icon-img">
+                    <span class="gear-name">Pants</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="creator-footer">
+            <div id="start-journey" class="btn">START JOURNEY</div>
+        </div>
+    </div>
+    <div class="creator-main">
+        <div id="creator-preview"></div>
+        <div class="anim-controls">
+            <div id="btn-anim-walk" class="anim-btn">Walk</div>
+            <div id="btn-anim-punch" class="anim-btn">Punch</div>
+            <div id="btn-anim-axe" class="anim-btn">Axe</div>
+            <div id="btn-anim-jump" class="anim-btn">Jump</div>
+        </div>
+        <div style="position: absolute; top: 20px; left: 20px; font-size: 12px; opacity: 0.5;">Drag to rotate</div>
+    </div>
+</div>
