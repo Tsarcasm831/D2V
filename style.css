@@ -204,7 +204,8 @@ body, html {
 
 /* Profile Section Overhaul */
 .profile-layout {
-    display: flex;
+    display: grid;
+    grid-template-columns: 260px 1fr 280px;
     flex: 1;
     overflow: hidden;
     height: calc(100% - 65px);
@@ -214,44 +215,45 @@ body, html {
 .profile-column {
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: 20px;
     height: 100%;
+    box-sizing: border-box;
 }
 
 .profile-column.left {
-    width: 260px;
     border-right: 1px solid var(--border);
     background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    gap: 15px;
     box-shadow: inset -5px 0 15px rgba(0,0,0,0.3);
 }
 
 .profile-column.center {
-    flex: 1;
     position: relative;
     padding: 0;
     background: radial-gradient(circle at center, rgba(0, 170, 255, 0.08), transparent);
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#preview-canvas-container {
+    flex: 1;
+    width: 100%;
+    position: relative;
 }
 
 .profile-column.right {
-    width: 280px;
     border-left: 1px solid var(--border);
     background: linear-gradient(to bottom, rgba(10, 20, 40, 0.4), rgba(5, 10, 20, 0.6));
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    gap: 15px;
     box-shadow: inset 5px 0 15px rgba(0,0,0,0.3);
 }
 
 .section-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     color: var(--primary);
-    letter-spacing: 2px;
-    margin-bottom: 15px;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
     opacity: 0.9;
     text-transform: uppercase;
 }
@@ -294,17 +296,17 @@ text-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
 }
 
 .equipment-grid-v2 {
-display: grid;
-grid-template-columns: repeat(2, 1fr);
-gap: 15px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
 }
 
 .equipment-slot-v2 {
-    width: 80px;
-    height: 80px;
+    width: 64px;
+    height: 64px;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -317,48 +319,37 @@ gap: 15px;
 .equipment-slot-v2::before {
     content: attr(data-label);
     position: absolute;
-    bottom: 8px;
-    font-size: 8px;
+    bottom: 4px;
+    font-size: 7px;
     font-weight: 900;
     opacity: 0.4;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1px;
     color: white;
     width: 100%;
     text-align: center;
     pointer-events: none;
 }
 
-.equipment-slot-v2:hover {
-    background: rgba(0, 170, 255, 0.1);
-    border-color: var(--primary);
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 8px 20px rgba(0, 170, 255, 0.2);
-}
-
 .equipment-slot-v2 img {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
     image-rendering: pixelated;
     filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.equipment-slot-v2:hover img {
-    transform: scale(1.1);
-}
-
 .equipment-slot-v2.large {
-    width: 96px;
-    height: 96px;
+    width: 72px;
+    height: 72px;
     background: rgba(0, 170, 255, 0.05);
     border: 1px solid rgba(0, 170, 255, 0.3);
 }
 
 .equipment-slot-v2.large img {
-    width: 64px;
-    height: 64px;
+    width: 48px;
+    height: 48px;
 }
 
 .equipment-slot-v2::after {
@@ -441,10 +432,10 @@ box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 .stat-row {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 14px;
+    gap: 6px;
+    padding: 10px;
     background: rgba(255, 255, 255, 0.02);
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -462,15 +453,15 @@ box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
 
 .stat-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     color: rgba(255, 255, 255, 0.5);
-    letter-spacing: 1.5px;
+    letter-spacing: 1px;
     text-transform: uppercase;
 }
 
 .stat-value {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--primary);
     font-family: 'Courier New', Courier, monospace;
@@ -508,10 +499,10 @@ box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 .mini-inventory {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+    gap: 8px;
     background: rgba(0, 0, 0, 0.4);
-    padding: 16px;
-    border-radius: 16px;
+    padding: 12px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
     flex: 1;
     overflow-y: auto;

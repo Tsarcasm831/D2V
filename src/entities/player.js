@@ -41,16 +41,34 @@ export class Player {
 
         // Attach gear if present
         if (characterData.gear) {
-            if (characterData.gear.vest) gear.attachVest(this.parts);
-            if (characterData.gear.leatherArmor) gear.attachLeatherArmor(this.parts);
-            if (characterData.gear.headband) gear.attachHeadband(this.parts);
-            if (characterData.gear.leatherGloves) gear.attachLeatherGloves(this.parts);
-            if (characterData.gear.leatherHuntersCap) gear.attachLeatherHuntersCap(this.parts);
-            if (characterData.gear.assassinsCap) gear.attachAssassinsCap(this.parts);
-            if (characterData.gear.leatherBoots) gear.attachLeatherBoots(this.parts);
-            if (characterData.gear.hood) gear.attachHood(this.parts);
-            if (characterData.gear.cloak) gear.attachCloak(this.parts);
-            if (characterData.gear.pants) gear.attachPants(this.parts);
+            const gearMapping = {
+                vest: { type: 'vest', name: 'Tactical Vest', icon: 'assets/icons/vest_icon.png', slot: 'chest' },
+                leatherArmor: { type: 'leather-armor', name: 'Leather Armor', icon: 'assets/icons/leather_armor_icon.png', slot: 'chest' },
+                headband: { type: 'headband', name: 'Headband', icon: 'assets/icons/headband_icon.png', slot: 'helmet' },
+                leatherGloves: { type: 'leather-gloves', name: 'Leather Gloves', icon: 'assets/icons/gloves_icon.png', slot: 'hands' },
+                leatherHuntersCap: { type: 'leather-hunters-cap', name: 'Hunters Cap', icon: 'assets/icons/cap_icon.png', slot: 'helmet' },
+                assassinsCap: { type: 'assassins-cap', name: 'Assassins Cap', icon: 'assets/icons/cap_icon.png', slot: 'helmet' },
+                leatherBoots: { type: 'leather-boots', name: 'Leather Boots', icon: 'assets/icons/boots_icon.png', slot: 'shoes' },
+                cloak: { type: 'cloak', name: 'Wanderer Cloak', icon: 'assets/icons/cloak_icon.png', slot: 'back' },
+                pants: { type: 'pants', name: 'Leather Pants', icon: 'assets/icons/pants_icon.png', slot: 'pants' }
+            };
+
+            Object.entries(characterData.gear).forEach(([key, isEnabled]) => {
+                if (isEnabled && gearMapping[key]) {
+                    const gearInfo = gearMapping[key];
+                    // Add to equipment if slot is empty, otherwise to storage
+                    if (!this.inventory.equipment[gearInfo.slot]) {
+                        this.inventory.equipment[gearInfo.slot] = { ...gearInfo };
+                    } else {
+                        this.inventory.addItem({ ...gearInfo });
+                    }
+
+                    // Visual attachment
+                    const camelName = key.charAt(0).toUpperCase() + key.slice(1);
+                    const fnName = `attach${camelName}`;
+                    if (gear[fnName]) gear[fnName](this.parts);
+                }
+            });
         }
 
         this.animator = new PlayerAnimator(parts);

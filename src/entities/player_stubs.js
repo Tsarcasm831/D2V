@@ -20,6 +20,8 @@ export class PlayerInventory {
             chest: { type: 'shirt', name: 'Nomad Tunic', icon: 'assets/icons/shirt_icon.png' },
             pants: null,
             shoes: null,
+            hands: null,
+            back: null,
             mainhand: null,
             offhand: null
         };
@@ -62,6 +64,12 @@ export class PlayerInventory {
     equip(item, storageIndex) {
         let slotName = null;
         if (item.type === 'shirt') slotName = 'chest';
+        if (item.type === 'vest' || item.type === 'leather-armor') slotName = 'chest';
+        if (item.type === 'headband' || item.type === 'leather-hunters-cap' || item.type === 'assassins-cap') slotName = 'helmet';
+        if (item.type === 'leather-gloves') slotName = 'hands';
+        if (item.type === 'leather-boots') slotName = 'shoes';
+        if (item.type === 'cloak') slotName = 'back';
+        if (item.type === 'pants') slotName = 'pants';
         if (['axe', 'club', 'pickaxe', 'sword'].includes(item.type)) slotName = 'mainhand';
         
         if (!slotName) {
@@ -492,7 +500,7 @@ export class PlayerUI {
             this.previewScene.add(directional);
 
             import('./player_mesh.js').then(({ createPlayerMesh }) => {
-                const { mesh, parts } = createPlayerMesh();
+                const { mesh, parts } = createPlayerMesh(this.player.characterData);
                 this.previewMesh = mesh;
 
                 // Attach the base clothing and weapons to the preview character
@@ -503,11 +511,32 @@ export class PlayerUI {
                     import('../items/axe.js'),
                     import('../items/club.js'),
                     import('../items/pickaxe.js'),
+                    import('../items/gear.js'),
                     import('../world/world_bounds.js')
-                ]).then(([underwear, shorts, shirt, axe, club, pick, bounds]) => {
+                ]).then(([underwear, shorts, shirt, axe, club, pick, gear, bounds]) => {
                     underwear.attachUnderwear(parts);
-                    shorts.attachShorts(parts);
-                    shirt.attachShirt(parts);
+                    shorts.attachShorts(parts, this.player.characterData);
+                    shirt.attachShirt(parts, this.player.characterData);
+
+                    // Attach currently equipped gear
+                    const equipment = this.player.inventory.equipment;
+                    const gearMapping = {
+                        chest: ['vest', 'leatherArmor'],
+                        helmet: ['headband', 'leatherHuntersCap', 'assassinsCap'],
+                        hands: ['leatherGloves'],
+                        shoes: ['leatherBoots'],
+                        back: ['cloak'],
+                        pants: ['pants']
+                    };
+
+                    Object.entries(equipment).forEach(([slot, item]) => {
+                        if (item) {
+                            // Find the internal key (e.g., 'leatherArmor' from 'leather-armor')
+                            let gearKey = item.type.split('-').map((word, i) => i === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)).join('');
+                            const fnName = `attach${gearKey.charAt(0).toUpperCase() + gearKey.slice(1)}`;
+                            if (gear[fnName]) gear[fnName](parts);
+                        }
+                    });
 
                     const scale = bounds.SCALE_FACTOR;
                     const rightHand = new THREE.Group();
