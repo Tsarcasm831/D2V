@@ -37,19 +37,19 @@
             <div class="hotbar-slot"><span class="slot-key">8</span></div>
         </div>
         <div style="width: 2px; background: var(--border); margin: 0 5px;"></div>
-        <div id="slot-lmb" class="ability-slot"><img src="attack_icon.png" class="hotbar-icon"><span class="slot-key">LMB</span></div>
+        <div id="slot-lmb" class="ability-slot"><img src="assets/icons/attack_icon.png" class="hotbar-icon"><span class="slot-key">LMB</span></div>
         <div id="slot-r" class="ability-slot"><span class="slot-key">R</span></div>
-        <div id="slot-x" class="ability-slot"><img src="combat_icon.png" class="hotbar-icon"><span class="slot-key">X</span></div>
-        <div id="slot-c" class="ability-slot"><img src="summoning_circle.png" class="hotbar-icon"><span class="slot-key">C</span></div>
-        <div id="slot-p" class="ability-slot"><img src="profile_icon.png" class="hotbar-icon"><span class="slot-key">P</span></div>
+        <div id="slot-x" class="ability-slot"><img src="assets/icons/combat_icon.png" class="hotbar-icon"><span class="slot-key">X</span></div>
+        <div id="slot-c" class="ability-slot"><img src="assets/vfx/summoning_circle.png" class="hotbar-icon"><span class="slot-key">C</span></div>
+        <div id="slot-p" class="ability-slot"><img src="assets/icons/profile_icon.png" class="hotbar-icon"><span class="slot-key">P</span></div>
     </div>
 
     <div id="build-hotbar-wrapper">
         <div id="build-hotbar" style="display: flex; gap: 8px;">
-            <div class="build-slot"><img src="wall_icon.png" class="hotbar-icon"><span class="slot-key">1</span></div>
-            <div class="build-slot"><img src="floor_icon.png" class="hotbar-icon"><span class="slot-key">2</span></div>
-            <div class="build-slot"><img src="firepit_icon.png" class="hotbar-icon"><span class="slot-key">3</span></div>
-            <div class="build-slot"><img src="doorway_icon.png" class="hotbar-icon"><span class="slot-key">4</span></div>
+            <div class="build-slot"><img src="assets/icons/wall_icon.png" class="hotbar-icon"><span class="slot-key">1</span></div>
+            <div class="build-slot"><img src="assets/icons/floor_icon.png" class="hotbar-icon"><span class="slot-key">2</span></div>
+            <div class="build-slot"><img src="assets/icons/firepit_icon.png" class="hotbar-icon"><span class="slot-key">3</span></div>
+            <div class="build-slot"><img src="assets/icons/doorway_icon.png" class="hotbar-icon"><span class="slot-key">4</span></div>
         </div>
         <div style="margin-left: 15px; display: flex; flex-direction: column; justify-content: center; font-size: 11px;">
             <span>[R] Rotate</span>
@@ -89,33 +89,73 @@
     </div>
 
     <div id="player-preview-container" class="modal">
-        <div class="modal-header">CHARACTER PROFILE<span onclick="this.parentElement.parentElement.style.display='none'" style="cursor:pointer;">&times;</span></div>
-        <div class="inventory-pane active">
-            <div class="profile-left">
-                <div class="creator-label">STATISTICS</div>
-                <div class="stat-row"><span class="stat-label">HEALTH</span><span id="stat-hp" class="stat-value">0/0</span></div>
-                <div class="stat-row"><span class="stat-label">STAMINA</span><span id="stat-stamina" class="stat-value">0/0</span></div>
-                <div class="stat-row"><span class="stat-label">CHAKRA</span><span id="stat-chakra" class="stat-value">0/0</span></div>
-                <div class="stat-row"><span class="stat-label">MINING TIER</span><span id="stat-tier" class="stat-value">0</span></div>
-                
-                <div class="creator-label" style="margin-top: 20px;">EQUIPMENT</div>
-                <div class="equipment-grid">
-                    <div class="equipment-slot" data-slot="helmet" data-label="Head"></div>
-                    <div class="equipment-slot" data-slot="chest" data-label="Torso"></div>
-                    <div class="equipment-slot" data-slot="pants" data-label="Legs"></div>
-                    <div class="equipment-slot" data-slot="shoes" data-label="Feet"></div>
-                    <div class="equipment-slot" data-slot="mainhand" data-label="Main Hand"></div>
-                    <div class="equipment-slot" data-slot="offhand" data-label="Off Hand"></div>
+        <div class="modal-header">
+            <div class="header-title">CHARACTER PROFILE</div>
+            <span id="close-profile" onclick="this.parentElement.parentElement.style.display='none'" style="cursor:pointer;">&times;</span>
+        </div>
+        <div class="profile-layout">
+            <div class="profile-column left">
+                <div class="section-label">STATISTICS</div>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <div class="stat-info">
+                            <span class="stat-label">HEALTH</span>
+                            <span id="stat-hp" class="stat-value">0/0</span>
+                        </div>
+                        <div class="stat-bar-mini"><div id="stat-hp-fill" class="stat-fill-mini hp"></div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-info">
+                            <span class="stat-label">STAMINA</span>
+                            <span id="stat-stamina" class="stat-value">0/0</span>
+                        </div>
+                        <div class="stat-bar-mini"><div id="stat-stamina-fill" class="stat-fill-mini stamina"></div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-info">
+                            <span class="stat-label">CHAKRA</span>
+                            <span id="stat-chakra" class="stat-value">0/0</span>
+                        </div>
+                        <div class="stat-bar-mini"><div id="stat-chakra-fill" class="stat-fill-mini chakra"></div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-info">
+                            <span class="stat-label">MINING TIER</span>
+                            <span id="stat-tier" class="stat-value">0</span>
+                        </div>
+                    </div>
                 </div>
-                
-                <div style="margin-top: 20px; display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="invulnerable-toggle">
-                    <label for="invulnerable-toggle" style="font-size: 11px; opacity: 0.7;">GOD MODE (DEV)</label>
+
+                <div class="section-label" style="margin-top: 20px;">EQUIPMENT</div>
+                <div class="equipment-grid-v2">
+                    <div class="equipment-slot-v2" data-slot="helmet" data-label="Head"></div>
+                    <div class="equipment-slot-v2" data-slot="chest" data-label="Torso"></div>
+                    <div class="equipment-slot-v2" data-slot="pants" data-label="Legs"></div>
+                    <div class="equipment-slot-v2" data-slot="shoes" data-label="Feet"></div>
                 </div>
             </div>
-            <div class="profile-right">
+
+            <div class="profile-column center">
                 <div id="preview-canvas-container"></div>
-                <div class="inventory-grid" id="profile-gear-grid" style="max-height: 180px; background: rgba(0,0,0,0.2);"></div>
+                <div class="preview-controls">
+                    <div class="weapon-slots">
+                        <div class="equipment-slot-v2 large" data-slot="mainhand" data-label="Main Hand"></div>
+                        <div class="equipment-slot-v2 large" data-slot="offhand" data-label="Off Hand"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-column right">
+                <div class="section-label">QUICK ACCESS</div>
+                <div id="profile-gear-grid" class="mini-inventory"></div>
+                
+                <div class="dev-options">
+                    <div class="section-label">DEVELOPER</div>
+                    <div class="dev-row">
+                        <input type="checkbox" id="invulnerable-toggle">
+                        <label for="invulnerable-toggle">GOD MODE</label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -126,8 +166,8 @@
     </div>
 
     <div id="skill-selection-menu">
-        <div class="menu-item" data-skill="fireball"><img src="fireball.png" class="menu-icon"> Fireball (20)</div>
-        <div class="menu-item" data-skill="icebolt"><img src="icebolt.png" class="menu-icon"> Icebolt (15)</div>
+        <div class="menu-item" data-skill="fireball"><img src="assets/vfx/fireball.png" class="menu-icon"> Fireball (20)</div>
+        <div class="menu-item" data-skill="icebolt"><img src="assets/vfx/icebolt.png" class="menu-icon"> Icebolt (15)</div>
     </div>
 
     <div id="chat-container">
