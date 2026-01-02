@@ -83,6 +83,16 @@ export class NodeMPManager {
             }, 3000);
         };
 
+        this.socket.onDisconnect = () => {
+            console.warn("[NodeMPManager] Local player disconnected from server.");
+            if (this.game.chat) {
+                this.game.chat.addMessage("System", "You have been disconnected from the server.");
+            }
+            if (this.game.player && this.game.player.ui) {
+                this.game.player.ui.showStatus("Disconnected from server", true);
+            }
+        };
+
         // Connect
         try {
             const username = characterData.name || localStorage.getItem('username') || 'Traveler';
@@ -114,7 +124,13 @@ export class NodeMPManager {
         for (const id of this.remotePlayers.keys()) {
             if (!currentIds.has(id)) {
                 const remote = this.remotePlayers.get(id);
-                if (remote) remote.destroy();
+                if (remote) {
+                    // Show disconnect message in chat
+                    if (this.game.chat) {
+                        this.game.chat.addMessage("System", `${remote.username || "Traveler"} left the realm.`);
+                    }
+                    remote.destroy();
+                }
                 this.remotePlayers.delete(id);
             }
         }

@@ -44,6 +44,7 @@ export class GameSocket {
             this.ws.onclose = () => {
                 this.isConnected = false;
                 console.log("WebSocket disconnected.");
+                if (this.onDisconnect) this.onDisconnect();
             };
 
             this.ws.onerror = (err) => {
