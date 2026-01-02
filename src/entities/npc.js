@@ -19,6 +19,11 @@ export class NPC {
         this.maxHealth = 2;
         this.health = this.maxHealth;
 
+        // AI Collision avoidance state
+        this.isColliding = false;
+        this.pauseTimer = 0;
+        this.avoidanceAngle = 0;
+
         this.name = "Villager";
         this.portrait = "assets/gear/assassins_cowl.png";
         this.dialogue = "Welcome, traveler. What can I do for you today?";
@@ -70,6 +75,7 @@ export class NPC {
 
         const myPos = (this.group || this.mesh).position;
         const myRadius = 0.5 * SCALE_FACTOR;
+        let collisionDetected = false;
 
         const npcs = this.shard.npcs;
         for (let i = 0; i < npcs.length; i++) {
@@ -91,6 +97,7 @@ export class NPC {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -114,6 +121,7 @@ export class NPC {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -133,13 +141,28 @@ export class NPC {
                     const overlap = (minDist - dist) * 0.5;
                     myPos.x += (dx / dist) * overlap;
                     myPos.z += (dz / dist) * overlap;
+                    collisionDetected = true;
                 }
             }
+        }
+
+        // Handle collision avoidance AI
+        if (collisionDetected && !this.isColliding) {
+            this.isColliding = true;
+            this.pauseTimer = 0.5 + Math.random() * 0.5; // Pause for 0.5-1s
+            // New random angle to turn towards
+            this.avoidanceAngle = Math.random() * Math.PI * 2;
+        } else if (!collisionDetected) {
+            this.isColliding = false;
         }
     }
 
     update(delta, player) {
         if (!this.isDead) {
+            if (this.pauseTimer > 0) {
+                this.pauseTimer -= delta;
+            }
+
             this._collisionTimer -= delta;
             if (this._collisionTimer <= 0) {
                 this._collisionTimer = 0.05; // 20Hz collision update

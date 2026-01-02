@@ -289,16 +289,17 @@ export class WorldManager {
         if (this.biomeNoiseCache.has(numKey)) return this.biomeNoiseCache.get(numKey);
 
         // Shared noise logic for all systems
-        const scale = 0.02;
+        const scale = 0.005; // Reduced from 0.02 for much larger biomes
         const nx = x * scale, nz = z * scale;
         
-        // Simplex-like layered noise (octaves)
+        // Layered noise (octaves) with more variance
         const v1 = Math.sin(nx) + Math.sin(nz);
         const v2 = Math.sin(nx * 2.1 + nz * 0.5) * 0.5;
         const v3 = Math.cos(nx * 0.7 - nz * 1.3) * 0.25;
         const v4 = Math.sin(Math.sqrt(nx*nx + nz*nz) * 0.5) * 0.5;
+        const v5 = Math.sin(nx * 4.0) * Math.cos(nz * 4.0) * 0.125; // Extra detail layer
         
-        const combined = (v1 + v2 + v3 + v4 + 2) / 4;
+        const combined = (v1 + v2 + v3 + v4 + v5 + 2.125) / 4.25;
         const result = THREE.MathUtils.clamp(combined, 0, 1);
 
         if (this.biomeNoiseCache.size > 10000) {
@@ -367,33 +368,38 @@ export class WorldManager {
         const h = this.getBiomeNoise(x, z);
         let height = 0;
         
-        // Define height based on biome thresholds with continuous transitions
-        // 0.0 - 0.15: Swamp (Low, slightly submerged)
-        // 0.15 - 0.3: Dirt Plains (Flatlands)
-        // 0.3 - 0.45: Forest (Rolling hills)
-        // 0.45 - 0.6: Grassy Steppes (Steeper hills)
-        // 0.6 - 1.0: Frozen Peaks (Mountains)
-
+        // Define height based on biome thresholds with flat sections and continuous transitions
+        // Flat sections are achieved by using smootherstep or clamping within thresholds
+        
         if (h < 0.15) {
-            // Swamp: -1.0 to -0.25
-            height = -1.0 + (h / 0.15) * 0.75;
+            // Swamp: -1.0 to -0.25 (Flat-ish basin)
+            const t = h / 0.15;
+            const flatT = t * t * (3 - 2 * t); // smoothstep
+            height = -1.0 + flatT * 0.75;
         } else if (h < 0.3) {
-            // Plains: -0.25 to 0.5
-            height = -0.25 + ((h - 0.15) / 0.15) * 0.75;
+            // Plains: -0.25 to 0.5 (Very flat)
+            const t = (h - 0.15) / 0.15;
+            // Use a power function to keep it flatter for longer
+            const flatT = Math.pow(t, 2); 
+            height = -0.25 + flatT * 0.75;
         } else if (h < 0.45) {
-            // Forest: 0.5 to 3.0
-            height = 0.5 + ((h - 0.3) / 0.15) * 2.5;
+            // Forest: 0.5 to 3.0 (Rolling hills with flat spots)
+            const t = (h - 0.3) / 0.15;
+            const wave = Math.sin(t * Math.PI * 2) * 0.5;
+            height = 0.5 + t * 2.5 + wave;
         } else if (h < 0.6) {
-            // Steppes: 3.0 to 8.0
-            height = 3.0 + ((h - 0.45) / 0.15) * 5.0;
+            // Steppes: 3.0 to 8.0 (Steeper but stepped)
+            const t = (h - 0.45) / 0.15;
+            const steps = Math.floor(t * 3) / 3;
+            height = 3.0 + steps * 5.0 + (t - steps) * 2.0;
         } else {
-            // Peaks: 8.0 to 48.0 (exponential)
+            // Peaks: 8.0 to 48.0 (Exponential peaks with high variance)
             const peakH = (h - 0.6) / 0.4;
-            height = 8.0 + peakH * peakH * 40.0;
+            height = 8.0 + Math.pow(peakH, 2.5) * 40.0;
         }
 
         // Add fine detail noise for ground texture
-        const detail = (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.2;
+        const detail = (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.15;
         
         const finalHeight = height + detail;
         

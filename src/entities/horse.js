@@ -21,9 +21,11 @@ export class Horse {
         this.velocity = new THREE.Vector3();
         this.wanderAngle = Math.random() * Math.PI * 2;
         this.timer = Math.random() * 2;
-        this.state = 'idle'; // idle, wander, flee
+        this.state = 'idle'; // idle, wander, flee, mounted
+        this.mountedPlayer = null;
         this.moveSpeed = 4.5 * SCALE_FACTOR; // Horses are fast
         this.fleeSpeed = 14 * SCALE_FACTOR; // Very fast when fleeing
+        this.mountSpeed = 45 * SCALE_FACTOR; // Fast when mounted
         
         this.maxHealth = 5; // Hardy animals
         this.health = this.maxHealth;
@@ -217,6 +219,30 @@ export class Horse {
     }
 
     update(delta, player) {
+        if (this.state === 'mounted' && this.mountedPlayer) {
+            // Sync with player position and rotation
+            this.group.position.copy(this.mountedPlayer.mesh.position);
+            // Move horse slightly down so player sits on it
+            this.group.position.y -= 0.1 * SCALE_FACTOR; 
+            
+            this.group.rotation.y = this.mountedPlayer.mesh.rotation.y;
+            
+            // Animate based on player movement
+            const isMoving = Math.abs(this.mountedPlayer.playerPhysics.velocity.x) > 0.1 || 
+                           Math.abs(this.mountedPlayer.playerPhysics.velocity.z) > 0.1;
+            
+            if (isMoving) {
+                const t = performance.now() * 0.01;
+                const speedMult = this.mountedPlayer.input.run ? 4.0 : 2.0;
+                this.animateLegs(t * speedMult);
+                this.tail.rotation.z = Math.sin(t * 10) * 0.5;
+            } else {
+                this.legs.forEach(leg => leg.rotation.x = THREE.MathUtils.lerp(leg.rotation.x, 0, 5 * delta));
+                this.headGroup.rotation.x = Math.sin(performance.now() * 0.002) * 0.1;
+            }
+            return;
+        }
+
         if (this.isDead) {
             const floorY = this.shard.getTerrainHeight(this.group.position.x, this.group.position.z);
             if (this.group.position.y > floorY || this.velocity.y > 0) {

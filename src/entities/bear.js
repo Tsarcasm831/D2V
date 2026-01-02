@@ -28,6 +28,11 @@ export class Bear {
         this.maxHealth = 5 + Math.floor(this.level / 5);
         this.health = this.maxHealth;
 
+        // AI Collision avoidance state
+        this.isColliding = false;
+        this.pauseTimer = 0;
+        this.avoidanceAngle = 0;
+
         this._collisionTimer = 0;
         this._aiTimer = 0;
         this._tempVec1 = new THREE.Vector3();
@@ -223,6 +228,7 @@ export class Bear {
         }
 
         const myRadius = 1.0 * SCALE_FACTOR;
+        let collisionDetected = false;
 
         // Collision with obstacles (Resources/Buildings)
         const resources = this.shard.resources;
@@ -249,6 +255,7 @@ export class Bear {
                 const overlap = (minDist - dist);
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -273,6 +280,7 @@ export class Bear {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -296,6 +304,7 @@ export class Bear {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -316,8 +325,19 @@ export class Bear {
                     const overlap = (minDist - dist) * 0.5;
                     myPos.x += (dx / dist) * overlap;
                     myPos.z += (dz / dist) * overlap;
+                    collisionDetected = true;
                 }
             }
+        }
+
+        // Handle collision avoidance AI
+        if (collisionDetected && !this.isColliding) {
+            this.isColliding = true;
+            this.pauseTimer = 0.8 + Math.random() * 0.8; // Pause for 0.8-1.6s
+            // New random angle to turn towards
+            this.avoidanceAngle = Math.random() * Math.PI * 2;
+        } else if (!collisionDetected) {
+            this.isColliding = false;
         }
     }
 
@@ -340,6 +360,12 @@ export class Bear {
                 }
             }
             return;
+        }
+
+        if (this.pauseTimer > 0) {
+            this.pauseTimer -= delta;
+            // Still look towards where we want to go
+            this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.avoidanceAngle, 4 * delta);
         }
 
         this._aiTimer -= delta;
@@ -438,7 +464,10 @@ export class Bear {
                 }
             }
 
-            if (this.state === 'wander') {
+            if (this.state === 'wander' && this.pauseTimer <= 0) {
+                if (this.isColliding) {
+                    this.wanderAngle = this.avoidanceAngle;
+                }
                 this._tempVec1.set(Math.sin(this.wanderAngle), 0, Math.cos(this.wanderAngle));
                 this.group.position.addScaledVector(this._tempVec1, this.moveSpeed * delta);
                 this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.wanderAngle, 2 * delta);

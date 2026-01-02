@@ -197,6 +197,24 @@
         "defense": 1
       },
       "asset": "assets/gear/shorts.png"
+    },
+    "honey": {
+      "id": "honey",
+      "name": "Honey",
+      "type": "food",
+      "description": "Sweet, sticky honey.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 15
+    },
+    "beehive": {
+      "id": "beehive",
+      "name": "Beehive",
+      "type": "building",
+      "description": "A hive for bees to produce honey.",
+      "stackable": true,
+      "maxStack": 5,
+      "value": 25
     }
   }
 }

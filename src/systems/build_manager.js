@@ -25,7 +25,8 @@ export class BuildManager {
             { type: 'square_hut', name: 'Square Hut', cost: 20 },
             { type: 'long_tavern', name: 'Long Tavern', cost: 100 },
             { type: 'grail_silo', name: 'Grail Silo', cost: 120 },
-            { type: 'crop_plot', name: 'Crop Plot', cost: 2 }
+            { type: 'crop_plot', name: 'Crop Plot', cost: 2 },
+            { type: 'beehive', name: 'Beehive', cost: 5 }
         ];
     }
 
@@ -223,6 +224,11 @@ export class BuildManager {
                 else if (i === 3) { border.position.x = -0.95; border.rotation.y = Math.PI / 2; }
                 this.buildGhost.add(border);
             }
+        } else if (type === 'beehive') {
+            const woodGeo = new THREE.BoxGeometry(0.6, 0.8, 0.6);
+            const hive = new THREE.Mesh(woodGeo, ghostMat);
+            hive.position.y = 0.4;
+            this.buildGhost.add(hive);
         }
         this.game.scene.add(this.buildGhost);
     }
@@ -288,7 +294,7 @@ export class BuildManager {
             posZ = this.verifiedPos.z;
             finalRotation = this.verifiedRotation;
         } else {
-            if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot') {
+            if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot' || type === 'beehive') {
                 posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
                 posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
             } else {
@@ -392,7 +398,7 @@ export class BuildManager {
 
             if (mousePos) {
                 const type = this.buildOptions[this.selectedBuildIndex].type;
-                if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot') {
+                if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot' || type === 'beehive') {
                     posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
                     posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
                 } else {

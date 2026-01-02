@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
 const TICK_RATE = 20;
-const MAX_PLAYERS_PER_ROOM = 2;
+const MAX_PLAYERS_PER_ROOM = 4; // Increased from 2 to 4 to allow more overhead during testing and re-joins
 
 // Mime types for static file serving
 const MIME_TYPES = {
@@ -96,7 +96,7 @@ const wss = new WebSocketServer({ server });
 const rooms = new Map();
 
 server.listen(PORT, () => {
-    console.log(`WebSocket server started on port ${PORT}`);
+    console.log(`WebSocket server started on port ${PORT} [Build: ${new Date().toISOString()}]`);
 });
 
 function getOrCreateRoom(roomCode) {
@@ -119,6 +119,9 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
+            if (data.type !== 'input' && Math.random() < 0.1) {
+                console.log(`[Message] From ${playerId}: ${data.type}`);
+            }
 
             switch (data.type) {
                 case 'join':
@@ -153,15 +156,25 @@ wss.on('connection', (ws) => {
     }
 
     function handleJoin(roomCode, requestedUsername, characterData) {
-        const room = getOrCreateRoom(roomCode);
+        // Normalize room code to avoid 'Alpha' vs 'alpha' issues
+        const normalizedRoomCode = (roomCode || 'Alpha').trim();
         
+        // Clear room code if we're joining a new one to prevent close events
+        // from the old room state being processed on the new connection logic.
+        currentRoomCode = null; 
+
+        const room = getOrCreateRoom(normalizedRoomCode);
+        
+        // Ensure player is unique by playerId, allowing multiple players with same username.
+        // We explicitly do NOT remove existing sessions by username here anymore.
+
         if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
+            console.log(`[${new Date().toISOString()}] Room ${normalizedRoomCode} is full. Rejecting ${playerId}`);
             ws.send(JSON.stringify({ type: 'roomFull' }));
-            ws.close();
             return;
         }
 
-        currentRoomCode = roomCode;
+        currentRoomCode = normalizedRoomCode;
         username = requestedUsername || "Traveler";
         
         // Initialize player state
@@ -177,19 +190,35 @@ wss.on('connection', (ws) => {
             isDead: false,
             weapon: 'none',
             lastSeen: Date.now(),
-            ws: ws // Keep reference to socket for direct messages if needed
+            ws: ws
         });
 
         // Send welcome packet
         ws.send(JSON.stringify({
             type: 'welcome',
             id: playerId,
-            room: roomCode,
+            room: normalizedRoomCode,
             tickRate: TICK_RATE,
             seed: room.seed
         }));
 
-        console.log(`Player ${username} (${playerId}) joined room: ${roomCode}`);
+        console.log(`[${new Date().toISOString()}] Player ${username} (${playerId}) joined room: ${normalizedRoomCode}. Total players: ${room.players.size}`);
+
+        // Announce join to others
+        broadcastToRoom(normalizedRoomCode, {
+            type: 'event',
+            kind: 'playerJoined',
+            username: username,
+            id: playerId
+        }, playerId);
+
+        // Welcome the player themselves via chat
+        ws.send(JSON.stringify({
+            type: 'event',
+            kind: 'chat',
+            username: 'System',
+            text: `Welcome to the realm, ${username}!`
+        }));
     }
 
     function handleInput(data) {
@@ -240,17 +269,33 @@ wss.on('connection', (ws) => {
     }
 
     ws.on('close', () => {
-        if (currentRoomCode) {
-            const room = rooms.get(currentRoomCode);
-            if (room) {
-                room.players.delete(playerId);
-                console.log(`Player ${username} (${playerId}) left room: ${currentRoomCode}`);
-                if (room.players.size === 0) {
-                    rooms.delete(currentRoomCode);
-                    console.log(`Room ${currentRoomCode} deleted (empty)`);
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] Socket closed for player ${playerId} (${username})`);
+        
+        // Use a short delay before cleanup to allow for rapid reconnects
+        // which might use the same playerId or username.
+        setTimeout(() => {
+            if (currentRoomCode) {
+                const room = rooms.get(currentRoomCode);
+                if (room) {
+                    const player = room.players.get(playerId);
+                    
+                    // Only remove if this EXACT socket is still the active one
+                    // and it hasn't been replaced by a newer connection
+                    if (player && player.ws === ws) {
+                        room.players.delete(playerId);
+                        console.log(`[${timestamp}] Player ${username} (${playerId}) officially left room: ${currentRoomCode}. Remaining: ${room.players.size}`);
+                        
+                        if (room.players.size === 0) {
+                            rooms.delete(currentRoomCode);
+                            console.log(`[${timestamp}] Room ${currentRoomCode} deleted (empty)`);
+                        }
+                    } else {
+                        console.log(`[${timestamp}] Close event for ${username} (${playerId}) ignored: newer socket is active.`);
+                    }
                 }
             }
-        }
+        }, 1000);
     });
 });
 
@@ -259,11 +304,17 @@ function broadcastToRoom(roomCode, message, excludeId = null) {
     if (!room) return;
 
     const payload = JSON.stringify(message);
+    let count = 0;
     room.players.forEach((player, id) => {
         if (id !== excludeId && player.ws.readyState === 1) {
             player.ws.send(payload);
+            count++;
         }
     });
+    
+    if (message.kind === 'playerJoined') {
+        console.log(`[${new Date().toISOString()}] Broadcasted playerJoined for ${message.username} to ${count} players in room ${roomCode}`);
+    }
 }
 
 // Tick loop for snapshots
@@ -273,7 +324,24 @@ setInterval(() => {
         const playersData = {};
         room.players.forEach((p, id) => {
             // Basic timeout cleanup if needed
-            if (now - p.lastSeen > 10000) {
+            // Increased to 30 seconds to account for long initial loading/map caching
+            if (now - p.lastSeen > 30000) {
+                console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) timed out (last seen ${now - p.lastSeen}ms ago)`);
+                // Use the same delayed cleanup logic as socket close
+                setTimeout(() => {
+                    const currentRoom = rooms.get(roomCode);
+                    if (currentRoom) {
+                        const currentPlayer = currentRoom.players.get(id);
+                        if (currentPlayer && currentPlayer.ws === p.ws) {
+                            currentRoom.players.delete(id);
+                            console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) removed due to timeout.`);
+                            if (currentRoom.players.size === 0) {
+                                rooms.delete(roomCode);
+                                console.log(`[${new Date().toISOString()}] Room ${roomCode} deleted (empty after timeout)`);
+                            }
+                        }
+                    }
+                }, 1000);
                 p.ws.close();
                 return;
             }

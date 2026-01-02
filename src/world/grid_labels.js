@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+import { SHARD_SIZE } from './world_bounds.js';
+
 /**
  * Manages unique coordinate labels for the world grid.
  * Designed to be lag-free by using an object pool and texture caching.
@@ -27,23 +29,30 @@ export class GridLabelManager {
         if (this.textureCache.has(text)) return this.textureCache.get(text);
         
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 64;
+        canvas.width = 160;
+        canvas.height = 80;
         const ctx = canvas.getContext('2d');
         
         // Draw a subtle background for the label
         ctx.fillStyle = 'rgba(10, 20, 40, 0.4)';
-        const pad = 10;
+        const pad = 5;
         ctx.beginPath();
-        ctx.roundRect(pad, pad, 128 - pad * 2, 64 - pad * 2, 8);
+        ctx.roundRect(pad, pad, 160 - pad * 2, 80 - pad * 2, 8);
         ctx.fill();
         
         // Draw the text
-        ctx.font = 'bold 22px "Courier New", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        
+        // Primary text (Grid Coords)
+        ctx.font = 'bold 20px "Courier New", monospace';
         ctx.fillStyle = '#66ccff'; // Light blue color to match grid
-        ctx.fillText(text, 64, 32);
+        ctx.fillText(text.split('\n')[0], 80, 25);
+        
+        // Secondary text (Shard Coords)
+        ctx.font = '16px "Courier New", monospace';
+        ctx.fillStyle = '#aaaaaa'; 
+        ctx.fillText(text.split('\n')[1], 80, 55);
         
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -95,8 +104,12 @@ export class GridLabelManager {
                 const dz = squareCenterZ - playerPos.z;
                 if (dx * dx + dz * dz > rangeSq) continue;
 
-                // Create a unique label based on grid index
-                const labelText = `${ix},${iz}`;
+                // Calculate shard coordinates
+                const sx = Math.floor((squareCenterX + SHARD_SIZE / 2) / SHARD_SIZE);
+                const sz = Math.floor((squareCenterZ + SHARD_SIZE / 2) / SHARD_SIZE);
+
+                // Create a unique label based on grid index and shard index
+                const labelText = `${ix},${iz}\n[${sx},${sz}]`;
                 
                 let sprite;
                 if (activeIndex < this.pool.length) {
@@ -109,7 +122,7 @@ export class GridLabelManager {
                         depthTest: true
                     });
                     sprite = new THREE.Sprite(mat);
-                    sprite.scale.set(1.4, 0.7, 1);
+                    sprite.scale.set(1.6, 0.8, 1);
                     this.group.add(sprite);
                     this.pool.push(sprite);
                 }

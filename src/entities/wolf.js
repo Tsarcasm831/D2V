@@ -24,6 +24,11 @@ export class Wolf {
         this.state = 'idle'; // idle, wander
         this.moveSpeed = 4 * SCALE_FACTOR;
 
+        // AI Collision avoidance state
+        this.isColliding = false;
+        this.pauseTimer = 0;
+        this.avoidanceAngle = 0;
+
         this.maxHealth = 3 + Math.floor(this.level / 10);
         this.health = this.maxHealth;
 
@@ -236,7 +241,7 @@ export class Wolf {
         }
 
         const myRadius = 0.6 * SCALE_FACTOR;
-        const myRadiusSq = myRadius * myRadius;
+        let collisionDetected = false;
 
         // Collision with obstacles (Resources/Buildings) - only check if close
         const resources = this.shard.resources;
@@ -265,6 +270,7 @@ export class Wolf {
                 const overlap = (minDist - dist);
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -289,6 +295,7 @@ export class Wolf {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -313,6 +320,7 @@ export class Wolf {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -332,8 +340,19 @@ export class Wolf {
                     const overlap = (minDist - dist) * 0.5;
                     myPos.x += (dx / dist) * overlap;
                     myPos.z += (dz / dist) * overlap;
+                    collisionDetected = true;
                 }
             }
+        }
+
+        // Handle collision avoidance AI
+        if (collisionDetected && !this.isColliding) {
+            this.isColliding = true;
+            this.pauseTimer = 0.5 + Math.random() * 0.5; // Pause for 0.5-1s
+            // New random angle to turn towards
+            this.avoidanceAngle = Math.random() * Math.PI * 2;
+        } else if (!collisionDetected) {
+            this.isColliding = false;
         }
     }
 
@@ -352,6 +371,12 @@ export class Wolf {
                 }
             }
             return;
+        }
+
+        if (this.pauseTimer > 0) {
+            this.pauseTimer -= delta;
+            // Still look towards where we want to go
+            this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.avoidanceAngle, 4 * delta);
         }
 
         this._aiTimer -= delta;
@@ -397,8 +422,6 @@ export class Wolf {
     }
 
     updateMovement(delta, player) {
-        this.timer -= delta;
-
         if (this.state === 'lunge') {
             const p = 1.0 - (this.timer / 0.8);
             if (p < 0.2) {
@@ -430,6 +453,13 @@ export class Wolf {
                 const moveVec = this._tempVec1.set(Math.sin(targetRot), 0, Math.cos(targetRot));
                 this.group.position.addScaledVector(moveVec, this.moveSpeed * 2.5 * delta);
             }
+        } else if (this.state === 'wander' && this.pauseTimer <= 0) {
+            if (this.isColliding) {
+                this.wanderAngle = this.avoidanceAngle;
+            }
+            const moveVec = this._tempVec1.set(Math.sin(this.wanderAngle), 0, Math.cos(this.wanderAngle));
+            this.group.position.addScaledVector(moveVec, this.moveSpeed * 0.5 * delta);
+            this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.wanderAngle, 3 * delta);
         } else {
             if (this.timer <= 0) {
                 if (this.state === 'idle') {
@@ -440,12 +470,6 @@ export class Wolf {
                     this.state = 'idle';
                     this.timer = 1 + Math.random() * 2;
                 }
-            }
-
-            if (this.state === 'wander') {
-                const moveVec = this._tempVec1.set(Math.sin(this.wanderAngle), 0, Math.cos(this.wanderAngle));
-                this.group.position.addScaledVector(moveVec, this.moveSpeed * delta);
-                this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.wanderAngle, 5 * delta);
             }
         }
     }

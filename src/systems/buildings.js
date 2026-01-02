@@ -113,6 +113,14 @@ export class Building {
     }
 
     harvest() {
+        if (this.isBeehive) {
+            if (this.readyToHarvest) {
+                this.readyToHarvest = false;
+                this.lastHarvestTime = Date.now();
+                return [{ itemId: 'honey', count: 1 }];
+            }
+            return null;
+        }
         if (!this.isCropPlot || !this.plantedCrop) return null;
 
         const wm = this.shard.worldManager;
@@ -596,12 +604,46 @@ export class Building {
             body.receiveShadow = true;
             this.group.add(body);
             
-            // Slanted roof
-            const roofGeo = new THREE.CylinderGeometry(0.1, depth * 0.7, width, 4);
+            // Slanted roof (Prism shape)
+            const roofHeight = 3.0 * SCALE_FACTOR;
+            const roofGeo = new THREE.BufferGeometry();
+            const roofHalfWidth = width / 2 + 0.5 * SCALE_FACTOR;
+            const roofHalfDepth = depth / 2 + 0.5 * SCALE_FACTOR;
+            
+            const vertices = new Float32Array([
+                // Front triangle
+                -roofHalfWidth, 0, roofHalfDepth,
+                 roofHalfWidth, 0, roofHalfDepth,
+                 0, roofHeight, 0,
+                // Back triangle
+                -roofHalfWidth, 0, -roofHalfDepth,
+                 roofHalfWidth, 0, -roofHalfDepth,
+                 0, roofHeight, 0,
+                // Left side
+                -roofHalfWidth, 0, roofHalfDepth,
+                 0, roofHeight, 0,
+                -roofHalfWidth, 0, -roofHalfDepth,
+                // Right side
+                roofHalfWidth, 0, roofHalfDepth,
+                0, roofHeight, 0,
+                roofHalfWidth, 0, -roofHalfDepth
+            ]);
+            
+            const indices = [
+                0, 1, 2, // Front
+                3, 5, 4, // Back
+                6, 7, 8, // Left
+                9, 11, 10, // Right
+                0, 2, 3, 2, 5, 3, // Left Slope
+                1, 4, 2, 4, 5, 2  // Right Slope
+            ];
+            
+            roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            roofGeo.setIndex(indices);
+            roofGeo.computeVertexNormals();
+
             const roof = new THREE.Mesh(roofGeo, roofMat);
-            roof.position.y = height + (height * 0.2);
-            roof.rotation.z = Math.PI / 2;
-            roof.rotation.y = Math.PI / 4;
+            roof.position.y = height;
             roof.castShadow = true;
             this.group.add(roof);
             
@@ -656,6 +698,138 @@ export class Building {
                 this.group.add(border);
             }
             this.radius = 1.0;
+        } else if (this.type === 'well') {
+            const stoneMat = wm ? wm.getSharedMaterial('standard', { color: 0x808080 }) : new THREE.MeshStandardMaterial({ color: 0x808080 });
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const waterMat = new THREE.MeshStandardMaterial({ color: 0x0077be, roughness: 0.1, metalness: 0.4, transparent: true, opacity: 0.8 });
+
+            const baseGeo = wm ? wm.getSharedGeometry('cylinder', 1.2, 1.2, 1.0, 12) : new THREE.CylinderGeometry(1.2, 1.2, 1.0, 12);
+            const base = new THREE.Mesh(baseGeo, stoneMat);
+            base.position.y = 0.5;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            this.group.add(base);
+
+            const waterGeo = wm ? wm.getSharedGeometry('cylinder', 1.0, 1.0, 0.1, 12) : new THREE.CylinderGeometry(1.0, 1.0, 0.1, 12);
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            water.position.y = 0.4;
+            this.group.add(water);
+
+            const poleGeo = wm ? wm.getSharedGeometry('cylinder', 0.1, 0.1, 2.5, 8) : new THREE.CylinderGeometry(0.1, 0.1, 2.5, 8);
+            for (let i = 0; i < 2; i++) {
+                const pole = new THREE.Mesh(poleGeo, woodMat);
+                pole.position.set(i === 0 ? -1.1 : 1.1, 1.25, 0);
+                this.group.add(pole);
+            }
+
+            const roofGeo = wm ? wm.getSharedGeometry('cone', 1.5, 1.0, 4) : new THREE.ConeGeometry(1.5, 1.0, 4);
+            const roof = new THREE.Mesh(roofGeo, woodMat);
+            roof.position.y = 3.0;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            this.group.add(roof);
+
+            this.radius = 1.5;
+        } else if (this.type === 'blacksmith') {
+            const stoneMat = wm ? wm.getSharedMaterial('standard', { color: 0x444444 }) : new THREE.MeshStandardMaterial({ color: 0x444444 });
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const metalMat = wm ? wm.getSharedMaterial('standard', { color: 0x222222, metalness: 0.8 }) : new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 });
+
+            const size = 8.0 * SCALE_FACTOR;
+            const height = 3.0 * SCALE_FACTOR;
+            const bodyGeo = wm ? wm.getSharedGeometry('box', size, height, size) : new THREE.BoxGeometry(size, height, size);
+            const body = new THREE.Mesh(bodyGeo, stoneMat);
+            body.position.y = height / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            this.group.add(body);
+
+            const chimneyGeo = wm ? wm.getSharedGeometry('box', 1.5, height * 1.5, 1.5) : new THREE.BoxGeometry(1.5, height * 1.5, 1.5);
+            const chimney = new THREE.Mesh(chimneyGeo, stoneMat);
+            chimney.position.set(size / 3, height * 0.75, size / 3);
+            this.group.add(chimney);
+
+            const anvilGeo = wm ? wm.getSharedGeometry('box', 0.8, 0.6, 1.2) : new THREE.BoxGeometry(0.8, 0.6, 1.2);
+            const anvil = new THREE.Mesh(anvilGeo, metalMat);
+            anvil.position.set(-size / 4, 0.3, size / 4);
+            this.group.add(anvil);
+
+            this.radius = size / 2;
+        } else if (this.type === 'windmill') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x8b4513 }) : new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+            const sailMat = wm ? wm.getSharedMaterial('standard', { color: 0xffffff }) : new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+            const radius = 3.0 * SCALE_FACTOR;
+            const height = 10.0 * SCALE_FACTOR;
+            const bodyGeo = wm ? wm.getSharedGeometry('cylinder', radius * 0.7, radius, height, 8) : new THREE.CylinderGeometry(radius * 0.7, radius, height, 8);
+            const body = new THREE.Mesh(bodyGeo, woodMat);
+            body.position.y = height / 2;
+            body.castShadow = true;
+            this.group.add(body);
+
+            const sailsGroup = new THREE.Group();
+            sailsGroup.position.y = height * 0.8;
+            sailsGroup.position.z = radius * 0.8;
+            this.group.add(sailsGroup);
+
+            const sailGeo = wm ? wm.getSharedGeometry('box', 0.5, 6.0, 0.1) : new THREE.BoxGeometry(0.5, 6.0, 0.1);
+            for (let i = 0; i < 4; i++) {
+                const sail = new THREE.Mesh(sailGeo, sailMat);
+                sail.rotation.z = (i * Math.PI) / 2;
+                sail.position.y = Math.sin((i * Math.PI) / 2) * 3.0;
+                sail.position.x = Math.cos((i * Math.PI) / 2) * 3.0;
+                sailsGroup.add(sail);
+            }
+
+            this.update = (delta) => {
+                sailsGroup.rotation.z += delta * 0.5;
+            };
+
+            this.radius = radius;
+        } else if (this.type === 'guard_tower') {
+            const stoneMat = wm ? wm.getSharedMaterial('standard', { color: 0x777777 }) : new THREE.MeshStandardMaterial({ color: 0x777777 });
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x3e2723 }) : new THREE.MeshStandardMaterial({ color: 0x3e2723 });
+
+            const radius = 2.0 * SCALE_FACTOR;
+            const height = 12.0 * SCALE_FACTOR;
+            const bodyGeo = wm ? wm.getSharedGeometry('cylinder', radius, radius, height, 8) : new THREE.CylinderGeometry(radius, radius, height, 8);
+            const body = new THREE.Mesh(bodyGeo, stoneMat);
+            body.position.y = height / 2;
+            body.castShadow = true;
+            this.group.add(body);
+
+            const topGeo = wm ? wm.getSharedGeometry('box', radius * 2.5, 1.0, radius * 2.5) : new THREE.BoxGeometry(radius * 2.5, 1.0, radius * 2.5);
+            const top = new THREE.Mesh(topGeo, stoneMat);
+            top.position.y = height;
+            this.group.add(top);
+
+            const roofGeo = wm ? wm.getSharedGeometry('cone', radius * 1.8, 3.0, 4) : new THREE.ConeGeometry(radius * 1.8, 3.0, 4);
+            const roof = new THREE.Mesh(roofGeo, woodMat);
+            roof.position.y = height + 2.5;
+            roof.rotation.y = Math.PI / 4;
+            this.group.add(roof);
+
+            this.radius = radius * 1.25;
+        } else if (this.type === 'stable') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const strawMat = wm ? wm.getSharedMaterial('standard', { color: 0xd2b48c }) : new THREE.MeshStandardMaterial({ color: 0xd2b48c });
+
+            const width = 10.0 * SCALE_FACTOR;
+            const depth = 8.0 * SCALE_FACTOR;
+            const height = 4.0 * SCALE_FACTOR;
+
+            const bodyGeo = wm ? wm.getSharedGeometry('box', width, height, depth) : new THREE.BoxGeometry(width, height, depth);
+            const body = new THREE.Mesh(bodyGeo, woodMat);
+            body.position.y = height / 2;
+            body.castShadow = true;
+            this.group.add(body);
+
+            const roofGeo = wm ? wm.getSharedGeometry('box', width * 1.1, 0.5, depth * 1.1) : new THREE.BoxGeometry(width * 1.1, 0.5, depth * 1.1);
+            const roof = new THREE.Mesh(roofGeo, strawMat);
+            roof.position.y = height;
+            this.group.add(roof);
+
+            this.radius = width / 2;
         }
     }
 

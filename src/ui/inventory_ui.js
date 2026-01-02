@@ -1,4 +1,10 @@
 import { GoogleGenAI } from "https://esm.sh/@google/genai@^1.34.0";
+import * as THREE from 'three';
+import { createPlayerMesh } from '../entities/player_mesh.js';
+import { PlayerAnimator } from '../entities/player_animator.js';
+import { attachShorts } from '../items/shorts.js';
+import { attachShirt } from '../items/shirt.js';
+import * as gearFns from '../items/gear.js';
 
 const ItemRarity = {
   NORMAL: 'Normal',
@@ -77,6 +83,15 @@ export class InventoryUI {
     this.tooltipEl = document.getElementById('tooltip');
     this.container = null; // Will be set after first render
     
+    // Preview Scene State
+    this.previewScene = null;
+    this.previewCamera = null;
+    this.previewRenderer = null;
+    this.previewAnimator = null;
+    this.currentPreviewMesh = null;
+    this.lastUpdateTime = performance.now();
+    this.animationFrameId = null;
+    
     const metaEnv = window.importMetaEnv || {};
     const apiKey = metaEnv.GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || '';
     if (apiKey) {
@@ -114,15 +129,12 @@ export class InventoryUI {
     const newDisplay = isVisible ? 'none' : 'flex';
     wrapper.style.display = newDisplay;
     
-    // Explicitly handle reset button visibility
-    const resetBtn = document.getElementById('reset-character-btn');
-    if (resetBtn) {
-        resetBtn.style.display = newDisplay === 'flex' ? 'none' : 'block';
-    }
-
-    if (!isVisible) {
+    if (newDisplay === 'none') {
+      this.stopPreviewAnimation();
+    } else {
       this.syncWithPlayer();
       this.render();
+      this.startPreviewAnimation();
     }
   }
 
@@ -193,41 +205,41 @@ export class InventoryUI {
 
   getRarityHeaderColor(rarity) {
     switch (rarity) {
-      case ItemRarity.MAGIC: return 'text-blue-400';
-      case ItemRarity.RARE: return 'text-[#fcd34d]';
-      case ItemRarity.UNIQUE: return 'text-[#fbbf24]';
-      default: return 'text-neutral-200';
+      case ItemRarity.MAGIC: return 'text-magic';
+      case ItemRarity.RARE: return 'text-rare';
+      case ItemRarity.UNIQUE: return 'text-unique';
+      default: return 'text-normal';
     }
   }
 
   getBorderColor(rarity) {
     switch (rarity) {
-      case ItemRarity.MAGIC: return 'border-blue-900/60';
-      case ItemRarity.RARE: return 'border-yellow-900/60';
-      case ItemRarity.UNIQUE: return 'border-orange-900/60';
-      default: return 'border-neutral-800';
+      case ItemRarity.MAGIC: return 'border-magic';
+      case ItemRarity.RARE: return 'border-rare';
+      case ItemRarity.UNIQUE: return 'border-unique';
+      default: return 'border-normal';
     }
   }
 
   renderTooltipContent(item) {
     const isGeneric = !item.rarity;
-    const headerColor = isGeneric ? 'text-neutral-200' : this.getRarityHeaderColor(item.rarity);
+    const headerColor = isGeneric ? 'text-normal' : this.getRarityHeaderColor(item.rarity);
     return `
-      <div class="py-3 px-4 border-b border-white/5 bg-gradient-to-r from-white/5 to-transparent">
-        <h3 class="text-lg font-cinzel font-bold ${headerColor} uppercase tracking-wider text-center drop-shadow-sm">
+      <div class="tooltip-header">
+        <h3 class="tooltip-title ${headerColor}">
           ${escapeHtml(item.name)}
         </h3>
         ${!isGeneric ? `
-          <div class="flex justify-center items-center gap-2 mt-1">
-            <div class="h-[1px] w-8 bg-current opacity-30"></div>
-            <span class="text-[10px] uppercase font-cinzel text-neutral-400 tracking-widest">${escapeHtml(item.rarity)} ${escapeHtml(item.type)}</span>
-            <div class="h-[1px] w-8 bg-current opacity-30"></div>
+          <div class="tooltip-rarity-row">
+            <div class="tooltip-rarity-line"></div>
+            <span class="tooltip-rarity-text">${escapeHtml(item.rarity)} ${escapeHtml(item.type)}</span>
+            <div class="tooltip-rarity-line"></div>
           </div>
         ` : ''}
       </div>
-      <div class="p-4 space-y-4">
-        ${item.description ? `<p class="text-[13px] text-neutral-400 italic font-serif leading-relaxed">${escapeHtml(item.description)}</p>` : ''}
-        ${item.lore ? `<p class="text-[13px] text-[#c8aa6e] opacity-60 italic font-serif leading-relaxed">"${escapeHtml(item.lore)}"</p>` : ''}
+      <div class="tooltip-body">
+        ${item.description ? `<p class="tooltip-description">${escapeHtml(item.description)}</p>` : ''}
+        ${item.lore ? `<p class="tooltip-lore">"${escapeHtml(item.lore)}"</p>` : ''}
       </div>
     `;
   }
@@ -237,8 +249,8 @@ export class InventoryUI {
     this.state.tooltipItemId = item.id;
     this.state.tooltipX = x;
     this.state.tooltipY = y;
-    const borderClass = item.rarity ? this.getBorderColor(item.rarity) : 'border-neutral-800';
-    this.tooltipEl.className = `fixed z-[100] pointer-events-none p-0 min-w-[280px] max-w-[340px] border shadow-[0_20px_60px_rgba(0,0,0,1)] bg-[#080808]/95 backdrop-blur-md transition-opacity duration-150 ${borderClass}`;
+    const borderClass = item.rarity ? this.getBorderColor(item.rarity) : 'border-normal';
+    this.tooltipEl.className = `tooltip-premium ${borderClass}`;
     this.tooltipEl.innerHTML = this.renderTooltipContent(item);
     this.tooltipEl.style.display = 'block';
     this.tooltipEl.style.opacity = '1';
@@ -266,7 +278,7 @@ export class InventoryUI {
   renderEquipSlot({ slotKey, item, className, label }) {
     const hasItem = !!item;
     return `
-      <div class="relative slot-border flex items-center justify-center cursor-pointer group rounded-sm ${className} ${hasItem ? 'bg-[#050505]' : 'bg-[#080808]'}"
+      <div class="relative slot-border flex items-center justify-center cursor-pointer group ${className} ${hasItem ? 'bg-[#050505]' : 'bg-[#080808]'}"
         ${hasItem ? `data-action="unequip" data-slot="${slotKey}" data-tooltip-id="${item.id}"` : ''}>
         ${!hasItem && label ? `<span class="absolute top-1 left-0 w-full text-center text-[8px] uppercase font-cinzel text-neutral-600 tracking-widest font-semibold pointer-events-none opacity-60">${escapeHtml(label)}</span>` : ''}
         ${hasItem ? `<img src="${item.icon}" class="w-full h-full object-contain p-1" />` : ''}
@@ -276,13 +288,14 @@ export class InventoryUI {
 
   renderInventoryContent() {
     const totalCells = INVENTORY_ROWS * INVENTORY_COLS;
-    const cellClass = 'relative group w-[48px] h-[48px] md:w-[50px] md:h-[50px] bg-[#0a0a0a] hover:bg-[#111] transition-colors flex items-center justify-center';
+    const cellClass = 'inventory-slot-premium';
+    const unlockedCellsCount = 3 * INVENTORY_COLS; // 3 rows unlocked
 
     if (this.state.activeTab === 'CURRENCY') {
       const currencyCells = CURRENCY_ITEMS.map((curr) => (
         `<div class="${cellClass}" data-tooltip-id="${curr.id}">
           <div class="w-full h-full p-2">
-            <img src="${curr.icon}" class="w-full h-full object-contain transition-transform group-hover:scale-110" alt="${escapeHtml(curr.name)}" />
+            <img src="${curr.icon}" class="w-full h-full object-contain transition-transform" alt="${escapeHtml(curr.name)}" />
           </div>
           <div class="absolute bottom-0.5 right-1 text-[9px] text-[#fbbf24] font-bold font-cinzel drop-shadow-md">20</div>
         </div>`
@@ -294,7 +307,7 @@ export class InventoryUI {
         .join('');
 
       return `
-        <div class="animate-fade-in bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+        <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
           <div class="new-inventory-grid">
             ${currencyCells}
             ${emptyCells}
@@ -307,7 +320,7 @@ export class InventoryUI {
       const gemCells = GEM_ITEMS.map((gem) => (
         `<div class="${cellClass}" data-tooltip-id="${gem.id}">
           <div class="w-full h-full p-2">
-            <img src="${gem.icon}" class="w-full h-full object-contain transition-transform group-hover:scale-110 brightness-110" alt="${escapeHtml(gem.name)}" />
+            <img src="${gem.icon}" class="w-full h-full object-contain transition-transform brightness-110" alt="${escapeHtml(gem.name)}" />
           </div>
         </div>`
       )).join('');
@@ -318,7 +331,7 @@ export class InventoryUI {
         .join('');
 
       return `
-        <div class="animate-fade-in bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+        <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
           <div class="new-inventory-grid">
             ${gemCells}
             ${emptyCells}
@@ -330,14 +343,21 @@ export class InventoryUI {
     const cells = Array.from({ length: totalCells }).map((_, idx) => {
       const itemId = this.state.inventoryIds[idx];
       const item = this.getItemById(itemId);
+      const isLocked = idx >= unlockedCellsCount;
 
       return `
-        <div class="${cellClass}">
-          ${!item ? `
+        <div class="${cellClass} ${isLocked ? 'locked-slot' : ''}">
+          ${!item && !isLocked ? `
             <div class="absolute inset-0 opacity-[0.03] pointer-events-none">
               <svg width="100%" height="100%" viewBox="0 0 10 10">
                 <path d="M0 0 L10 10" stroke="currentColor" stroke-width="0.5"/>
               </svg>
+            </div>
+          ` : ''}
+
+          ${isLocked && !item ? `
+            <div class="absolute inset-0 flex items-center justify-center opacity-20">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-1.24-5-4-5s-4 2.24-4 5v2H7c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71.83-3.1 3.1-3.1 2.27 0 3.1 1.39 3.1 3.1v2z"/></svg>
             </div>
           ` : ''}
 
@@ -348,8 +368,8 @@ export class InventoryUI {
               data-item-id="${item.id}"
               data-tooltip-id="${item.id}"
             >
-              <img src="${item.icon}" class="w-full h-full object-contain rounded-sm saturate-[0.85] group-hover:saturate-100 transition-all drop-shadow-sm" alt="${escapeHtml(item.name)}" />
-              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${item.rarity === ItemRarity.UNIQUE ? 'bg-orange-600' : item.rarity === ItemRarity.RARE ? 'bg-yellow-500' : item.rarity === ItemRarity.MAGIC ? 'bg-blue-600' : 'bg-transparent'}"></div>
+              <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm" alt="${escapeHtml(item.name)}" />
+              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${item.rarity === ItemRarity.UNIQUE ? 'bg-unique' : item.rarity === ItemRarity.RARE ? 'bg-rare' : item.rarity === ItemRarity.MAGIC ? 'bg-magic' : 'bg-transparent'}"></div>
             </div>
           ` : ''}
         </div>
@@ -357,12 +377,133 @@ export class InventoryUI {
     }).join('');
 
     return `
-      <div class="animate-fade-in bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+      <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
         <div class="new-inventory-grid">
           ${cells}
         </div>
       </div>
     `;
+  }
+
+  setupPreviewScene() {
+    const container = document.getElementById('preview-canvas-container');
+    if (!container) return;
+
+    // Dispose old renderer if it exists
+    if (this.previewRenderer) {
+      this.previewRenderer.dispose();
+      if (this.previewRenderer.domElement.parentElement) {
+        this.previewRenderer.domElement.parentElement.removeChild(this.previewRenderer.domElement);
+      }
+    }
+
+    const width = container.clientWidth || 300;
+    const height = container.clientHeight || 450;
+
+    this.previewScene = new THREE.Scene();
+    this.previewCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    this.previewCamera.position.set(0, 1.2, 3.5);
+    this.previewCamera.lookAt(0, 1.0, 0);
+
+    this.previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.previewRenderer.setSize(width, height);
+    this.previewRenderer.setPixelRatio(window.devicePixelRatio);
+    this.previewRenderer.setClearColor(0x000000, 0);
+    container.appendChild(this.previewRenderer.domElement);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    this.previewScene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+    sun.position.set(5, 5, 5);
+    this.previewScene.add(sun);
+
+    this.updatePreviewMesh();
+  }
+
+  updatePreviewMesh() {
+    if (!this.previewScene || !this.player) return;
+
+    if (this.currentPreviewMesh) {
+      this.previewScene.remove(this.currentPreviewMesh);
+    }
+
+    const charData = this.player.characterData || {
+      bodyType: 'male',
+      skinColor: '#ffdbac',
+      eyeColor: '#333333',
+      shirtColor: '#ffffff',
+      shirtPattern: 'none'
+    };
+
+    const { mesh, parts } = createPlayerMesh(charData);
+    this.currentPreviewMesh = mesh;
+    this.currentPreviewMesh.position.y = 0;
+    this.previewScene.add(this.currentPreviewMesh);
+
+    // Attach base clothing
+    attachShorts(parts, charData);
+    attachShirt(parts, charData);
+
+    // Attach currently equipped items
+    const equipped = this.player.inventory.equipment;
+    Object.entries(equipped).forEach(([slot, item]) => {
+      if (item && item.meshName) {
+        const fnName = `attach${item.meshName}`;
+        if (gearFns[fnName]) {
+          gearFns[fnName](parts);
+        }
+      }
+    });
+
+    this.previewAnimator = new PlayerAnimator(parts);
+  }
+
+  startPreviewAnimation() {
+    this.stopPreviewAnimation();
+    this.lastUpdateTime = performance.now();
+    
+    const animate = () => {
+      this.animationFrameId = requestAnimationFrame(animate);
+      
+      const now = performance.now();
+      const delta = (now - this.lastUpdateTime) / 1000;
+      this.lastUpdateTime = now;
+
+      if (this.previewAnimator) {
+        this.previewAnimator.animate(
+          delta,
+          false, // isMoving
+          false, // isRunning
+          false, // isPickingUp
+          false, // isDead
+          false, // isJumping
+          'none', // jumpPhase
+          0, // jumpTimer
+          0, // jumpVelocity
+          false, // isLedgeGrabbing
+          0, // ledgeGrabTime
+          0, // recoverTimer
+          false, // isDragged
+          'hips', // draggedPartName
+          new THREE.Vector3(), // dragVelocity
+          0, // deathTime
+          null // deathVariation
+        );
+      }
+
+      if (this.previewRenderer && this.previewScene && this.previewCamera) {
+        this.previewRenderer.render(this.previewScene, this.previewCamera);
+      }
+    };
+    
+    animate();
+  }
+
+  stopPreviewAnimation() {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
   }
 
   renderEquipmentSection() {
@@ -374,121 +515,133 @@ export class InventoryUI {
     const equipped = this.state.equipped;
 
     return `
-      <div class="flex-[1.4] flex flex-col bg-[#0c0c0c] border-r border-[#1f1a14] relative overflow-hidden">
-        <div class="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] bg-repeat"></div>
+      <div class="flex-1-2 flex flex-col background-doll border-r-doll relative overflow-hidden">
+        <div class="doll-texture"></div>
 
-        <!-- Silhouette -->
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div class="w-[70%] h-[70%] opacity-[0.07] border-[30px] border-[#c8aa6e] rounded-full blur-[80px] translate-y-[-5%]"></div>
-            <svg class="absolute h-[580px] w-auto opacity-[0.04]" viewBox="0 0 100 200" preserveAspectRatio="xMidYMid meet" fill="#c8aa6e">
-               <path d="M50 10 C 65 10, 75 25, 75 40 C 75 55, 65 65, 50 65 C 35 65, 25 55, 25 40 C 25 25, 35 10, 50 10 Z M 20 70 L 80 70 L 90 120 L 80 140 L 50 140 L 20 140 L 10 120 Z M 30 145 L 70 145 L 75 190 L 25 190 Z" />
-            </svg>
-            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent opacity-60"></div>
+        <!-- Player Preview -->
+        <div id="preview-canvas-container" class="silhouette-overlay">
+            <div class="silhouette-glow"></div>
+            <div class="silhouette-gradient"></div>
         </div>
 
-        <div class="flex-1 flex flex-col items-center justify-start py-8 relative z-10 overflow-y-auto custom-scrollbar">
-          <div class="paper-doll-container scale-90">
-            <!-- Head Row -->
-            <div class="flex justify-center gap-4 mb-4">
-              ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-12 h-12 rounded-full', label: 'Neck' })}
-              ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-16 h-16', label: 'Head' })}
-              ${this.renderEquipSlot({ slotKey: 'TRINKET', item: equipped.TRINKET, className: 'w-12 h-12 rounded-full', label: 'Relic' })}
+        <div class="flex-1 flex flex-col items-center justify-start relative z-10 overflow-hidden pt-0">
+          <div class="paper-doll-container">
+            <!-- Header Row: Accessories -->
+            <div class="flex justify-center gap-4 mb-2">
+              ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-8 h-8 rounded-full', label: 'Neck' })}
+              ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-10 h-10', label: 'Head' })}
+              ${this.renderEquipSlot({ slotKey: 'TRINKET', item: equipped.TRINKET, className: 'w-8 h-8 rounded-full', label: 'Relic' })}
             </div>
 
-            <!-- Torso Row -->
-            <div class="flex justify-center items-center gap-4 mb-4">
-              <div class="flex flex-col gap-4">
-                ${this.renderEquipSlot({ slotKey: 'RING_1', item: equipped.RING_1, className: 'w-12 h-12', label: 'Ring' })}
-                ${this.renderEquipSlot({ slotKey: 'GLOVES', item: equipped.GLOVES, className: 'w-16 h-16', label: 'Hands' })}
-              </div>
-              
-              <div class="flex flex-col gap-1 items-center">
-                ${this.renderEquipSlot({ slotKey: 'BODY', item: equipped.BODY, className: 'w-32 h-48', label: 'Torso' })}
-                ${this.renderEquipSlot({ slotKey: 'SHORTS', item: equipped.SHORTS, className: 'w-32 h-12', label: 'Legs' })}
+            <!-- Main Body & Weapons -->
+            <div class="equipment-grid-main" style="gap: 0.5rem;">
+              <!-- Far Left: Main Hand -->
+              <div class="equipment-column" style="gap: 0.5rem;">
+                ${this.renderEquipSlot({ slotKey: 'WEAPON_MAIN', item: equipped.WEAPON_MAIN, className: 'w-14 h-28', label: 'Main' })}
               </div>
 
-              <div class="flex flex-col gap-4">
-                ${this.renderEquipSlot({ slotKey: 'RING_2', item: equipped.RING_2, className: 'w-12 h-12', label: 'Ring' })}
-                ${this.renderEquipSlot({ slotKey: 'BOOTS', item: equipped.BOOTS, className: 'w-16 h-16', label: 'Feet' })}
+              <!-- Near Left Column: Ring 1 & Hands -->
+              <div class="equipment-column" style="gap: 0.5rem;">
+                ${this.renderEquipSlot({ slotKey: 'RING_1', item: equipped.RING_1, className: 'w-8 h-8', label: 'Ring' })}
+                ${this.renderEquipSlot({ slotKey: 'GLOVES', item: equipped.GLOVES, className: 'w-12 h-12', label: 'Hands' })}
               </div>
-            </div>
 
-            <!-- Belt Row -->
-            <div class="flex justify-center mb-6">
-              ${this.renderEquipSlot({ slotKey: 'BELT', item: equipped.BELT, className: 'w-64 h-12', label: 'Waist' })}
-            </div>
-
-            <!-- Weapon Row -->
-            <div class="flex justify-center gap-16 border-t border-white/5 pt-6">
-              ${this.renderEquipSlot({ slotKey: 'WEAPON_MAIN', item: equipped.WEAPON_MAIN, className: 'w-24 h-48', label: 'Main Hand' })}
-              <div class="flex flex-col gap-3">
-                ${['FLASK_1', 'FLASK_2', 'FLASK_3', 'FLASK_4', 'FLASK_5'].map((slotKey, idx) => 
-                  this.renderEquipSlot({ slotKey, item: equipped[slotKey], className: 'w-12 h-16', label: String(idx + 1) })
-                ).join('')}
+              <!-- Center Column: Body, Belt, Legs -->
+              <div class="equipment-column" style="gap: 0.5rem;">
+                ${this.renderEquipSlot({ slotKey: 'BODY', item: equipped.BODY, className: 'w-20 h-28', label: 'Torso' })}
+                ${this.renderEquipSlot({ slotKey: 'BELT', item: equipped.BELT, className: 'w-20 h-6', label: 'Waist' })}
+                ${this.renderEquipSlot({ slotKey: 'SHORTS', item: equipped.SHORTS, className: 'w-20 h-20', label: 'Legs' })}
               </div>
-              ${this.renderEquipSlot({ slotKey: 'WEAPON_OFF', item: equipped.WEAPON_OFF, className: 'w-24 h-48', label: 'Off Hand' })}
+
+              <!-- Near Right Column: Ring 2 & Feet -->
+              <div class="equipment-column" style="gap: 0.5rem;">
+                ${this.renderEquipSlot({ slotKey: 'RING_2', item: equipped.RING_2, className: 'w-8 h-8', label: 'Ring' })}
+                ${this.renderEquipSlot({ slotKey: 'BOOTS', item: equipped.BOOTS, className: 'w-12 h-12', label: 'Feet' })}
+              </div>
+
+              <!-- Far Right: Off Hand -->
+              <div class="equipment-column" style="gap: 0.5rem;">
+                ${this.renderEquipSlot({ slotKey: 'WEAPON_OFF', item: equipped.WEAPON_OFF, className: 'w-14 h-28', label: 'Off' })}
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Stats Panel -->
-        <div class="relative z-20 bg-[#0a0a0a] border-t border-[#2a221a] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-          <div class="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#c8aa6e]/40 to-transparent"></div>
+        <div class="stats-panel-doll relative z-20">
+          <div class="stats-panel-glow"></div>
 
-          <div class="flex flex-col p-6 gap-6">
-            <div class="flex justify-between items-end border-b border-[#1f1a14] pb-3">
+          <div class="flex flex-col p-3 gap-2">
+            <div class="char-header-row" style="padding-bottom: 0.25rem;">
               <div>
-                <h2 class="text-2xl font-cinzel text-[#c8aa6e] tracking-wider font-bold drop-shadow-sm leading-none">
+                <h2 class="char-name-doll">
                   ${charName}
                 </h2>
-                <div class="flex items-center gap-2 mt-1 opacity-80">
-                  <span class="text-xs font-cinzel text-neutral-400 tracking-[0.2em] uppercase">Level ${charLevel}</span>
-                  <span class="w-1 h-1 rounded-full bg-[#444]"></span>
-                  <span class="text-xs font-cinzel text-[#a3a3a3] uppercase">${charClass}</span>
+                <div class="char-subtitle-doll">
+                  <span class="level-label-doll">Level ${charLevel}</span>
+                  <span class="doll-dot"></span>
+                  <span class="class-label-doll">${charClass}</span>
                 </div>
               </div>
-              <div class="w-10 h-10 border border-[#2a221a] bg-[#0f0f0f] flex items-center justify-center opacity-50 rounded-sm">
-                <svg class="w-6 h-6 text-[#555]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
+              <div class="doll-icon-container" style="width: 2rem; height: 2rem;">
+                <svg class="doll-icon-svg" style="width: 1.25rem; height: 1.25rem;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
               </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-6">
-              <div class="space-y-2">
-                <h4 class="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Attributes</h4>
-                <div class="flex justify-between text-sm font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                  <span>Strength</span> <span class="text-white">${stats?.base?.strength || 0}</span>
+            <div class="stats-grid-doll">
+              <div class="stats-col-doll">
+                <h4 class="stats-header-doll">Attributes</h4>
+                <div class="stats-row-doll">
+                  <span>Str</span> <span class="text-white">${stats?.base?.strength || 0}</span>
                 </div>
-                <div class="flex justify-between text-sm font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                  <span>Dexterity</span> <span class="text-white">${stats?.base?.dexterity || 0}</span>
+                <div class="stats-row-doll">
+                  <span>Dex</span> <span class="text-white">${stats?.base?.dexterity || 0}</span>
                 </div>
-                <div class="flex justify-between text-sm font-serif text-[#60a5fa] border-b border-[#1a1a1a] pb-1">
-                  <span>Intelligence</span> <span class="font-bold">${stats?.base?.intelligence || 0}</span>
+                <div class="stats-row-doll highlight-blue">
+                  <span>Int</span> <span class="font-bold">${stats?.base?.intelligence || 0}</span>
                 </div>
               </div>
 
-              <div class="space-y-2">
-                <h4 class="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Defenses</h4>
-                <div class="flex justify-between text-sm font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+              <div class="stats-col-doll">
+                <h4 class="stats-header-doll">Defenses</h4>
+                <div class="stats-row-doll">
                   <span>Armour</span> <span class="text-white">${stats?.derived?.defense || 0}</span>
                 </div>
-                <div class="flex justify-between text-sm font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                <div class="stats-row-doll">
                   <span>Evasion</span> <span class="text-white">${stats?.derived?.dodge || 0}</span>
                 </div>
-                <div class="flex justify-between text-sm font-serif text-[#60a5fa] border-b border-[#1a1a1a] pb-1">
-                  <span>Energy Shield</span> <span class="font-bold">0</span>
+                <div class="stats-row-doll highlight-blue">
+                  <span>ES</span> <span class="font-bold">0</span>
                 </div>
               </div>
 
-              <div class="space-y-2">
-                <h4 class="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Resistances</h4>
-                <div class="flex justify-between text-sm font-serif text-[#ef4444] border-b border-[#1a1a1a] pb-1">
-                  <span>Fire</span> <span>0%</span>
-                </div>
-                <div class="flex justify-between text-sm font-serif text-[#3b82f6] border-b border-[#1a1a1a] pb-1">
-                  <span>Cold</span> <span>0%</span>
-                </div>
-                <div class="flex justify-between text-sm font-serif text-[#eab308] border-b border-[#1a1a1a] pb-1">
-                  <span>Lightning</span> <span>0%</span>
+              <div class="stats-col-doll">
+                <h4 class="stats-header-doll">Resists</h4>
+                <div class="grid grid-cols-2 gap-x-4">
+                  <div class="stats-row-doll highlight-red">
+                    <span>Fire</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll highlight-blue-dark">
+                    <span>Wind</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll highlight-blue">
+                    <span>Water</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll highlight-yellow">
+                    <span>Earth</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll" style="color: #fbbf24;">
+                    <span>Lightn</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll" style="color: #fff;">
+                    <span>Light</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll" style="color: #a855f7;">
+                    <span>Shadow</span> <span>0%</span>
+                  </div>
+                  <div class="stats-row-doll" style="color: #22d3ee;">
+                    <span>Reson</span> <span>0%</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -505,7 +658,7 @@ export class InventoryUI {
         return `
           <button
             data-tab="${tab}"
-            class="inventory-tab-premium ${isActive ? 'active' : ''} whitespace-nowrap"
+            class="inventory-tab-premium ${isActive ? 'active' : ''}"
           >
             ${tab}
           </button>
@@ -514,11 +667,11 @@ export class InventoryUI {
       .join('');
 
     const sortControls = this.state.activeTab === 'GENERAL' ? `
-      <div id="inventory-sort-controls" class="flex items-center gap-1 pb-2">
+      <div id="inventory-sort-controls" class="inventory-sort-row">
         ${['NAME', 'TYPE', 'RARITY'].map((label) => (
           `<button
             data-sort="${label}"
-            class="sort-button-premium whitespace-nowrap"
+            class="sort-button-premium"
           >
             ${label}
           </button>`
@@ -528,32 +681,32 @@ export class InventoryUI {
 
     return `
       <div class="inventory-grid-pane">
-        <div class="inventory-tabs-container shrink-0 overflow-x-auto no-scrollbar">
+        <div class="inventory-tabs-container no-scrollbar">
           ${tabs}
           <div class="flex-1"></div>
           ${sortControls}
         </div>
 
-        <div class="flex-1 overflow-auto p-6 custom-scrollbar bg-[radial-gradient(circle_at_top,_#0f0f0f_0%,_#050505_100%)]">
+        <div class="inventory-main-content custom-scrollbar">
           <div class="mx-auto w-fit">
             ${this.renderInventoryContent()}
           </div>
         </div>
 
         <div class="inventory-footer-premium">
-          <div class="flex items-center gap-6">
+          <div class="footer-stats-container">
             <div class="footer-stat">
-              <span class="footer-stat-dot bg-yellow-600/50"></span>
+              <span class="footer-stat-dot-gold"></span>
               <span class="footer-stat-label">Gold</span>
-              <span class="footer-stat-value text-[#c8aa6e] font-serif">${this.player?.inventory?.currency?.gold || 0}</span>
+              <span class="footer-stat-value text-unique">${this.player?.inventory?.currency?.gold || 0}</span>
             </div>
             <div class="footer-stat">
-              <span class="footer-stat-dot bg-blue-600/50"></span>
+              <span class="footer-stat-dot-resonance"></span>
               <span class="footer-stat-label">Resonance</span>
-              <span class="footer-stat-value text-[#60a5fa] font-serif">0</span>
+              <span class="footer-stat-value text-magic">0</span>
             </div>
           </div>
-          <div class="text-[9px] font-cinzel text-[#333] tracking-[0.2em] uppercase">
+          <div class="footer-status-text">
             Awaiting Input
           </div>
         </div>
@@ -570,23 +723,23 @@ export class InventoryUI {
     const currentDisplay = existingWrapper ? window.getComputedStyle(existingWrapper).display : 'none';
 
     this.appEl.innerHTML = `
-      <div id="inventory-overlay-wrapper" class="fixed inset-0 flex items-center justify-center bg-[#050505]/80 backdrop-blur-sm z-[2000] overflow-hidden select-none font-serif pointer-events-auto" style="display: ${currentDisplay}">
-        <div class="fixed inset-0 pointer-events-none overflow-hidden select-none">
-          <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1a1a1a_0%,_#050505_80%)]"></div>
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black opacity-80"></div>
+      <div id="inventory-overlay-wrapper" style="display: ${currentDisplay}">
+        <div class="doll-overlay-bg">
+          <div class="doll-radial-bg"></div>
+          <div class="doll-gradient-bg"></div>
         </div>
 
-        <div class="relative w-full max-w-[1080px] h-[88vh] flex flex-col bg-[#0a0a0a] border border-[#2a221a] shadow-[0_0_50px_rgba(0,0,0,0.8)] rounded-[2px] overflow-hidden z-[2001] animate-fade-in ring-1 ring-[#1a1a1a] ring-offset-0 pointer-events-auto">
-          <div class="relative h-12 w-full flex items-center justify-between px-6 bg-[#0f0f0f] border-b border-[#2a221a] shrink-0 select-none">
+        <div class="inventory-modal-container">
+          <div class="inventory-header">
             <div class="flex items-center gap-2">
-              <div class="w-2 h-2 rounded-full bg-[#c8aa6e] shadow-[0_0_8px_rgba(200,170,110,0.4)]"></div>
-              <h1 class="font-cinzel text-lg text-[#c8aa6e] tracking-[0.15em] font-semibold drop-shadow-sm">
+              <div class="inventory-header-dot"></div>
+              <h1 class="inventory-header-title">
                 INVENTORY
               </h1>
             </div>
-            <div class="flex items-center gap-4 text-[#4a3f32] text-[10px] font-cinzel">
-              <span class="tracking-widest opacity-60 uppercase">System Protocol <span class="text-[#665c4e] ml-1">X7-AEGIS</span></span>
-              <div id="close-new-inv" class="text-2xl cursor-pointer hover:text-[#c8aa6e] transition-all hover:scale-110 ml-4 leading-none">&times;</div>
+            <div class="inventory-header-system">
+              <span class="system-protocol-text">System Protocol <span class="system-id-text">X7-AEGIS</span></span>
+              <div id="close-new-inv" class="close-btn-doll">&times;</div>
             </div>
           </div>
 
@@ -596,8 +749,8 @@ export class InventoryUI {
           </div>
         </div>
 
-        <div class="absolute bottom-4 flex gap-8 pointer-events-none select-none opacity-20">
-          <span class="text-[9px] font-cinzel text-neutral-500 uppercase tracking-[0.2em]">
+        <div class="inventory-version-footer">
+          <span class="version-text-doll">
             Inventory System v1.0.4
           </span>
         </div>
@@ -605,11 +758,34 @@ export class InventoryUI {
     `;
 
     this.bindEvents();
+
+    // If inventory is visible, ensure preview is running
+    const wrapper = document.getElementById('inventory-overlay-wrapper');
+    if (wrapper && window.getComputedStyle(wrapper).display !== 'none') {
+      if (!this.animationFrameId) {
+        this.startPreviewAnimation();
+      } else {
+        // If already animating, just update the mesh to reflect new equipment
+        this.updatePreviewMesh();
+      }
+    }
   }
 
   bindEvents() {
     const closeBtn = document.getElementById('close-new-inv');
     if (closeBtn) closeBtn.onclick = () => this.toggle();
+
+    // Tab switching
+    this.appEl.querySelectorAll('.inventory-tab-premium').forEach(tab => {
+      tab.onclick = () => {
+        const tabName = tab.dataset.tab;
+        if (this.state.activeTab !== tabName) {
+          this.state.activeTab = tabName;
+          this.render();
+        }
+      };
+    });
+
     this.appEl.querySelectorAll('[data-tooltip-id]').forEach(el => {
       el.onmouseenter = (e) => this.showTooltip(this.getTooltipItemById(el.dataset.tooltipId), e.clientX, e.clientY);
       el.onmouseleave = () => this.hideTooltip();

@@ -54,13 +54,17 @@ export class GameSocket {
     }
 
     handleMessage(data) {
+        if (!data) return;
+        
         switch (data.type) {
             case 'welcome':
                 this.clientId = data.id;
                 this.roomCode = data.room;
+                console.log(`[GameSocket] Welcome received. ClientId: ${this.clientId}, Room: ${this.roomCode}`);
                 if (this.onWelcome) this.onWelcome(data);
                 break;
             case 'roomFull':
+                console.warn("[GameSocket] Room full received");
                 if (this.onRoomFull) this.onRoomFull();
                 break;
             case 'snapshot':
@@ -75,6 +79,8 @@ export class GameSocket {
     send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
+        } else if (this.ws) {
+            console.warn(`Attempted to send message on socket with state ${this.ws.readyState}:`, data.type);
         }
     }
 

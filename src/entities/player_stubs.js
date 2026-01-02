@@ -23,7 +23,7 @@ export class PlayerInventory {
             FLASK_3: null,
             FLASK_4: null,
             FLASK_5: null,
-            SHORTS: { id: 'default-shorts', name: 'Shorts', type: 'shorts', icon: 'assets/gear/black_pants.png', slot: 'SHORTS' }
+            SHORTS: { id: 'default-shorts', name: 'Shorts', type: 'shorts', icon: 'assets/gear/shorts.png', slot: 'SHORTS' }
         };
     }
 

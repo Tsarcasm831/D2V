@@ -64,6 +64,19 @@
         { "x": 0, "y": 0, "z": 0, "type": "center" }
       ]
     },
+    "beehive": {
+      "id": "beehive",
+      "name": "Beehive",
+      "footprint": { "width": 1.0, "depth": 1.0 },
+      "requirements": { "wood": 5, "stone": 0 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" }
+      ],
+      "isBeehive": true,
+      "harvestInterval": 60000,
+      "harvestItem": "honey",
+      "cost": 5
+    },
     "crop_plot": {
       "id": "crop_plot",
       "name": "Crop Plot",
@@ -73,6 +86,41 @@
         { "x": 0, "y": 0, "z": 0, "type": "center" }
       ],
       "isCropPlot": true
+    },
+    "well": {
+      "id": "well",
+      "name": "Well",
+      "footprint": { "width": 3.0, "depth": 3.0 },
+      "requirements": { "stone": 30, "wood": 10 },
+      "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
+    },
+    "blacksmith": {
+      "id": "blacksmith",
+      "name": "Blacksmith",
+      "footprint": { "width": 8.0, "depth": 8.0 },
+      "requirements": { "stone": 100, "wood": 50 },
+      "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
+    },
+    "windmill": {
+      "id": "windmill",
+      "name": "Windmill",
+      "footprint": { "width": 6.0, "depth": 6.0 },
+      "requirements": { "wood": 150, "stone": 40 },
+      "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
+    },
+    "guard_tower": {
+      "id": "guard_tower",
+      "name": "Guard Tower",
+      "footprint": { "width": 4.0, "depth": 4.0 },
+      "requirements": { "stone": 200, "wood": 80 },
+      "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
+    },
+    "stable": {
+      "id": "stable",
+      "name": "Stable",
+      "footprint": { "width": 10.0, "depth": 8.0 },
+      "requirements": { "wood": 120, "stone": 20 },
+      "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
     }
   }
 }

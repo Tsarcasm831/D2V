@@ -56,6 +56,7 @@ export class Game {
         this.shardMap = new ShardMap(this.player, this.worldManager);
         this.gridLabels = new GridLabelManager(this.scene);
         this.multiplayer = new NodeMPManager(this);
+        window.gameInstance = this;
         this.multiplayer.initialize(characterData, this.roomCode);
 
         this.raycaster = new THREE.Raycaster();
@@ -174,9 +175,36 @@ export class Game {
         
         // Spawn starter building
         this.spawnStarterTent();
+        this.spawnAllBuildings();
 
         // Start the loop
         this.animate();
+    }
+
+    spawnAllBuildings() {
+        const startPos = new THREE.Vector3(-20, 0, 15);
+        const spacing = 10;
+        const buildingTypes = [
+            'hut', 'tavern', 'silo', 'square_hut', 
+            'long_tavern', 'grail_silo', 'beehive', 'crop_plot',
+            'well', 'blacksmith', 'windmill', 'guard_tower', 'stable'
+        ];
+
+        buildingTypes.forEach((type, index) => {
+            const pos = startPos.clone().add(new THREE.Vector3(index * spacing, 0, 0));
+            const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
+            const shard = this.worldManager.activeShards.get(`${sx},${sz}`);
+
+            if (shard) {
+                pos.y = this.worldManager.getTerrainHeight(pos.x, pos.z);
+                const building = new Building(this.scene, shard, type, pos);
+                shard.resources.push(building);
+                console.log(`Spawned ${type} at ${pos.x}, ${pos.z}`);
+            } else {
+                console.warn(`Could not find shard for ${type} at ${pos.x}, ${pos.z}`);
+            }
+        });
     }
 
 
@@ -391,8 +419,9 @@ export class Game {
             this._secondaryUpdateTimer = 0;
         }
 
+        const isMounted = this.player.actions && this.player.actions.mountedHorse;
         const targetPos = this._tempVec1.copy(this.player.mesh.position);
-        targetPos.y += 1.2;
+        targetPos.y += isMounted ? 2.2 : 1.2;
 
         if (this.cameraMode === 'fpv') {
             // FPV Camera Logic

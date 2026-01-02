@@ -34,8 +34,15 @@ export class NodeMPManager {
     }
 
     async initialize(characterData = {}, roomCode = 'default') {
+        if (this._initialized) {
+            console.warn("NodeMPManager already initialized, skipping.");
+            return;
+        }
+        this._initialized = true;
+
         // Setup socket callbacks
         this.socket.onWelcome = (data) => {
+            this.socket.clientId = data.id; // Ensure GameSocket has the ID
             console.log("Joined room:", data.room, "ID:", data.id, "Seed:", data.seed);
             // Optionally set world seed here if game supports it
             if (this.game.worldManager && typeof this.game.worldManager.setSeed === 'function') {
@@ -44,6 +51,7 @@ export class NodeMPManager {
         };
 
         this.socket.onSnapshot = (data) => {
+            if (Math.random() < 0.01) console.log("Received snapshot, players:", Object.keys(data.players).length);
             this.syncRemotePlayers(data.players);
         };
 
@@ -57,12 +65,22 @@ export class NodeMPManager {
                 if (this.game.chat) {
                     this.game.chat.addMessage(data.username || "Traveler", data.text);
                 }
+            } else if (data.kind === 'playerJoined') {
+                if (this.game.chat) {
+                    this.game.chat.addMessage("System", `${data.username} joined the realm.`);
+                }
             }
         };
 
         this.socket.onRoomFull = () => {
-            alert("Room is full! (Max 2 players)");
-            window.location.reload();
+            console.error("Room is full! Please try another realm.");
+            this.socket.disconnect();
+            if (this.game && this.game.player && this.game.player.ui) {
+                this.game.player.ui.showStatus("Room is full! Try another realm.", true);
+            }
+            setTimeout(() => {
+                window.location.reload(); 
+            }, 3000);
         };
 
         // Connect
@@ -84,15 +102,19 @@ export class NodeMPManager {
     }
 
     syncRemotePlayers(playersData) {
-        const currentIds = new Set(Object.keys(playersData));
-        if (this.socket.clientId) {
-            currentIds.delete(this.socket.clientId);
+        if (!this.socket.clientId) {
+            return;
         }
+        
+        const playerIds = Object.keys(playersData);
+        const currentIds = new Set(playerIds);
+        currentIds.delete(this.socket.clientId);
 
         // Remove players who left
         for (const id of this.remotePlayers.keys()) {
             if (!currentIds.has(id)) {
-                this.remotePlayers.get(id).destroy();
+                const remote = this.remotePlayers.get(id);
+                if (remote) remote.destroy();
                 this.remotePlayers.delete(id);
             }
         }
@@ -104,7 +126,7 @@ export class NodeMPManager {
 
             let remote = this.remotePlayers.get(id);
             if (!remote) {
-                remote = new RemotePlayer(this.scene, id, data.username || "Traveler", data.character);
+                remote = new RemotePlayer(this.scene, id, data.username || "Traveler", data.character || {});
                 this.remotePlayers.set(id, remote);
             }
             remote.targetState = data;
@@ -112,10 +134,11 @@ export class NodeMPManager {
     }
 
     update(time, delta) {
-        if (!this.socket.isConnected) return;
+        if (!this.socket.isConnected || !this.socket.clientId) return;
 
         // Send own state
         if (time - this.lastUpdate > this.updateInterval) {
+            this.lastUpdate = time;
             const player = this.game.player;
             if (player && player.mesh) {
                 const weaponType = player.inventory.hotbar[player.inventory.selectedSlot]?.type || 'none';
@@ -130,18 +153,25 @@ export class NodeMPManager {
                     sideMove = -localVel.x / (isRunning ? player.playerPhysics.runSpeed : player.playerPhysics.walkSpeed);
                 }
 
-                this.socket.send({
-                    type: 'input',
-                    pos: player.mesh.position.toArray(),
+                const playerState = {
+                    pos: [
+                        player.mesh.position.x,
+                        player.mesh.position.y,
+                        player.mesh.position.z
+                    ],
                     rot: player.mesh.rotation.y,
                     moving: isMoving,
                     running: isRunning,
                     sideMove: sideMove,
                     isDead: player.isDead,
                     weapon: weaponType
+                };
+                
+                this.socket.send({
+                    type: 'input',
+                    ...playerState
                 });
             }
-            this.lastUpdate = time;
         }
 
         // Lerp remote players
@@ -302,6 +332,10 @@ class RemotePlayer {
         const lerpFactor = 0.15;
         this._targetPos.fromArray(this.targetState.pos);
         
+        // Ensure remote players are visible and correctly scaled
+        this.mesh.visible = true;
+        this.mesh.scale.set(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
+
         // Only lerp if distance is significant to avoid micro-jitter
         if (this.mesh.position.distanceToSquared(this._targetPos) > 0.0001) {
             this.mesh.position.lerp(this._targetPos, lerpFactor);

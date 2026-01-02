@@ -11,6 +11,7 @@ export class PlayerPhysics {
         
         this.walkSpeed = 15 * SCALE_FACTOR;
         this.runSpeed = 28 * SCALE_FACTOR;
+        this.mountSpeed = 45 * SCALE_FACTOR;
         this.jumpForce = 15 * SCALE_FACTOR;
         this.gravity = 40 * SCALE_FACTOR;
         
@@ -64,7 +65,8 @@ export class PlayerPhysics {
             return;
         }
 
-        const speed = input.run ? this.runSpeed : this.walkSpeed;
+        const isMounted = this.player.actions && this.player.actions.mountedHorse;
+        const speed = isMounted ? this.mountSpeed : (input.run ? this.runSpeed : this.walkSpeed);
         const moveX = input.x || 0;
         const moveZ = input.y || 0;
 
@@ -157,6 +159,10 @@ export class PlayerPhysics {
 
         // Ground/Plateau collisions
         let floorY = wm ? wm.getTerrainHeight(this.position.x, this.position.z) : 0;
+
+        if (isMounted) {
+            floorY += 0.8 * SCALE_FACTOR; // Ride height
+        }
 
         // Safety check for first frame or if terrain wasn't loaded yet
         if (this.position.y < floorY) {
@@ -272,6 +278,7 @@ export class PlayerPhysics {
         const wm = this.worldManager || (this.player ? this.player.worldManager : null);
         if (!wm) return;
 
+        const isMounted = this.player.actions && this.player.actions.mountedHorse;
         const entities = [
             ...wm.getNearbyNPCs(this.position, 15 * SCALE_FACTOR),
             ...wm.getNearbyFauna(this.position, 15 * SCALE_FACTOR)
@@ -281,6 +288,7 @@ export class PlayerPhysics {
 
         for (const entity of entities) {
             if (entity.isDead || entity === this.player) continue;
+            if (isMounted && entity === this.player.actions.mountedHorse) continue;
 
             const entityPos = (entity.group || entity.mesh).position;
             const dx = this.position.x - entityPos.x;

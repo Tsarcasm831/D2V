@@ -15,6 +15,7 @@ export class PlayerActions {
         this.summoningCircle = null;
         
         this.selectedSkill = { id: 'fireball', name: 'Fireball', icon: 'assets/vfx/fireball.png', cost: 20 };
+        this.mountedHorse = null;
     }
 
     interact() {
@@ -194,15 +195,71 @@ export class PlayerActions {
         return false;
     }
 
+    tryMountHorse() {
+        const range = 3.0 * SCALE_FACTOR;
+        const fauna = this.player.worldManager.getNearbyFauna(this.player.mesh.position, range);
+        
+        let closestHorse = null;
+        let minDistSq = range * range;
+
+        for (const animal of fauna) {
+            if (animal.type === 'horse' && !animal.isDead && !animal.mountedPlayer) {
+                const distSq = this.player.mesh.position.distanceToSquared(animal.group.position);
+                if (distSq < minDistSq) {
+                    minDistSq = distSq;
+                    closestHorse = animal;
+                }
+            }
+        }
+
+        if (closestHorse) {
+            this.mount(closestHorse);
+            return true;
+        }
+        return false;
+    }
+
+    mount(horse) {
+        this.mountedHorse = horse;
+        horse.state = 'mounted';
+        horse.mountedPlayer = this.player;
+        if (this.player.ui) this.player.ui.showStatus("Mounted Horse", false);
+    }
+
+    dismount() {
+        if (!this.mountedHorse) return;
+        
+        const horse = this.mountedHorse;
+        horse.state = 'idle';
+        horse.mountedPlayer = null;
+        horse.timer = 2.0;
+        
+        this.mountedHorse = null;
+        if (this.player.ui) this.player.ui.showStatus("Dismounted Horse", false);
+        
+        const side = new THREE.Vector3(1, 0, 0).applyQuaternion(this.player.mesh.quaternion);
+        this.player.playerPhysics.position.addScaledVector(side, 1.5 * SCALE_FACTOR);
+    }
+
     tryHarvest() {
         console.log("tryHarvest called. Key 'F' detected.");
         if (!this.player.worldManager) {
             console.log("No worldManager found on player in tryHarvest");
             return;
         }
+
+        // If mounted, dismount
+        if (this.mountedHorse) {
+            this.dismount();
+            return true;
+        }
+
         const range = 3.0 * SCALE_FACTOR;
         const rangeSq = range * range;
         
+        // Try to interact with Horse first
+        if (this.tryMountHorse()) return true;
+
         // Try to interact with NPC first
         if (this.tryInteractNPC()) return true;
 

@@ -133,13 +133,17 @@ export class ShardMap {
             return this.worldManager.getBiomeNoise(x, z);
         }
         // Fallback noise logic (matching WorldManager.js exactly)
-        const scale = 0.02;
+        const scale = 0.005; // Reduced from 0.02 for much larger biomes
         const nx = x * scale, nz = z * scale;
+        
+        // Layered noise (octaves) with more variance
         const v1 = Math.sin(nx) + Math.sin(nz);
         const v2 = Math.sin(nx * 2.1 + nz * 0.5) * 0.5;
         const v3 = Math.cos(nx * 0.7 - nz * 1.3) * 0.25;
         const v4 = Math.sin(Math.sqrt(nx*nx + nz*nz) * 0.5) * 0.5;
-        const combined = (v1 + v2 + v3 + v4 + 2) / 4;
+        const v5 = Math.sin(nx * 4.0) * Math.cos(nz * 4.0) * 0.125; // Extra detail layer
+        
+        const combined = (v1 + v2 + v3 + v4 + v5 + 2.125) / 4.25;
         return THREE.MathUtils.clamp(combined, 0, 1);
     }
 

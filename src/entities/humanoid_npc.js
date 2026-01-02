@@ -40,6 +40,11 @@ export class HumanoidNPC {
         this.anchorPos = null;
         this.maxAnchorDist = 20;
 
+        // AI Collision avoidance state
+        this.isColliding = false;
+        this.pauseTimer = 0;
+        this.avoidanceAngle = 0;
+
         // Performance: reuse objects
         this._tempVec1 = new THREE.Vector3();
         this._collisionTimer = 0;
@@ -207,6 +212,7 @@ export class HumanoidNPC {
         }
 
         const myRadius = 0.5 * SCALE_FACTOR;
+        let collisionDetected = false;
 
         // Collision with player
         if (player && player.mesh) {
@@ -225,6 +231,7 @@ export class HumanoidNPC {
                     const overlap = (minDist - dist) * 0.5;
                     myPos.x += (dx / dist) * overlap;
                     myPos.z += (dz / dist) * overlap;
+                    collisionDetected = true;
                 }
             }
         }
@@ -254,6 +261,7 @@ export class HumanoidNPC {
                 const overlap = (minDist - dist);
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -274,6 +282,7 @@ export class HumanoidNPC {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
         }
 
@@ -293,7 +302,18 @@ export class HumanoidNPC {
                 const overlap = (minDist - dist) * 0.5;
                 myPos.x += (dx / dist) * overlap;
                 myPos.z += (dz / dist) * overlap;
+                collisionDetected = true;
             }
+        }
+
+        // Handle collision avoidance AI
+        if (collisionDetected && !this.isColliding) {
+            this.isColliding = true;
+            this.pauseTimer = 0.5 + Math.random() * 0.5; // Pause for 0.5-1s
+            // New random angle to turn towards
+            this.avoidanceAngle = Math.random() * Math.PI * 2;
+        } else if (!collisionDetected) {
+            this.isColliding = false;
         }
     }
 
@@ -312,6 +332,12 @@ export class HumanoidNPC {
                 }
             }
             return;
+        }
+
+        if (this.pauseTimer > 0) {
+            this.pauseTimer -= delta;
+            // Still look towards where we want to go
+            this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.avoidanceAngle, 4 * delta);
         }
 
         this._aiTimer -= delta;
@@ -376,7 +402,10 @@ export class HumanoidNPC {
     }
 
     updateMovement(delta, player) {
-        if (this.state === 'wander') {
+        if (this.state === 'wander' && this.pauseTimer <= 0) {
+            if (this.isColliding) {
+                this.wanderAngle = this.avoidanceAngle;
+            }
             this._tempVec1.set(Math.sin(this.wanderAngle), 0, Math.cos(this.wanderAngle));
             this.group.position.addScaledVector(this._tempVec1, this.moveSpeed * delta);
             this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, this.wanderAngle, 4 * delta);
