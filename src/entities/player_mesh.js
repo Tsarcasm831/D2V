@@ -4,20 +4,30 @@ import { SCALE_FACTOR } from '../world/world_bounds.js';
 export function createPlayerMesh(customConfig = {}) {
     const config = {
         bodyType: customConfig.bodyType || 'male',
+        bodyVariant: customConfig.bodyVariant || 'average',
+        outfit: customConfig.outfit || 'naked',
         skinColor: customConfig.skinColor || '#ffdbac',
         eyeColor: customConfig.eyeColor || '#333333',
-        shirtColor: customConfig.shirtColor || '#ffffff',
-        shirtPattern: customConfig.shirtPattern || 'none',
+        scleraColor: customConfig.scleraColor || '#ffffff',
+        pupilColor: customConfig.pupilColor || '#000000',
+        lipColor: customConfig.lipColor || '#e0b094',
         headScale: customConfig.headScale || 1.0,
         torsoWidth: customConfig.torsoWidth || 1.0,
         torsoHeight: customConfig.torsoHeight || 1.0,
         armScale: customConfig.armScale || 1.0,
         legScale: customConfig.legScale || 1.0,
-        heelScale: 1.218,
-        toeScale: 1.0,
-        footLength: 1.0,
-        footWidth: 1.0,
-        toeSpread: 1.0,
+        heelScale: customConfig.heelScale || 1.218,
+        heelHeight: customConfig.heelHeight || 1.0,
+        toeScale: customConfig.toeScale || 1.0,
+        footLength: customConfig.footLength || 1.0,
+        footWidth: customConfig.footWidth || 1.0,
+        toeSpread: customConfig.toeSpread || 1.0,
+        chinSize: customConfig.chinSize || 0.7,
+        chinLength: customConfig.chinLength || 1.0,
+        chinForward: customConfig.chinForward || 0.03,
+        chinHeight: customConfig.chinHeight || -0.04,
+        irisScale: customConfig.irisScale || 1.0,
+        pupilScale: customConfig.pupilScale || 1.0,
     };
 
     const group = new THREE.Group();
@@ -27,84 +37,29 @@ export function createPlayerMesh(customConfig = {}) {
         toeUnits: []
     };
 
+    // --- Materials ---
     const skinMat = new THREE.MeshToonMaterial({ color: config.skinColor });
-    
-    // Create Shirt Material with Canvas Texture for Patterns
-    const createShirtMaterial = (color, pattern) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        
-        // Background color
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 512, 512);
-        
-        if (pattern !== 'none') {
-            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.lineWidth = 20;
-            
-            if (pattern === 'stripes') {
-                for (let i = 0; i < 512; i += 64) {
-                    ctx.beginPath();
-                    ctx.moveTo(i, 0);
-                    ctx.lineTo(i, 512);
-                    ctx.stroke();
-                }
-            } else if (pattern === 'dots') {
-                const spacing = 128;
-                for (let x = spacing/2; x < 512; x += spacing) {
-                    for (let y = spacing/2; y < 512; y += spacing) {
-                        ctx.beginPath();
-                        ctx.arc(x, y, 24, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-            } else if (pattern === 'checkered') {
-                const size = 128;
-                for (let x = 0; x < 512; x += size * 2) {
-                    for (let y = 0; y < 512; y += size * 2) {
-                        ctx.fillRect(x, y, size, size);
-                        ctx.fillRect(x + size, y + size, size, size);
-                    }
-                }
-            }
-        }
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        
-        // Adjust repeat to compensate for cylinder aspect ratio
-        // Circumference is ~1.5, height is ~0.45 -> ratio ~3.3
-        texture.repeat.set(4, 1.2); 
-        
-        return new THREE.MeshToonMaterial({ map: texture });
-    };
-
-    // If the player is lordtsarcasm, the base mesh should be skin-colored 
-    // because the plaid shirt will be attached as a separate layer later.
-    const isLord = (customConfig.name?.toLowerCase() === 'lordtsarcasm');
-    const baseShirtMat = isLord ? skinMat : createShirtMaterial(config.shirtColor, config.shirtPattern);
-    
-    // Adjust texture repeat based on torso scale to prevent stretching
-    if (!isLord && baseShirtMat.map) {
-        const baseCirc = 1.57; // Approx circumference (2 * PI * 0.25)
-        const baseHeight = 0.45;
-        const currentCirc = baseCirc * config.torsoWidth;
-        const currentHeight = baseHeight * config.torsoHeight;
-        
-        // We want tiles to be roughly 0.2 units wide
-        const xRepeat = Math.max(1, Math.round(currentCirc / 0.2));
-        const yRepeat = xRepeat * (currentHeight / currentCirc);
-        baseShirtMat.map.repeat.set(xRepeat, yRepeat);
-        baseShirtMat.map.needsUpdate = true;
-    }
-    const shirtMat = baseShirtMat; // Use the same material for limbs/torso caps if applicable
-    const shortsMat = new THREE.MeshToonMaterial({ color: 0x654321 }); // Brown
-    const underwearMat = new THREE.MeshToonMaterial({ color: 0xeeeeee });
+    const shirtMat = new THREE.MeshToonMaterial({ color: 0x888888 }); 
+    const pantsMat = new THREE.MeshToonMaterial({ color: 0x444444 });
+    const bootsMat = new THREE.MeshToonMaterial({ color: 0x222222 });
+    const lipMat = new THREE.MeshToonMaterial({ color: config.lipColor });
+    const scleraMat = new THREE.MeshToonMaterial({ color: config.scleraColor });
+    const irisMat = new THREE.MeshToonMaterial({ color: config.eyeColor });
+    const pupilMat = new THREE.MeshToonMaterial({ color: 0x000000 });
+    const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyeballMat = new THREE.MeshToonMaterial({ color: 0xffffff });
     const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+
+    parts.materials = {
+        skin: skinMat,
+        shirt: shirtMat,
+        pants: pantsMat,
+        boots: bootsMat,
+        lip: lipMat,
+        sclera: scleraMat,
+        iris: irisMat,
+        pupil: pupilMat
+    };
 
     const createFootParts = (isLeftFoot) => {
         const footY = -0.06;
@@ -117,7 +72,7 @@ export function createPlayerMesh(customConfig = {}) {
         heelGroup.position.y += 0.05; 
         
         const heelGeo = new THREE.CylinderGeometry(rBack * 0.7, rBack, rBack * 1.8, 6);
-        const heelMesh = new THREE.Mesh(heelGeo, skinMat);
+        const heelMesh = new THREE.Mesh(heelGeo, bootsMat);
         heelMesh.rotation.x = 0.1;
         heelMesh.castShadow = true;
         heelGroup.add(heelMesh);
@@ -146,7 +101,7 @@ export function createPlayerMesh(customConfig = {}) {
             forefootGroup.add(toeUnit);
             parts.toeUnits.push(toeUnit);
 
-            const toe = new THREE.Mesh(toeGeo, skinMat);
+            const toe = new THREE.Mesh(toeGeo, bootsMat);
             toe.position.set(0, localToePos.y, localToePos.z);
             toe.rotation.x = Math.PI / 2 + 0.1;
             toe.rotation.y = (i - 2) * 0.12; 
@@ -164,7 +119,7 @@ export function createPlayerMesh(customConfig = {}) {
             const bridgeLen = bridgeVec.length();
             
             const bridgeGeo = new THREE.CylinderGeometry(toeR * 1.1, rBack * 0.8, bridgeLen, 8);
-            const bridge = new THREE.Mesh(bridgeGeo, skinMat);
+            const bridge = new THREE.Mesh(bridgeGeo, bootsMat);
             const mid = new THREE.Vector3().addVectors(bridgeStart, localToePos).multiplyScalar(0.5);
             bridge.position.copy(mid);
             bridge.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bridgeVec.clone().normalize());
@@ -213,14 +168,14 @@ export function createPlayerMesh(customConfig = {}) {
         return container;
     };
 
-    // Build Character
+    // --- Build character skeleton ---
     const hips = new THREE.Group();
     hips.position.y = 1.0 * SCALE_FACTOR;
     group.add(hips);
     parts.hips = hips;
 
-    const torsoRadiusTop = config.bodyType === 'female' ? 0.23 : 0.28;
-    const torsoRadiusBottom = config.bodyType === 'female' ? 0.27 : 0.22;
+    const torsoRadiusTop = 0.28;
+    const torsoRadiusBottom = 0.22;
     const torsoLen = 0.45;
     const torsoContainer = new THREE.Group();
     hips.add(torsoContainer);
@@ -229,7 +184,6 @@ export function createPlayerMesh(customConfig = {}) {
     const torsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, torsoLen, 16);
     const torso = new THREE.Mesh(torsoGeo, shirtMat);
     torso.position.y = (torsoLen / 2 + 0.1) * SCALE_FACTOR;
-    torso.scale.set(config.torsoWidth, config.torsoHeight, config.torsoWidth);
     torso.castShadow = true;
     torsoContainer.add(torso);
     parts.torso = torso;
@@ -238,18 +192,17 @@ export function createPlayerMesh(customConfig = {}) {
     const topCap = new THREE.Mesh(topCapGeo, shirtMat);
     topCap.position.y = torsoLen / 2;
     torso.add(topCap);
+    parts.topCap = topCap;
     
-    // Bottom cap of torso becomes the underwear
     const botCapGeo = new THREE.SphereGeometry(torsoRadiusBottom, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-    const botCap = new THREE.Mesh(botCapGeo, underwearMat);
+    const botCap = new THREE.Mesh(botCapGeo, shirtMat);
     botCap.position.y = -torsoLen / 2;
     torso.add(botCap);
+    parts.botCap = botCap;
 
-    // Chest (Female Feature)
     const chest = new THREE.Group();
     chest.visible = config.bodyType === 'female';
-    chest.position.set(0, 0.15, 0.17);
-    chest.scale.setScalar(1.05);
+    chest.position.set(0, 0.1, 0.18);
     torso.add(chest);
     parts.chest = chest;
 
@@ -257,9 +210,7 @@ export function createPlayerMesh(customConfig = {}) {
     const chestGeo = new THREE.SphereGeometry(chestRadius, 16, 16);
     
     for (let side of [-1, 1]) {
-        // Use shirtMat for breasts if not lordtsarcasm
-        const breastMat = isLord ? skinMat : baseShirtMat;
-        const breast = new THREE.Mesh(chestGeo, breastMat);
+        const breast = new THREE.Mesh(chestGeo, shirtMat);
         breast.position.x = side * 0.11;
         breast.scale.set(1, 0.9, 0.8);
         breast.castShadow = true;
@@ -291,17 +242,84 @@ export function createPlayerMesh(customConfig = {}) {
     neckO.scale.setScalar(1.1);
     hips.add(neckO);
 
+    // --- Head construction with socket geometry ---
     const headRadius = 0.21;
-    const headGeo = new THREE.SphereGeometry(headRadius, 16, 16);
+    const headGeo = new THREE.SphereGeometry(headRadius, 64, 64);
+    const posAttribute = headGeo.attributes.position;
+    const vertex = new THREE.Vector3();
+    const leftEyeCenter = new THREE.Vector3(0.09, -0.015, headRadius * 0.92);
+    const rightEyeCenter = new THREE.Vector3(-0.09, -0.015, headRadius * 0.92);
+    const socketRad = 0.065;
+    const socketDep = 0.025;
+
+    for (let i = 0; i < posAttribute.count; i++) {
+        vertex.fromBufferAttribute(posAttribute, i);
+        if (vertex.z > 0 && Math.abs(vertex.x) < 0.18) vertex.z *= 0.94; 
+        if (vertex.z > 0 && Math.abs(vertex.x) > 0.15) vertex.x *= 0.95; 
+        if (vertex.y < -0.04 && vertex.z > 0) {
+            vertex.x *= 0.88;
+            if (vertex.y < -headRadius * 0.65) {
+                 if (Math.abs(vertex.x) < 0.08) vertex.z += 0.008;
+                 vertex.y *= 0.95;
+            }
+        }
+        const distL = vertex.distanceTo(leftEyeCenter);
+        const distR = vertex.distanceTo(rightEyeCenter);
+        if (distL < socketRad) {
+            const f = Math.cos((distL / socketRad) * Math.PI * 0.5); 
+            vertex.z -= f * socketDep;
+            vertex.y += f * 0.012; 
+        }
+        if (distR < socketRad) {
+            const f = Math.cos((distR / socketRad) * Math.PI * 0.5);
+            vertex.z -= f * socketDep;
+            vertex.y += f * 0.012;
+        }
+        const browY = 0.045;
+        if (Math.abs(vertex.y - browY) < 0.04 && vertex.z > 0.1) {
+            if (Math.abs(vertex.x) > 0.03 && Math.abs(vertex.x) < 0.14) {
+                 vertex.z += 0.005 * Math.cos(Math.abs(vertex.y - browY) * 20);
+            }
+        }
+        posAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+    }
+    headGeo.computeVertexNormals();
+
     const head = new THREE.Mesh(headGeo, skinMat);
     head.position.y = neck.position.y + (neckLen/2 + headRadius + 0.01) * SCALE_FACTOR;
     hips.add(head);
     parts.head = head;
-    parts.head.scale.setScalar(config.headScale);
+
+    const headMount = new THREE.Group();
+    head.add(headMount);
+    parts.headMount = headMount;
+
     const headO = new THREE.Mesh(headGeo, outlineMaterial);
     headO.position.copy(head.position);
     headO.scale.setScalar(1.05);
+    headO.position.z -= 0.002;
     hips.add(headO);
+
+    const jawGroup = new THREE.Group();
+    jawGroup.position.set(0, -0.05, 0.02);
+    head.add(jawGroup);
+    parts.jaw = jawGroup;
+
+    const jawGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const jawMesh = new THREE.Mesh(jawGeo, skinMat);
+    jawMesh.scale.set(0.7, 0.45, 0.85);
+    jawMesh.position.set(0, -0.105, 0.09);
+    jawMesh.rotation.x = 0.15;
+    jawMesh.castShadow = true;
+    jawGroup.add(jawMesh);
+    parts.jawMesh = jawMesh;
+
+    const jawOutline = new THREE.Mesh(jawGeo, outlineMaterial);
+    jawOutline.scale.copy(jawMesh.scale).multiplyScalar(1.05);
+    jawOutline.position.copy(jawMesh.position);
+    jawOutline.rotation.copy(jawMesh.rotation);
+    jawGroup.add(jawOutline);
+    parts.jawOutline = jawOutline;
 
     const faceGroup = new THREE.Group();
     head.add(faceGroup);
@@ -309,26 +327,27 @@ export function createPlayerMesh(customConfig = {}) {
 
     const eyeRadius = 0.045;
     const eyeGeo = new THREE.SphereGeometry(eyeRadius, 32, 32);
-    const eyeballMat = new THREE.MeshToonMaterial({ color: 0xffffff });
-    const irisMat = new THREE.MeshToonMaterial({ color: config.eyeColor });
-    const pupilMat = new THREE.MeshToonMaterial({ color: 0x000000 });
-    const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyeZPos = 0.162;
+    parts.irises = [];
+    parts.pupils = [];
 
     for (let side of [-1, 1]) {
         const eyeContainer = new THREE.Group();
-        eyeContainer.position.set(side * 0.09, -0.02, headRadius - 0.01);
+        eyeContainer.position.set(side * 0.09, -0.02, eyeZPos);
         faceGroup.add(eyeContainer);
-        const eyeball = new THREE.Mesh(eyeGeo, eyeballMat);
+        const eyeball = new THREE.Mesh(eyeGeo, scleraMat);
         eyeball.scale.set(1.1, 1, 0.8);
         eyeContainer.add(eyeball);
         const irisGeo = new THREE.CircleGeometry(eyeRadius * 0.65, 16);
         const iris = new THREE.Mesh(irisGeo, irisMat);
-        iris.position.z = eyeRadius * 0.78;
+        iris.position.z = eyeRadius * 1.02;
         eyeball.add(iris);
-        const pupilGeo = new THREE.CircleGeometry(eyeRadius * 0.35, 16);
+        parts.irises.push(iris);
+        const pupilGeo = new THREE.CircleGeometry(eyeRadius * 0.25, 16);
         const pupil = new THREE.Mesh(pupilGeo, pupilMat);
-        pupil.position.z = 0.001; 
+        pupil.position.z = 0.002; 
         iris.add(pupil);
+        parts.pupils.push(pupil);
         const highlightGeo = new THREE.SphereGeometry(eyeRadius * 0.15, 8, 8);
         const highlight = new THREE.Mesh(highlightGeo, highlightMat);
         highlight.position.set(eyeRadius * 0.2, eyeRadius * 0.2, 0.01);
@@ -341,76 +360,81 @@ export function createPlayerMesh(customConfig = {}) {
     }
 
     const nose = new THREE.Group();
-    nose.position.set(0, -0.06, headRadius - 0.01);
+    nose.position.set(0, -0.06, 0.198);
     faceGroup.add(nose);
     const bridgeGeo = new THREE.CylinderGeometry(0.015, 0.025, 0.06, 8);
     const bridge = new THREE.Mesh(bridgeGeo, skinMat);
     bridge.rotation.x = -0.4; bridge.position.y = 0.02;
     nose.add(bridge);
+    const bridgeO = new THREE.Mesh(bridgeGeo, outlineMaterial);
+    bridgeO.scale.setScalar(1.2);
+    bridge.add(bridgeO);
+
     const tipGeo = new THREE.SphereGeometry(0.022, 12, 12);
     const tip = new THREE.Mesh(tipGeo, skinMat);
     tip.position.set(0, -0.01, 0.02);
     nose.add(tip);
+    const tipO = new THREE.Mesh(tipGeo, outlineMaterial);
+    tipO.scale.setScalar(1.15);
+    tip.add(tipO);
+
+    const alaGeo = new THREE.SphereGeometry(0.015, 8, 8);
+    for (let side of [-1, 1]) {
+        const ala = new THREE.Mesh(alaGeo, skinMat);
+        ala.position.set(side * 0.02, -0.015, 0.01);
+        ala.scale.set(1.2, 0.8, 1);
+        nose.add(ala);
+        const alaO = new THREE.Mesh(alaGeo, outlineMaterial);
+        alaO.scale.setScalar(1.15);
+        ala.add(alaO);
+    }
 
     const mouthGroup = new THREE.Group();
-    mouthGroup.position.set(0, -0.12, headRadius - 0.015);
+    mouthGroup.position.set(0, -0.105, 0.19);
     faceGroup.add(mouthGroup);
     parts.mouth = mouthGroup;
 
-    const mouthGeo = new THREE.CapsuleGeometry(0.006, 0.04, 4, 8);
-    const mouth = new THREE.Mesh(mouthGeo, outlineMaterial);
-    mouth.rotation.z = Math.PI / 2;
-    mouthGroup.add(mouth);
+    const upperCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.035, -0.002, 0),
+        new THREE.Vector3(-0.015, 0.008, 0.005),
+        new THREE.Vector3(0, 0.004, 0.005),
+        new THREE.Vector3(0.015, 0.008, 0.005),
+        new THREE.Vector3(0.035, -0.002, 0)
+    ]);
+    const upperLipGeo = new THREE.TubeGeometry(upperCurve, 20, 0.006, 8, false);
+    const upperLip = new THREE.Mesh(upperLipGeo, lipMat);
+    upperLip.scale.set(1, 1, 0.5);
+    upperLip.rotation.x = -0.2;
+    upperLip.castShadow = true;
+    mouthGroup.add(upperLip);
+
+    const lowerCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.035, 0, 0),
+        new THREE.Vector3(-0.015, -0.008, 0.005),
+        new THREE.Vector3(0, -0.01, 0.008),
+        new THREE.Vector3(0.015, -0.008, 0.005),
+        new THREE.Vector3(0.035, 0, 0)
+    ]);
+    const lowerLipGeo = new THREE.TubeGeometry(lowerCurve, 20, 0.007, 8, false);
+    const lowerLip = new THREE.Mesh(lowerLipGeo, lipMat);
+    lowerLip.scale.set(1, 1, 0.5);
+    lowerLip.position.y = -0.005;
+    lowerLip.castShadow = true;
+    mouthGroup.add(lowerLip);
 
     const limbRadius = 0.1, thighLen = 0.4, shinLen = 0.4, armLen = 0.35;
     
-    // Helper to create shorts segment (thigh with brown color)
-    const createShortsSegment = (radius, length, mat) => {
-        const container = new THREE.Group();
-        // Top joint (tucked into underwear)
-        const topJointGeo = new THREE.SphereGeometry(radius, 12, 12);
-        const topJoint = new THREE.Mesh(topJointGeo, underwearMat);
-        container.add(topJoint);
-        const topOutline = new THREE.Mesh(topJointGeo, outlineMaterial);
-        topOutline.scale.setScalar(1.1);
-        container.add(topOutline);
-
-        // Main thigh (shorts) - slightly wider than the joint to overlap
-        const shortsRadius = radius * 1.08;
-        const geo = new THREE.CylinderGeometry(shortsRadius, shortsRadius, length, 12, 1);
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.y = -length / 2;
-        container.add(mesh);
-        const outline = new THREE.Mesh(geo, outlineMaterial);
-        outline.position.copy(mesh.position);
-        outline.scale.setScalar(1.1);
-        container.add(outline);
-
-        // Knee joint (skin)
-        const botJointGeo = new THREE.SphereGeometry(radius, 12, 12);
-        const botJoint = new THREE.Mesh(botJointGeo, skinMat);
-        botJoint.position.y = -length;
-        container.add(botJoint);
-        const botOutline = new THREE.Mesh(botJointGeo, outlineMaterial);
-        botOutline.position.copy(botJoint.position);
-        botOutline.scale.setScalar(1.1);
-        container.add(botOutline);
-        return container;
-    };
-
-    parts.rightThigh = createShortsSegment(limbRadius, thighLen, shortsMat);
-    parts.rightThigh.scale.setScalar(config.legScale);
+    parts.rightThigh = createSegment(limbRadius, thighLen, limbRadius, pantsMat);
     parts.rightThigh.position.set(-0.12 * config.torsoWidth, 0, 0);
     hips.add(parts.rightThigh);
-    parts.rightShin = createSegment(limbRadius, shinLen);
+    parts.rightShin = createSegment(limbRadius, shinLen, limbRadius, pantsMat);
     parts.rightShin.position.y = -thighLen;
     parts.rightThigh.add(parts.rightShin);
 
-    parts.leftThigh = createShortsSegment(limbRadius, thighLen, shortsMat);
-    parts.leftThigh.scale.setScalar(config.legScale);
+    parts.leftThigh = createSegment(limbRadius, thighLen, limbRadius, pantsMat);
     parts.leftThigh.position.set(0.12 * config.torsoWidth, 0, 0);
     hips.add(parts.leftThigh);
-    parts.leftShin = createSegment(limbRadius, shinLen);
+    parts.leftShin = createSegment(limbRadius, shinLen, limbRadius, pantsMat);
     parts.leftShin.position.y = -thighLen;
     parts.leftThigh.add(parts.leftShin);
 
@@ -428,20 +452,37 @@ export function createPlayerMesh(customConfig = {}) {
     const shoulderX = defaultShoulderX - shoulderOffset;
 
     parts.rightArm = createSegment(limbRadius, armLen, 0.08, shirtMat);
-    parts.rightArm.scale.setScalar(config.armScale);
     parts.rightArm.position.set(-shoulderX, shoulderY, 0);
     hips.add(parts.rightArm);
-    parts.rightForeArm = createSegment(0.08, armLen * 0.5, 0.05, skinMat);
+
+    const rightShoulderMount = new THREE.Group();
+    rightShoulderMount.position.y = 0.05;
+    parts.rightArm.add(rightShoulderMount);
+    parts.rightShoulderMount = rightShoulderMount;
+
+    parts.rightForeArm = createSegment(0.08, armLen * 0.5, 0.05, shirtMat);
     parts.rightForeArm.position.y = -armLen;
     parts.rightArm.add(parts.rightForeArm);
 
     parts.leftArm = createSegment(limbRadius, armLen, 0.08, shirtMat);
-    parts.leftArm.scale.setScalar(config.armScale);
     parts.leftArm.position.set(shoulderX, shoulderY, 0);
     hips.add(parts.leftArm);
-    parts.leftForeArm = createSegment(0.08, armLen * 0.5, 0.05, skinMat);
+
+    const leftShoulderMount = new THREE.Group();
+    leftShoulderMount.position.y = 0.05;
+    parts.leftArm.add(leftShoulderMount);
+    parts.leftShoulderMount = leftShoulderMount;
+
+    parts.leftForeArm = createSegment(0.08, armLen * 0.5, 0.05, shirtMat);
     parts.leftForeArm.position.y = -armLen;
     parts.leftArm.add(parts.leftForeArm);
+
+    const leftShieldMount = new THREE.Group();
+    leftShieldMount.position.y = -armLen * 0.25;
+    leftShieldMount.rotation.y = Math.PI / 2;
+    leftShieldMount.position.x = 0.06;
+    parts.leftForeArm.add(leftShieldMount);
+    parts.leftShieldMount = leftShieldMount;
 
     const createHand = (isLeft) => {
         const h = new THREE.Group();
@@ -494,7 +535,6 @@ export function createPlayerMesh(customConfig = {}) {
             const isOutline = (c.material === outlineMaterial);
             c.castShadow = !isOutline;
             c.receiveShadow = false;
-            // Clean up any potential circular refs or non-clonable bits if they existed
         }
     });
     return { mesh: group, parts };

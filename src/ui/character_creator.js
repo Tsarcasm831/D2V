@@ -255,6 +255,36 @@ export class CharacterCreator {
             this.previewScene.remove(this.currentPreviewMesh);
         }
 
+        // Apply outfit materials directly if needed, or rely on createPlayerMesh initialization
+        if (charData.outfit !== 'naked' && parts.materials) {
+            const mats = parts.materials;
+            let shirtColor = 0x888888;
+            let pantsColor = 0x444444;
+            let bootsColor = 0x222222;
+
+            switch (charData.outfit) {
+                case 'peasant':
+                    shirtColor = 0x8d6e63;
+                    pantsColor = 0x5d4037;
+                    bootsColor = 0x3e2723;
+                    break;
+                case 'warrior':
+                    shirtColor = 0x607d8b;
+                    pantsColor = 0x37474f;
+                    bootsColor = 0x263238;
+                    break;
+                case 'noble':
+                    shirtColor = 0x3f51b5;
+                    pantsColor = 0x1a237e;
+                    bootsColor = 0x111111;
+                    break;
+            }
+            if (mats.shirt) mats.shirt.color.setHex(shirtColor);
+            if (mats.pants) mats.pants.color.setHex(pantsColor);
+            if (mats.boots) mats.boots.color.setHex(bootsColor);
+        }
+
+        // Existing item attachment logic (shorts/shirt/gear)
         if (this.attachShortsFn) this.attachShortsFn(parts, charData);
         if (this.attachShirtFn) this.attachShirtFn(parts, charData);
 

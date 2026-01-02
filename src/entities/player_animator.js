@@ -59,7 +59,11 @@ export class PlayerAnimator {
         const parts = this.parts;
 
         // Handle animation timers for one-off actions
-        if (this.isPickingUp) {
+        if (this.isPickingUp || isPickingUp) {
+            if (!this.isPickingUp) {
+                this.isPickingUp = true;
+                this.pickUpTime = 0;
+            }
             this.pickUpTime += delta;
             if (this.pickUpTime > 1.2) {
                 this.isPickingUp = false;

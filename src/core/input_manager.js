@@ -62,7 +62,9 @@ export class InputManager {
                     this.game.buildManager.changeElevation(-1);
                 }
             }
-            if (key === 'x') this.game.player.toggleCombat();
+            if (key === 'x') {
+                this.game.player.toggleCombat();
+            }
             if (key === 'c') {
                 const cSlot = document.getElementById('slot-c');
                 if (cSlot) {

@@ -17,6 +17,8 @@ import { ChatUI } from '../entities/player_stubs.js';
 import { WeatherManager } from '../systems/weather_manager.js';
 import { FireballProjectile } from '../systems/fireball_projectile.js';
 
+import { CombatScene } from '../systems/combat_scene.js';
+
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
         this.roomCode = roomCode;
@@ -24,6 +26,8 @@ export class Game {
         this.projectiles = [];
         this.scene.background = new THREE.Color(0x050a14);
         this.scene.fog = new THREE.FogExp2(0x050a14, 0.008);
+        
+        this.combatScene = null;
 
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
         this.cameraRotation = { theta: Math.PI / 4, phi: 0.8, distance: 30 };
@@ -51,6 +55,8 @@ export class Game {
         this.chat = new ChatUI(this.player);
         this.inputManager = new InputManager(this);
         this.input = this.inputManager.input; // Shortcut for player update
+
+        this.combatScene = new CombatScene(this);
 
         this.minimap = new Minimap(this.player, this.worldManager);
         this.shardMap = new ShardMap(this.player, this.worldManager);
@@ -402,8 +408,14 @@ export class Game {
 
         this.timeManager.update(delta);
         this.weatherManager.update(delta);
-        this.worldManager.update(this.player, delta);
-        this.player.update(delta, this.input, this.camera);
+        
+        if (this.combatScene && this.combatScene.isActive) {
+            this.combatScene.update(delta);
+            this.combatScene.handleInput(this.input);
+        } else {
+            this.worldManager.update(this.player, delta);
+            this.player.update(delta, this.input, this.camera);
+        }
         
         // Update projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {

@@ -12,8 +12,8 @@ export class PlayerPhysics {
         this.walkSpeed = 15 * SCALE_FACTOR;
         this.runSpeed = 28 * SCALE_FACTOR;
         this.mountSpeed = 45 * SCALE_FACTOR;
-        this.jumpForce = 15 * SCALE_FACTOR;
-        this.gravity = 40 * SCALE_FACTOR;
+        this.jumpForce = 11 * SCALE_FACTOR; // Adjusted to match player.ts.bak jumpPower
+        this.gravity = 30 * SCALE_FACTOR; // Adjusted to match player.ts.bak gravity (-30)
         
         this.isGrounded = true;
         this.wasGrounded = true;

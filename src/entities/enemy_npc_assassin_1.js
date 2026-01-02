@@ -302,9 +302,13 @@ export class AssassinNPC {
             import('../utils/audio_manager.js').then(({ audioManager }) => {
                 audioManager.play('whoosh', 0.5);
             });
-            if (player.takeDamage) {
-                player.takeDamage(10);
-            }
+            
+            // Trigger combat after animation delay
+            setTimeout(() => {
+                if (window.gameInstance && !window.gameInstance.combatScene?.isActive) {
+                    window.gameInstance.triggerCombat([this]);
+                }
+            }, 600); // Wait for swing to "connect"
         }
     }
 }
