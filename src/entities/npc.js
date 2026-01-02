@@ -5,8 +5,23 @@ export class NPC {
     constructor(scene, shard, pos) {
         this.scene = scene;
         this.shard = shard;
-        this.isEnemy = false;
+        this.worldManager = shard ? shard.worldManager : null;
+        this.group = new THREE.Group();
+        this.group.position.copy(pos);
+        this.scene.add(this.group);
+        
         this.isDead = false;
+        this.isEnemy = false;
+        this.name = "NPC";
+        
+        if (this.shard && this.shard.npcs) {
+            if (!this.shard.npcs.includes(this)) {
+                this.shard.npcs.push(this);
+                if (this.worldManager) this.worldManager.invalidateCache();
+            }
+        } else {
+            console.warn(`NPC: No shard or npcs list for ${this.name} at ${pos.x}, ${pos.z}`);
+        }
 
         const geometry = new THREE.BoxGeometry(0.8, 1.8, 0.8).scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
         const material = new THREE.MeshStandardMaterial({ color: 0x2e4053 });

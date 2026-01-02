@@ -160,23 +160,20 @@ export class PlayerActions {
     }
 
     tryInteractNPC() {
-        console.log("Checking for nearby NPCs...");
-        if (!this.player.worldManager) {
-            console.log("No worldManager found on player");
-            return false;
-        }
-        const range = 2.0 * SCALE_FACTOR;
+        if (!this.player.worldManager) return false;
+        
+        const range = 5.0 * SCALE_FACTOR; 
         const nearbyNPCs = this.player.worldManager.getNearbyNPCs(this.player.mesh.position, range);
-        console.log(`Found ${nearbyNPCs.length} NPCs nearby`);
         
         let closestNPC = null;
         let minDistSq = range * range;
 
         for (const npc of nearbyNPCs) {
-            console.log(`Checking NPC: ${npc.name}, isDead: ${npc.isDead}, isEnemy: ${npc.isEnemy}`);
             if (npc.isDead || npc.isEnemy) continue;
-            const distSq = this.player.mesh.position.distanceToSquared((npc.group || npc.mesh).position);
-            console.log(`Distance squared: ${distSq}, max range squared: ${minDistSq}`);
+            
+            const npcPos = (npc.group || npc.mesh).position;
+            const distSq = this.player.mesh.position.distanceToSquared(npcPos);
+            
             if (distSq < minDistSq) {
                 minDistSq = distSq;
                 closestNPC = npc;
@@ -184,12 +181,9 @@ export class PlayerActions {
         }
 
         if (closestNPC) {
-            console.log(`Interacting with ${closestNPC.name}`);
             if (this.player.conversation) {
                 this.player.conversation.open(closestNPC);
                 return true;
-            } else {
-                console.log("No conversation module found on player");
             }
         }
         return false;
@@ -242,11 +236,7 @@ export class PlayerActions {
     }
 
     tryHarvest() {
-        console.log("tryHarvest called. Key 'F' detected.");
-        if (!this.player.worldManager) {
-            console.log("No worldManager found on player in tryHarvest");
-            return;
-        }
+        if (!this.player.worldManager) return false;
 
         // If mounted, dismount
         if (this.mountedHorse) {

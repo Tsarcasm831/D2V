@@ -275,6 +275,7 @@ export class Game {
                 questGiverPos.y = this.worldManager.getTerrainHeight(questGiverPos.x, questGiverPos.z);
                 const questGiver = new QuestGiver(this.scene, shard, questGiverPos);
                 shard.npcs.push(questGiver);
+                this.worldManager.invalidateCache();
             });
 
             import('../entities/humanoid_npc.js').then(({ HumanoidNPC }) => {

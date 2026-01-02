@@ -97,7 +97,10 @@ export class InputManager {
                 this.game.player.ui.toggleInventory();
             }
             if (key === 'f') {
-                console.log("InputManager: 'f' key pressed");
+                // Check if we are in an input field
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                    return;
+                }
                 this.game.player.tryHarvest();
             }
             // Removed duplicate 'q' entry from here

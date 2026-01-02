@@ -870,6 +870,10 @@ export class CraftingMenu { constructor(p) {} toggle() {} }
 export class ConversationUI { 
     constructor(player) {
         this.player = player;
+        this.init();
+    }
+
+    init() {
         this.modal = document.getElementById('npc-interaction-modal');
         this.npcName = document.getElementById('npc-name');
         this.npcPortrait = document.getElementById('npc-portrait');
@@ -902,24 +906,22 @@ export class ConversationUI {
 
     close() { 
         if (this.modal) this.modal.style.display = 'none';
-        if (this.player.game && this.player.game.inputManager) {
-            // Restore input focus if needed, though input_manager handles locking
-        }
     }
 
     open(npc) { 
-        console.log("ConversationUI.open called for NPC:", npc.name);
+        if (!this.modal) {
+            this.init(); // Try re-initializing if elements were added to DOM after constructor
+        }
+
         if (!this.modal) {
             console.error("ConversationUI: Modal element 'npc-interaction-modal' not found!");
             return;
         }
         
-        console.log("Setting UI elements for:", npc.name);
         if (this.npcName) this.npcName.textContent = npc.name || "Unknown NPC";
         if (this.npcPortrait) this.npcPortrait.src = npc.portrait || "assets/gear/assassins_cowl.png";
         if (this.npcDialogue) this.npcDialogue.textContent = npc.dialogue || "Hello there.";
         
-        // Clear and render options
         if (this.npcOptions) {
             this.npcOptions.innerHTML = '';
             if (npc.dialogueOptions) {
@@ -933,14 +935,10 @@ export class ConversationUI {
                     this.npcOptions.appendChild(btn);
                 });
             }
-        } else {
-            console.error("ConversationUI: 'npc-options' container not found!");
         }
         
-        console.log("Showing modal");
         this.modal.style.display = 'flex';
         
-        // Lock player movement/input via input manager logic
         if (this.player.game && this.player.game.inputManager) {
             this.player.game.inputManager.input.x = 0;
             this.player.game.inputManager.input.y = 0;

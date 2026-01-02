@@ -174,9 +174,6 @@ export class WorldManager {
     _updateEntityCaches() {
         if (!this._needsCacheUpdate) return;
         
-        // Use a simpler check or throttle this if needed, 
-        // but for now, we'll keep the full update when invalidated.
-        
         this._cachedNPCs.length = 0;
         this._cachedFauna.length = 0;
         this._cachedResources.length = 0;
@@ -187,7 +184,7 @@ export class WorldManager {
         this.stats.faunaCount = 0;
         this.stats.hostileCount = 0;
         
-        for (const shard of this.activeShards.values()) {
+        for (const [key, shard] of this.activeShards.entries()) {
             const nLen = shard.npcs.length;
             if (nLen > 0) {
                 this._cachedNPCs.push(...shard.npcs);
@@ -424,7 +421,9 @@ export class WorldManager {
         for (let i = 0; i < this._cachedNPCs.length; i++) {
             const n = this._cachedNPCs[i];
             const entityPos = (n.group || n.mesh).position;
-            if (entityPos.distanceToSquared(pos) < radSq) {
+            const distSq = entityPos.distanceToSquared(pos);
+            
+            if (distSq < radSq) {
                 this._nearbyNPCsResult.push(n);
             }
         }

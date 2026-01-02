@@ -23,5 +23,31 @@
     }
     </script>
     <script type="module" src="src/core/main.js"></script>
+
+    <!-- NPC Interaction Modal -->
+    <div id="npc-interaction-modal" class="modal">
+        <div class="modal-header">
+            <span id="npc-name">NPC NAME</span>
+            <span id="close-npc-interaction" style="cursor: pointer; opacity: 0.7;">&times;</span>
+        </div>
+        <div class="npc-content flex-1 flex p-4 overflow-hidden">
+            <div class="npc-portrait-container mr-4">
+                <img id="npc-portrait" src="assets/icons/admin_shirt_icon.png" class="w-32 h-32 rounded-lg border-2 border-white/10">
+            </div>
+            <div class="npc-dialogue-container flex-1 flex flex-col">
+                <div id="npc-dialogue" class="npc-dialogue-text mb-4 text-lg italic text-neutral-200">
+                    Hello traveler. I have a task for you.
+                </div>
+                <div id="npc-options" class="npc-options-list flex flex-col gap-2 overflow-y-auto pr-2">
+                    <!-- Dialogue options will be injected here -->
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer p-4 border-t border-white/10 flex justify-end gap-4">
+            <button id="npc-btn-trade" class="npc-btn btn-small">TRADE</button>
+            <button id="npc-btn-quest" class="npc-btn btn-small primary">QUEST</button>
+            <button id="npc-btn-leave" class="npc-btn btn-small secondary">LEAVE</button>
+        </div>
+    </div>
 </body>
 </html>

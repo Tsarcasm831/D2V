@@ -191,3 +191,54 @@ input[type="checkbox"]:hover {
 
 .uppercase { text-transform: uppercase; }
 .font-bold { font-weight: bold; }
+
+/* NPC Interaction Modal */
+.npc-dialogue-option {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    color: var(--color-gold);
+}
+
+.npc-dialogue-option:hover {
+    background: rgba(0, 170, 255, 0.15);
+    border-color: var(--primary);
+    transform: translateX(5px);
+}
+
+.btn-small {
+    padding: 8px 24px;
+    font-size: 14px;
+    width: auto;
+    margin: 0;
+    min-width: 100px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+}
+
+.btn-small:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-small.primary {
+    background: rgba(0, 170, 255, 0.2);
+    border-color: var(--primary);
+}
+
+.btn-small.primary:hover {
+    background: var(--primary);
+}
+
+.btn-small.secondary {
+    background: rgba(255, 255, 255, 0.1);
+}
+

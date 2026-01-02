@@ -125,6 +125,22 @@ export class PlayerGear {
             });
         }
 
+        // Helper to toggle outlines for base mesh parts
+        const setOutlinesVisible = (part, visible) => {
+            if (!part) return;
+            part.children.forEach(child => {
+                if (child.isMesh && child.material && child.material.type === 'MeshBasicMaterial') {
+                    // Only toggle if it's an outline (scaled up version of the geometry)
+                    child.visible = visible;
+                }
+            });
+        };
+
+        // Hide torso/arm outlines if no shirt is equipped (prevents "glowing" effect from stacked white/black materials)
+        setOutlinesVisible(this.parts.torso, isShirtEquipped);
+        setOutlinesVisible(this.parts.rightArm, isShirtEquipped);
+        setOutlinesVisible(this.parts.leftArm, isShirtEquipped);
+
         // Handle specific gear attachments
         const handleGearAttachment = (slot, meshProp) => {
             const item = equipment[slot];
@@ -227,6 +243,10 @@ export class PlayerGear {
                 }
             });
         }
+
+        // Hide thigh outlines if no shorts are equipped
+        setOutlinesVisible(this.parts.rightThigh, areShortsEquipped);
+        setOutlinesVisible(this.parts.leftThigh, areShortsEquipped);
 
         // 2. Handle base mesh shorts visibility
         // In player_mesh.js, createShortsSegment creates segments with shortsMat
