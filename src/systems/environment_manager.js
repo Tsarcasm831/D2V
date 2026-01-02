@@ -151,8 +151,19 @@ export class EnvironmentManager {
             
             // Adjust fog density based on weather
             const baseDensity = 0.002;
-            const weatherDensity = (weatherType === 'fog') ? 0.05 : (weatherType === 'storm' || weatherType === 'rain' ? 0.01 : baseDensity);
-            this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, weatherDensity, 0.01);
+            let targetDensity = baseDensity;
+            
+            if (weatherType === 'fog') {
+                targetDensity = 0.05;
+            } else if (weatherType === 'snowstorm') {
+                targetDensity = 0.35;
+            } else if (weatherType === 'storm' || weatherType === 'rain') {
+                targetDensity = 0.01;
+            }
+            
+            // Apply weather intensity for smooth transition
+            const finalTarget = baseDensity + (targetDensity - baseDensity) * weatherIntensity;
+            this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, finalTarget, 0.05); // Increased lerp for better responsiveness
         }
     }
 }

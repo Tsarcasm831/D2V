@@ -279,12 +279,35 @@ export class WorldManager {
         if (ui) {
             ui.innerHTML = `Shard Coordinate: ${sx}, ${sz}`;
             
-            // Check if teleport button exists, if not create it
+            // Check for nearby cities from Land23
+            if (this.worldMask && this.worldMask.cities) {
+                const currentWorldX = pos.x;
+                const currentWorldZ = pos.z;
+                
+                for (const city of this.worldMask.cities) {
+                    const dx = currentWorldX - city.worldX;
+                    const dz = currentWorldZ - city.worldZ;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    
+                    // If within 100 units of a city, show its name
+                    if (dist < 100) {
+                        ui.innerHTML += ` | Location: <span style="color: #00aaff; font-weight: bold;">${city.name}</span>`;
+                        break;
+                    }
+                }
+            }
+
+            // Check if teleport buttons exist, if not create them
             if (!document.getElementById('tp-shard-btn')) {
+                const btnContainer = document.createElement('div');
+                btnContainer.style.display = 'inline-flex';
+                btnContainer.style.gap = '10px';
+                btnContainer.style.marginLeft = '15px';
+                btnContainer.style.pointerEvents = 'auto';
+
                 const tpBtn = document.createElement('button');
                 tpBtn.id = 'tp-shard-btn';
-                tpBtn.textContent = 'Teleport to Shard (80, -108)';
-                tpBtn.style.marginLeft = '15px';
+                tpBtn.textContent = 'TP: Shard (80, -108)';
                 tpBtn.style.padding = '4px 8px';
                 tpBtn.style.background = 'rgba(0, 170, 255, 0.3)';
                 tpBtn.style.border = '1px solid var(--primary)';
@@ -292,7 +315,6 @@ export class WorldManager {
                 tpBtn.style.cursor = 'pointer';
                 tpBtn.style.borderRadius = '4px';
                 tpBtn.style.fontSize = '12px';
-                tpBtn.style.pointerEvents = 'auto';
                 tpBtn.onclick = () => {
                     if (window.gameInstance && window.gameInstance.player) {
                         const targetX = 80 * SHARD_SIZE;
@@ -300,8 +322,28 @@ export class WorldManager {
                         window.gameInstance.player.teleport(targetX, targetZ);
                     }
                 };
-                tpBtn.innerText = "TP TO YUREIGAKURE";
-                ui.appendChild(tpBtn);
+
+                const tpYureiBtn = document.createElement('button');
+                tpYureiBtn.id = 'tp-yurei-btn';
+                tpYureiBtn.textContent = 'TP: YUREI';
+                tpYureiBtn.style.padding = '4px 8px';
+                tpYureiBtn.style.background = 'rgba(170, 0, 255, 0.3)';
+                tpYureiBtn.style.border = '1px solid #aa00ff';
+                tpYureiBtn.style.color = 'white';
+                tpYureiBtn.style.cursor = 'pointer';
+                tpYureiBtn.style.borderRadius = '4px';
+                tpYureiBtn.style.fontSize = '12px';
+                tpYureiBtn.onclick = () => {
+                    if (window.gameInstance && window.gameInstance.player) {
+                        const PLATEAU_X = 7509.5;
+                        const PLATEAU_Z = -6949.1;
+                        window.gameInstance.player.teleport(PLATEAU_X, PLATEAU_Z);
+                    }
+                };
+
+                btnContainer.appendChild(tpBtn);
+                btnContainer.appendChild(tpYureiBtn);
+                ui.appendChild(btnContainer);
             }
         }
     }
@@ -379,8 +421,8 @@ export class WorldManager {
     }
 
     _getRawTerrainHeight(x, z) {
-        const PLATEAU_X = 4800;
-        const PLATEAU_Z = -6480;
+        const PLATEAU_X = 7509.5;
+        const PLATEAU_Z = -6949.1;
         const dx = x - PLATEAU_X;
         const dz = z - PLATEAU_Z;
 

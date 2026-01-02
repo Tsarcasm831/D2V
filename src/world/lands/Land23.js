@@ -97,6 +97,17 @@ export const Land23 = {
     [39.16961130318333, 13.039380065665757]
   ],
   "color": "#6b7280",
+  "cities": [
+    {
+      "id": "City-1",
+      "name": "Yurei",
+      "type": "city",
+      "x": 48.44358847991723,
+      "y": 7.703419002881639,
+      "desc": "Hidden Village in the Land of Ghosts",
+      "image": "assets/images/lands/yurei.png"
+    }
+  ],
   "texture": "snow",
   "ninjaRisks": [
     { "name": "Gengo", "village": "Shijima no Kuni", "detail": "Leader, Genjutsu/Voice Manipulation", "image": "/assets/characters/Land23/Gengo.png" },

@@ -355,6 +355,50 @@ export class ShardMap {
 
         if (this.zoom > 0.05) this.drawEntities(ctx, px, pz, effectiveScale, width, height);
         this.drawPlayerIndicator(ctx);
+        
+        // Draw Yurei marker (visible at all times)
+        if (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.cities) {
+            const yurei = this.worldManager.worldMask.cities.find(c => c.id === 'City-1');
+            if (yurei) {
+                const yx = (yurei.worldX - px) * effectiveScale;
+                const yz = (yurei.worldZ - pz) * effectiveScale;
+                
+                // Draw a special glowing marker for Yurei
+                ctx.save();
+                
+                // Glow effect
+                const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+                const glowSize = 10 + pulse * 5;
+                const gradient = ctx.createRadialGradient(yx, yz, 0, yx, yz, glowSize);
+                gradient.addColorStop(0, 'rgba(170, 0, 255, 0.8)');
+                gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(yx, yz, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Center dot
+                ctx.fillStyle = '#aa00ff';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(yx, yz, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = 'black';
+                ctx.fillText('YUREI', yx, yz - 12);
+                
+                ctx.restore();
+            }
+        }
+
         ctx.restore();
 
         this.drawCompass(ctx, width, height);

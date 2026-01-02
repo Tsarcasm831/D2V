@@ -43,6 +43,13 @@ export class WorldMask {
             if (p.z < this.worldBounds.minZ) this.worldBounds.minZ = p.z;
             if (p.z > this.worldBounds.maxZ) this.worldBounds.maxZ = p.z;
         }
+
+        // Map cities to world space
+        this.cities = (Land23.cities || []).map(city => ({
+            ...city,
+            worldX: (city.x - this.svgCenter.x) * this.worldScale,
+            worldZ: (city.y - this.svgCenter.z) * this.worldScale
+        }));
     }
 
     containsXZ(x, z) {
