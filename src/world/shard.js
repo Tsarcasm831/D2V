@@ -73,7 +73,32 @@ export class Shard {
         const rng = getSeededRandom(shardSeed);
 
         // Determine ground texture and biome characteristics based on noise
-        const h = this.getBiomeNoise(this.offsetX, this.offsetZ);
+        let h = this.getBiomeNoise(this.offsetX, this.offsetZ);
+        
+        // Fast distance check to avoid heavy math for distant shards
+        const PLATEAU_X = 4800;
+        const PLATEAU_Z = -6480;
+        const dx_plateau = this.offsetX - PLATEAU_X;
+        const dz_plateau = this.offsetZ - PLATEAU_Z;
+        const distSq_plateau = dx_plateau * dx_plateau + dz_plateau * dz_plateau;
+        const plateauRadiusWithMarginSq = 8281.0; // (81 + 10)^2
+
+        // Canyon influence check for environment (Trees/Ponds)
+        const canyonHalfWidth = 15.0;
+        const canyonTransitionWidth = 10.0;
+        const canyonLength = 240.0; // matching world_manager
+        const canyonHalfLength = canyonLength / 2;
+        const absDx = Math.abs(dx_plateau);
+        const absDz = Math.abs(dz_plateau);
+        const inCanyon = absDx < (canyonHalfWidth + canyonTransitionWidth) && absDz < canyonHalfLength;
+
+        const onPlateau = distSq_plateau < plateauRadiusWithMarginSq || inCanyon;
+
+        // Force Snowy Plateau characteristics if near the center or in canyon
+        if (onPlateau) {
+            h = 0.9; 
+        }
+
         let texPath = 'assets/textures/snow_texture.png';
         let treeCount = 12;
         let grassDensity = 1500; // Reduced from 2500
@@ -114,6 +139,13 @@ export class Shard {
             berryCount = 1;
             pondChance = 0.2;
             oreTypes = ['silver', 'gold', 'iron', 'rock'];
+        }
+
+        // Special adjustments for shards on or near the plateau
+        if (onPlateau) {
+            treeCount = 0; // Clear trees for the plateau
+            pondChance = 0; // No ponds on the plateau
+            grassDensity = 50; // Very sparse grass
         }
 
         const wm = this.worldManager;
@@ -747,8 +779,19 @@ export class Shard {
             }
 
             // 10. Assassin (1 per shard, except near spawn)
-            const ax = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
-            const az = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
+            let ax = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
+            let az = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
+            
+            // Prevent spawning in the bowl area at (80, -108)
+            const dx_bowl = ax - 4800;
+            const dz_bowl = az - (-6480);
+            const bowlRadiusSq = 5184.0; // matching world_manager bowlRadiusSq
+            if (dx_bowl * dx_bowl + dz_bowl * dz_bowl < bowlRadiusSq) {
+                // Shift spawn outside bowl
+                ax += (dx_bowl > 0 ? 1 : -1) * 75;
+                az += (dz_bowl > 0 ? 1 : -1) * 75;
+            }
+
             const ay = this.getTerrainHeight(ax, az);
             this.npcs.push(new AssassinNPC(this.scene, this, new THREE.Vector3(ax, ay, az)));
 

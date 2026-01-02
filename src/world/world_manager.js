@@ -283,7 +283,7 @@ export class WorldManager {
             if (!document.getElementById('tp-shard-btn')) {
                 const tpBtn = document.createElement('button');
                 tpBtn.id = 'tp-shard-btn';
-                tpBtn.textContent = 'Teleport to Shard (67, -95)';
+                tpBtn.textContent = 'Teleport to Shard (80, -108)';
                 tpBtn.style.marginLeft = '15px';
                 tpBtn.style.padding = '4px 8px';
                 tpBtn.style.background = 'rgba(0, 170, 255, 0.3)';
@@ -295,50 +295,40 @@ export class WorldManager {
                 tpBtn.style.pointerEvents = 'auto';
                 tpBtn.onclick = () => {
                     if (window.gameInstance && window.gameInstance.player) {
-                        const targetX = 67 * SHARD_SIZE;
-                        const targetZ = -95 * SHARD_SIZE;
+                        const targetX = 80 * SHARD_SIZE;
+                        const targetZ = -108 * SHARD_SIZE;
                         window.gameInstance.player.teleport(targetX, targetZ);
                     }
                 };
+                tpBtn.innerText = "TP TO YUREIGAKURE";
                 ui.appendChild(tpBtn);
             }
         }
     }
 
     getBiomeNoise(x, z) {
-        // Shared noise logic for all systems
-        const scale = 0.005; 
-        
-        // Offset x,z to stay within smaller floating point range for Sin/Cos stability
-        // This prevents "jitter" and lag at large coordinates
-        const ox = x % 10000;
-        const oz = z % 10000;
-        
-        const nx = ox * scale, nz = oz * scale;
-        
-        // Use higher precision for biome noise to avoid blocky transitions
+        // Quick lookup for cache to avoid BigInt and complex keys if possible
         const keyX = (x * 10 + 300000) | 0;
         const keyZ = (z * 10 + 300000) | 0;
-        const numKey = BigInt(keyX) << 32n | BigInt(keyZ);
+        const numKey = (keyX << 16) ^ keyZ; // Simpler hash key
         
         if (this.biomeNoiseCache.has(numKey)) return this.biomeNoiseCache.get(numKey);
         
-        // Layered noise (octaves) with more variance
-        const v1 = Math.sin(nx) + Math.sin(nz);
-        const v2 = Math.sin(nx * 2.1 + nz * 0.5) * 0.5;
-        const v3 = Math.cos(nx * 0.7 - nz * 1.3) * 0.25;
-        const v4 = Math.sin(Math.sqrt(nx*nx + nz*nz) * 0.5) * 0.5;
-        const v5 = Math.sin(nx * 4.0) * Math.cos(nz * 4.0) * 0.125; // Extra detail layer
+        // Shared noise logic for all systems
+        const scale = 0.005; 
+        const ox = x * scale;
+        const oz = z * scale;
         
-        const combined = (v1 + v2 + v3 + v4 + v5 + 2.125) / 4.25;
-        const result = THREE.MathUtils.clamp(combined, 0, 1);
+        // Simplified noise for performance (3 octaves instead of 5)
+        const v1 = Math.sin(ox) + Math.sin(oz);
+        const v2 = Math.sin(ox * 2.1 + oz * 0.5) * 0.5;
+        const v3 = Math.cos(ox * 0.7 - oz * 1.3) * 0.25;
+        
+        const combined = (v1 + v2 + v3 + 1.75) / 3.5;
+        const result = combined < 0 ? 0 : (combined > 1 ? 1 : combined);
 
-        if (this.biomeNoiseCache.size > 10000) {
-            // Remove oldest entries instead of clearing all
-            const keys = this.biomeNoiseCache.keys();
-            for (let i = 0; i < 1000; i++) {
-                this.biomeNoiseCache.delete(keys.next().value);
-            }
+        if (this.biomeNoiseCache.size > 5000) {
+            this.biomeNoiseCache.clear();
         }
         this.biomeNoiseCache.set(numKey, result);
 
@@ -389,58 +379,116 @@ export class WorldManager {
     }
 
     _getRawTerrainHeight(x, z) {
-        // Increased precision to 0.01 (multiply by 100) to eliminate height stepping during movement
-        const cacheX = (x * 100 + 3000000) | 0;
-        const cacheZ = (z * 100 + 3000000) | 0;
-        const numKey = BigInt(cacheX) << 32n | BigInt(cacheZ);
+        const PLATEAU_X = 4800;
+        const PLATEAU_Z = -6480;
+        const dx = x - PLATEAU_X;
+        const dz = z - PLATEAU_Z;
+
+        // Influence logic for the entire elevated area (Plateau + Mountains)
+        const regionRadius = 150.0; // Shards are 60 units, so ~2.5 shards radius
+        const regionTransition = 30.0;
+        const distSq = dx * dx + dz * dz;
+        const dist = Math.sqrt(distSq);
+
+        let areaInfluence = 0;
+        if (dist < regionRadius + regionTransition) {
+            if (dist < regionRadius) {
+                areaInfluence = 1;
+            } else {
+                const t = (dist - regionRadius) / regionTransition;
+                areaInfluence = 1 - (t * t * (3 - 2 * t));
+            }
+        }
+
+        // Canyon logic
+        const canyonHalfWidth = 15.0;
+        const canyonTransitionWidth = 10.0;
+        const canyonLength = 240.0;
+        const canyonHalfLength = canyonLength / 2;
+        const absDx = Math.abs(dx);
+        const absDz = Math.abs(dz);
+        let canyonInfluence = 0;
+        if (absDx < canyonHalfWidth + canyonTransitionWidth && absDz < canyonHalfLength) {
+            if (absDx < canyonHalfWidth) {
+                canyonInfluence = 1;
+            } else {
+                const t = (absDx - canyonHalfWidth) / canyonTransitionWidth;
+                canyonInfluence = 1 - (t * t * (3 - 2 * t));
+            }
+        }
+
+        const baseH = this._getBaseTerrainHeight(x, z);
+        if (areaInfluence <= 0 && canyonInfluence <= 0) return baseH;
+
+        // Structured area features
+        const plateauRadiusSq = 6561.0; // 81 * 81
+        const bottomLevel = 20.0;
+        const plateauSurfaceH = 36.0;
+
+        // Randomized mountain noise
+        const mountainNoise = (Math.sin(x * 0.1) * Math.cos(z * 0.15)) * 12.0 +
+                             (Math.sin(x * 0.25) * Math.sin(z * 0.2)) * 6.0 +
+                             (Math.cos(x * 0.05 + z * 0.05)) * 8.0;
+        const noisyBaseH = baseH + mountainNoise + 30.0;
+
+        let targetH;
+        if (distSq < plateauRadiusSq) {
+            const bowlRadiusSq = 5184.0;
+            const bowlCenterRadiusSq = 2025.0;
+            if (distSq < bowlCenterRadiusSq) {
+                targetH = bottomLevel;
+            } else if (distSq < bowlRadiusSq) {
+                const d = Math.sqrt(distSq);
+                const t = (d - 45.0) / 27.0;
+                targetH = bottomLevel + (plateauSurfaceH - bottomLevel) * (t * t * (3 - 2 * t));
+            } else {
+                targetH = plateauSurfaceH;
+            }
+        } else {
+            targetH = noisyBaseH;
+        }
+
+        // Blend features with canyon
+        if (canyonInfluence > 0) {
+            targetH = targetH * (1 - canyonInfluence) + bottomLevel * canyonInfluence;
+        }
+
+        // Final smooth blend of the entire area into the world
+        return baseH * (1 - areaInfluence) + targetH * areaInfluence;
+    }
+
+    _getBaseTerrainHeight(x, z) {
+        // High-performance numeric cache key
+        const cx = (x * 10) | 0;
+        const cz = (z * 10) | 0;
+        const numKey = (cx << 16) ^ cz;
         
         if (this.heightCache.has(numKey)) return this.heightCache.get(numKey);
 
         const h = this.getBiomeNoise(x, z);
         let height = 0;
         
-        // Define height based on biome thresholds with flat sections and continuous transitions
-        // Flat sections are achieved by using smootherstep or clamping within thresholds
-        
         if (h < 0.15) {
-            // Swamp: -1.0 to -0.25 (Flat-ish basin)
-            const t = h / 0.15;
-            const flatT = t * t * (3 - 2 * t); // smoothstep
-            height = -1.0 + flatT * 0.75;
+            const t = h * 6.666; // / 0.15
+            height = -1.0 + (t * t * (3 - 2 * t)) * 0.75;
         } else if (h < 0.3) {
-            // Plains: -0.25 to 0.5 (Very flat)
-            const t = (h - 0.15) / 0.15;
-            // Use a power function to keep it flatter for longer
-            const flatT = Math.pow(t, 2); 
-            height = -0.25 + flatT * 0.75;
+            const t = (h - 0.15) * 6.666;
+            height = -0.25 + (t * t) * 0.75;
         } else if (h < 0.45) {
-            // Forest: 0.5 to 3.0 (Rolling hills with flat spots)
-            const t = (h - 0.3) / 0.15;
-            const wave = Math.sin(t * Math.PI * 2) * 0.5;
-            height = 0.5 + t * 2.5 + wave;
+            const t = (h - 0.3) * 6.666;
+            height = 0.5 + t * 2.5 + Math.sin(t * 6.283) * 0.5;
         } else if (h < 0.6) {
-            // Steppes: 3.0 to 8.0 (Steeper but stepped)
-            const t = (h - 0.45) / 0.15;
-            const steps = Math.floor(t * 3) / 3;
+            const t = (h - 0.45) * 6.666;
+            const steps = ((t * 3) | 0) * 0.333;
             height = 3.0 + steps * 5.0 + (t - steps) * 2.0;
         } else {
-            // Peaks: 8.0 to 48.0 (Exponential peaks with high variance)
-            const peakH = (h - 0.6) / 0.4;
-            height = 8.0 + Math.pow(peakH, 2.5) * 40.0;
+            const peakH = (h - 0.6) * 2.5; // / 0.4
+            height = 8.0 + (peakH * peakH * Math.sqrt(peakH)) * 40.0;
         }
 
-        // Add fine detail noise for ground texture
-        const detail = (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.15;
+        const finalHeight = height + (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.15;
         
-        const finalHeight = height + detail;
-        
-        // Limit cache size
-        if (this.heightCache.size > 10000) {
-            const keys = this.heightCache.keys();
-            for (let i = 0; i < 1000; i++) {
-                this.heightCache.delete(keys.next().value);
-            }
-        }
+        if (this.heightCache.size > 5000) this.heightCache.clear();
         this.heightCache.set(numKey, finalHeight);
         
         return finalHeight;

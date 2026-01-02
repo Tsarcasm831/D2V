@@ -227,6 +227,23 @@ export class Bear {
             if (distSqToPlayer > 2500) return; // Skip if > 50m
         }
 
+        // Block enemies from entering the plateau (80, -108)
+        const PLATEAU_X = 4800; // 80 * 60
+        const PLATEAU_Z = -6480; // -108 * 60
+        const pdx = myPos.x - PLATEAU_X;
+        const pdz = myPos.z - PLATEAU_Z;
+        const pDistSq = pdx * pdx + pdz * pdz;
+        const plateauRadiusSq = 6561.0; // (60 * 1.35)^2
+        
+        if (pDistSq < plateauRadiusSq) {
+            const pDist = Math.sqrt(pDistSq);
+            const pushDist = (81.0 - pDist) + 1.0;
+            myPos.x += (pdx / pDist) * pushDist;
+            myPos.z += (pdz / pDist) * pushDist;
+            if (this.state === 'chase' || this.state === 'attack') this.state = 'idle';
+            return;
+        }
+
         const myRadius = 1.0 * SCALE_FACTOR;
         let collisionDetected = false;
 

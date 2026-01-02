@@ -82,13 +82,46 @@ export class NPC {
         if (!this.shard || this.isDead) return;
         
         // Skip collisions if player is too far (performance optimization)
+        const myPos = (this.group || this.mesh).position;
         if (player && player.mesh) {
             const pPos = player.mesh.position;
-            const distSqToPlayer = (this.group || this.mesh).position.distanceToSquared(pPos);
+            const distSqToPlayer = myPos.distanceToSquared(pPos);
             if (distSqToPlayer > 2500) return; // Skip if > 50m from player
         }
 
-        const myPos = (this.group || this.mesh).position;
+        const PLATEAU_X = 4800; // 80 * 60
+        const PLATEAU_Z = -6480; // -108 * 60
+        const dx = myPos.x - PLATEAU_X;
+        const dz = myPos.z - PLATEAU_Z;
+        const distSq = dx * dx + dz * dz;
+
+        // Block all enemies from the plateau radius
+        if (this.isEnemy) {
+            const plateauRadiusSq = 6561.0; // (60 * 1.35)^2
+            
+            if (distSq < plateauRadiusSq) {
+                const dist = Math.sqrt(distSq);
+                const pushDist = (81.0 - dist) + 1.0;
+                myPos.x += (dx / dist) * pushDist;
+                myPos.z += (dz / dist) * pushDist;
+                if (this.state === 'chase') this.state = 'idle';
+                return;
+            }
+        }
+
+        // Specific additional check for the bowl (No assassins in bowl)
+        if (this.type === 'assassin' || this.isEnemy) {
+            const bowlRadiusSq = 5184.0; // 72^2
+            if (distSq < bowlRadiusSq) {
+                const dist = Math.sqrt(distSq);
+                const pushDist = (72.0 - dist) + 1.0;
+                myPos.x += (dx / dist) * pushDist;
+                myPos.z += (dz / dist) * pushDist;
+                if (this.state === 'chase') this.state = 'idle';
+                return;
+            }
+        }
+
         const myRadius = 0.5 * SCALE_FACTOR;
         let collisionDetected = false;
 
