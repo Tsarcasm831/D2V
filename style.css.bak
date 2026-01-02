@@ -5,4 +5,7 @@
 @import url('ui/creator.css');
 @import url('ui/chat.css');
 
-/* Entry point for modular CSS */
+/* 
+  style.css now serves as the main entry point for game styles.
+  Most styles have been moved to logical files in the ui/ directory.
+*/

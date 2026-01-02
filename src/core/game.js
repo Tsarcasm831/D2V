@@ -269,6 +269,14 @@ export class Game {
             const pond = new Building(this.scene, shard, 'pond', pondPos);
             shard.resources.push(pond);
 
+            // Spawn Quest Giver next to fireplace
+            import('../entities/quest_giver.js').then(({ QuestGiver }) => {
+                const questGiverPos = firePos.clone().add(new THREE.Vector3(2, 0, 0));
+                questGiverPos.y = this.worldManager.getTerrainHeight(questGiverPos.x, questGiverPos.z);
+                const questGiver = new QuestGiver(this.scene, shard, questGiverPos);
+                shard.npcs.push(questGiver);
+            });
+
             import('../entities/humanoid_npc.js').then(({ HumanoidNPC }) => {
                 tentConfigs.forEach((config) => {
                     const tentPos = config.pos.clone();

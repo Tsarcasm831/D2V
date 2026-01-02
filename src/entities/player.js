@@ -42,8 +42,8 @@ export class Player {
         
         this.parts = parts;
         this.underwear = attachUnderwear(this.parts);
-        this.shorts = attachShorts(this.parts, characterData);
-        this.shirt = attachShirt(this.parts, characterData);
+        // this.shorts = attachShorts(this.parts, characterData);
+        // this.shirt = attachShirt(this.parts, characterData);
 
         // Attach gear if present
         if (characterData.gear) {
@@ -68,6 +68,9 @@ export class Player {
         this.actions = new PlayerActions(this);
 
         this.gear.init(this.parts, characterData);
+        
+        // Finalize initial visuals based on inventory state
+        if (this.gear.updateVisuals) this.gear.updateVisuals();
         
         // Grant 500 wood if the player is LordTsarcasm
         if (characterData.name?.toLowerCase() === 'lordtsarcasm') {
@@ -177,15 +180,27 @@ export class Player {
             const obstacleMeshes = nearbyObstacles.map(res => res.group).filter(g => g);
             this.playerPhysics.update(delta, input, camera, obstacleMeshes);
             
-            // Always face away from camera
-            const cameraDir = new THREE.Vector3();
-            camera.getWorldDirection(cameraDir);
-            cameraDir.y = 0;
-            cameraDir.normalize();
-            
-            if (cameraDir.lengthSq() > 0.001) {
-                const targetRotation = Math.atan2(cameraDir.x, cameraDir.z);
-                this.mesh.rotation.y = targetRotation;
+            // Face the cursor in topdown mode, or camera direction in FPV
+            if (this.worldManager && this.worldManager.game && this.worldManager.game.cameraMode === 'fpv') {
+                const cameraDir = new THREE.Vector3();
+                camera.getWorldDirection(cameraDir);
+                cameraDir.y = 0;
+                cameraDir.normalize();
+                
+                if (cameraDir.lengthSq() > 0.001) {
+                    const targetRotation = Math.atan2(cameraDir.x, cameraDir.z);
+                    this.mesh.rotation.y = targetRotation;
+                }
+            } else if (input.mouseWorldPos) {
+                // Topdown mode: Face the cursor
+                const dx = input.mouseWorldPos.x - this.mesh.position.x;
+                const dz = input.mouseWorldPos.z - this.mesh.position.z;
+                
+                // Only update rotation if mouse is far enough from player to avoid jitter
+                if (dx * dx + dz * dz > 0.1) {
+                    const targetRotation = Math.atan2(dx, dz);
+                    this.mesh.rotation.y = targetRotation;
+                }
             }
         }
 

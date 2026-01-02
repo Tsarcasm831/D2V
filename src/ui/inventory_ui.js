@@ -16,6 +16,7 @@ const ItemRarity = {
 const SlotType = {
   HELMET: 'HELMET',
   BODY: 'BODY',
+  VEST: 'VEST',
   GLOVES: 'GLOVES',
   BOOTS: 'BOOTS',
   BELT: 'BELT',
@@ -23,6 +24,7 @@ const SlotType = {
   AMULET: 'AMULET',
   WEAPON_MAIN: 'WEAPON_MAIN',
   WEAPON_OFF: 'WEAPON_OFF',
+  BACK: 'BACK',
   FLASK: 'FLASK',
   CHARM: 'CHARM',
   INVENTORY: 'INVENTORY'
@@ -57,6 +59,7 @@ export class InventoryUI {
       equipped: {
         HELMET: null,
         BODY: null,
+        VEST: null,
         GLOVES: null,
         BOOTS: null,
         BELT: null,
@@ -65,6 +68,7 @@ export class InventoryUI {
         AMULET: null,
         WEAPON_MAIN: null,
         WEAPON_OFF: null,
+        BACK: null,
         TRINKET: null,
         FLASK_1: null,
         FLASK_2: null,
@@ -81,6 +85,11 @@ export class InventoryUI {
     
     this.appEl = document.getElementById('app');
     this.tooltipEl = document.getElementById('tooltip');
+    if (!this.tooltipEl) {
+      this.tooltipEl = document.createElement('div');
+      this.tooltipEl.id = 'tooltip';
+      document.body.appendChild(this.tooltipEl);
+    }
     this.container = null; // Will be set after first render
     
     // Preview Scene State
@@ -92,13 +101,13 @@ export class InventoryUI {
     this.lastUpdateTime = performance.now();
     this.animationFrameId = null;
     
+    this.ai = this.initAI();
+  }
+
+  initAI() {
     const metaEnv = window.importMetaEnv || {};
     const apiKey = metaEnv.GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || '';
-    if (apiKey) {
-      this.ai = new GoogleGenAI(apiKey);
-    } else {
-      this.ai = null;
-    }
+    return apiKey ? new GoogleGenAI(apiKey) : null;
   }
 
   init() {
@@ -110,17 +119,13 @@ export class InventoryUI {
   toggle() {
     if (!this.appEl) return;
     
-    // The main wrapper created in render()
     const wrapper = document.getElementById('inventory-overlay-wrapper');
-    
     if (!wrapper) {
-      // If not rendered yet, render it first
       this.render();
       const newWrapper = document.getElementById('inventory-overlay-wrapper');
       if (newWrapper) {
         newWrapper.style.display = 'flex';
-        this.syncWithPlayer();
-        this.render(); // Re-render to populate content
+        this.onOpen();
       }
       return;
     }
@@ -130,21 +135,57 @@ export class InventoryUI {
     wrapper.style.display = newDisplay;
     
     if (newDisplay === 'none') {
-      this.stopPreviewAnimation();
+      this.onClose();
     } else {
-      this.syncWithPlayer();
-      this.render();
-      this.startPreviewAnimation();
+      this.onOpen();
     }
+  }
+
+  onOpen() {
+    this.syncWithPlayer();
+    this.render();
+    this.startPreviewAnimation();
+  }
+
+  onClose() {
+    this.stopPreviewAnimation();
   }
 
   syncWithPlayer() {
     if (!this.player || !this.player.inventory) return;
     const inv = this.player.inventory;
     
-    this.state.items = [...inv.storage.filter(i => i), ...Object.values(inv.equipment).filter(i => i)];
-    this.state.inventoryIds = inv.storage.map((item, idx) => item ? (item.id || `inv-${idx}`) : null);
+    // Flatten all items from hotbar, storage, and equipment to ensure they are in the state list
+    this.state.items = [
+      ...inv.hotbar.filter(i => i),
+      ...inv.storage.filter(i => i),
+      ...Object.values(inv.equipment).filter(i => i)
+    ];
+    
+    this.state.inventoryIds = inv.storage.map((item, idx) => {
+      if (item) {
+        if (!item.id) {
+          item.id = `inv-${idx}-${Date.now()}`;
+        }
+        return item.id;
+      }
+      return null;
+    });
     this.state.equipped = { ...inv.equipment };
+    
+    // Refresh the state items list from all potential sources to ensure IDs are synced
+    this.state.items = [
+      ...inv.hotbar.filter(i => i),
+      ...inv.storage.filter(i => i),
+      ...Object.values(inv.equipment).filter(i => i)
+    ];
+
+    // Ensure all items have IDs in the flattened list
+    this.state.items.forEach((item, idx) => {
+      if (item && !item.id) {
+        item.id = `item-sync-${idx}-${Date.now()}`;
+      }
+    });
   }
 
   getItemById(id) {
@@ -254,6 +295,7 @@ export class InventoryUI {
     this.tooltipEl.innerHTML = this.renderTooltipContent(item);
     this.tooltipEl.style.display = 'block';
     this.tooltipEl.style.opacity = '1';
+    this.tooltipEl.style.visibility = 'visible';
     this.positionTooltip(x, y);
   }
 
@@ -262,83 +304,97 @@ export class InventoryUI {
     this.state.tooltipItemId = null;
     this.tooltipEl.style.opacity = '0';
     this.tooltipEl.style.display = 'none';
+    this.tooltipEl.style.visibility = 'hidden';
   }
 
   positionTooltip(x, y) {
     if (!this.state.tooltipItemId || !this.tooltipEl) return;
-    const padding = 20;
+    const padding = 15;
+    const tooltipWidth = this.tooltipEl.offsetWidth || 300;
+    const tooltipHeight = this.tooltipEl.offsetHeight || 200;
+    
     let left = x + padding;
     let top = y + padding;
-    if (left + this.tooltipEl.offsetWidth > window.innerWidth) left = x - this.tooltipEl.offsetWidth - padding;
-    if (top + this.tooltipEl.offsetHeight > window.innerHeight) top = y - this.tooltipEl.offsetHeight - padding;
+
+    if (left + tooltipWidth > window.innerWidth) {
+      left = x - tooltipWidth - padding;
+    }
+    if (top + tooltipHeight > window.innerHeight) {
+      top = y - tooltipHeight - padding;
+    }
+
     this.tooltipEl.style.left = `${Math.max(10, left)}px`;
     this.tooltipEl.style.top = `${Math.max(10, top)}px`;
   }
 
-  renderEquipSlot({ slotKey, item, className, label }) {
+  renderEquipSlot({ slotKey, item, className, label, rarity }) {
     const hasItem = !!item;
+    const rarityClass = hasItem ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : '';
     return `
-      <div class="relative slot-border flex items-center justify-center cursor-pointer group ${className} ${hasItem ? 'bg-[#050505]' : 'bg-[#080808]'}"
-        ${hasItem ? `data-action="unequip" data-slot="${slotKey}" data-tooltip-id="${item.id}"` : ''}>
-        ${!hasItem && label ? `<span class="absolute top-1 left-0 w-full text-center text-[8px] uppercase font-cinzel text-neutral-600 tracking-widest font-semibold pointer-events-none opacity-60">${escapeHtml(label)}</span>` : ''}
-        ${hasItem ? `<img src="${item.icon}" class="w-full h-full object-contain p-1" />` : ''}
+      <div class="inventory-slot-premium equipment-slot-v3 ${className} ${rarityClass} ${hasItem ? 'has-item' : ''}"
+        data-action="unequip" data-slot="${slotKey}" ${hasItem ? `data-tooltip-id="${item.id}"` : ''}>
+        <div class="slot-inner">
+          ${!hasItem && label ? `<span class="slot-label-v3">${escapeHtml(label)}</span>` : ''}
+          ${hasItem ? `<img src="${item.icon}" class="item-icon-v3" />` : ''}
+        </div>
+        ${hasItem ? `<div class="rarity-indicator-v3"></div>` : ''}
       </div>
     `;
   }
 
   renderInventoryContent() {
+    if (this.state.activeTab === 'CURRENCY') return this.renderCurrencyTab();
+    if (this.state.activeTab === 'GEMS') return this.renderGemsTab();
+    return this.renderGeneralTab();
+  }
+
+  renderCurrencyTab() {
+    const cellClass = 'inventory-slot-premium';
+    const currencyCells = CURRENCY_ITEMS.map((curr) => (
+      `<div class="${cellClass}" data-tooltip-id="${curr.id}">
+        <div class="w-full h-full p-2">
+          <img src="${curr.icon}" class="w-full h-full object-contain transition-transform" alt="${escapeHtml(curr.name)}" />
+        </div>
+        <div class="absolute bottom-0.5 right-1 text-[9px] text-[#fbbf24] font-bold font-cinzel drop-shadow-md">20</div>
+      </div>`
+    )).join('');
+
+    const emptyCells = Array.from({ length: Math.max(0, 64 - CURRENCY_ITEMS.length) })
+      .map(() => `<div class="${cellClass}"></div>`)
+      .join('');
+
+    return `
+      <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+        <div class="new-inventory-grid">${currencyCells}${emptyCells}</div>
+      </div>
+    `;
+  }
+
+  renderGemsTab() {
+    const cellClass = 'inventory-slot-premium';
+    const gemCells = GEM_ITEMS.map((gem) => (
+      `<div class="${cellClass}" data-tooltip-id="${gem.id}">
+        <div class="w-full h-full p-2">
+          <img src="${gem.icon}" class="w-full h-full object-contain transition-transform brightness-110" alt="${escapeHtml(gem.name)}" />
+        </div>
+      </div>`
+    )).join('');
+
+    const emptyCells = Array.from({ length: Math.max(0, 64 - GEM_ITEMS.length) })
+      .map(() => `<div class="${cellClass}"></div>`)
+      .join('');
+
+    return `
+      <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+        <div class="new-inventory-grid">${gemCells}${emptyCells}</div>
+      </div>
+    `;
+  }
+
+  renderGeneralTab() {
     const totalCells = INVENTORY_ROWS * INVENTORY_COLS;
     const cellClass = 'inventory-slot-premium';
-    const unlockedCellsCount = 3 * INVENTORY_COLS; // 3 rows unlocked
-
-    if (this.state.activeTab === 'CURRENCY') {
-      const currencyCells = CURRENCY_ITEMS.map((curr) => (
-        `<div class="${cellClass}" data-tooltip-id="${curr.id}">
-          <div class="w-full h-full p-2">
-            <img src="${curr.icon}" class="w-full h-full object-contain transition-transform" alt="${escapeHtml(curr.name)}" />
-          </div>
-          <div class="absolute bottom-0.5 right-1 text-[9px] text-[#fbbf24] font-bold font-cinzel drop-shadow-md">20</div>
-        </div>`
-      )).join('');
-
-      const emptyCount = Math.max(0, 64 - CURRENCY_ITEMS.length);
-      const emptyCells = Array.from({ length: emptyCount })
-        .map(() => `<div class="${cellClass}"></div>`)
-        .join('');
-
-      return `
-        <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
-          <div class="new-inventory-grid">
-            ${currencyCells}
-            ${emptyCells}
-          </div>
-        </div>
-      `;
-    }
-
-    if (this.state.activeTab === 'GEMS') {
-      const gemCells = GEM_ITEMS.map((gem) => (
-        `<div class="${cellClass}" data-tooltip-id="${gem.id}">
-          <div class="w-full h-full p-2">
-            <img src="${gem.icon}" class="w-full h-full object-contain transition-transform brightness-110" alt="${escapeHtml(gem.name)}" />
-          </div>
-        </div>`
-      )).join('');
-
-      const emptyCount = Math.max(0, 64 - GEM_ITEMS.length);
-      const emptyCells = Array.from({ length: emptyCount })
-        .map(() => `<div class="${cellClass}"></div>`)
-        .join('');
-
-      return `
-        <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
-          <div class="new-inventory-grid">
-            ${gemCells}
-            ${emptyCells}
-          </div>
-        </div>
-      `;
-    }
+    const unlockedCellsCount = 3 * INVENTORY_COLS;
 
     const cells = Array.from({ length: totalCells }).map((_, idx) => {
       const itemId = this.state.inventoryIds[idx];
@@ -347,29 +403,15 @@ export class InventoryUI {
 
       return `
         <div class="${cellClass} ${isLocked ? 'locked-slot' : ''}">
-          ${!item && !isLocked ? `
-            <div class="absolute inset-0 opacity-[0.03] pointer-events-none">
-              <svg width="100%" height="100%" viewBox="0 0 10 10">
-                <path d="M0 0 L10 10" stroke="currentColor" stroke-width="0.5"/>
-              </svg>
-            </div>
-          ` : ''}
-
           ${isLocked && !item ? `
             <div class="absolute inset-0 flex items-center justify-center opacity-20">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-1.24-5-4-5s-4 2.24-4 5v2H7c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71.83-3.1 3.1-3.1 2.27 0 3.1 1.39 3.1 3.1v2z"/></svg>
             </div>
           ` : ''}
-
           ${item ? `
-            <div
-              class="absolute inset-0 z-10 p-[3px] cursor-pointer"
-              data-action="equip"
-              data-item-id="${item.id}"
-              data-tooltip-id="${item.id}"
-            >
+            <div class="absolute inset-0 z-10 p-[3px] cursor-pointer" data-action="equip" data-item-id="${item.id}" data-tooltip-id="${item.id}">
               <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm" alt="${escapeHtml(item.name)}" />
-              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${item.rarity === ItemRarity.UNIQUE ? 'bg-unique' : item.rarity === ItemRarity.RARE ? 'bg-rare' : item.rarity === ItemRarity.MAGIC ? 'bg-magic' : 'bg-transparent'}"></div>
+              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${this.getRarityBgClass(item.rarity)}"></div>
             </div>
           ` : ''}
         </div>
@@ -378,11 +420,18 @@ export class InventoryUI {
 
     return `
       <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
-        <div class="new-inventory-grid">
-          ${cells}
-        </div>
+        <div class="new-inventory-grid">${cells}</div>
       </div>
     `;
+  }
+
+  getRarityBgClass(rarity) {
+    switch (rarity) {
+      case ItemRarity.UNIQUE: return 'bg-unique';
+      case ItemRarity.RARE: return 'bg-rare';
+      case ItemRarity.MAGIC: return 'bg-magic';
+      default: return 'bg-transparent';
+    }
   }
 
   setupPreviewScene() {
@@ -507,145 +556,168 @@ export class InventoryUI {
   }
 
   renderEquipmentSection() {
+    const equipped = this.state.equipped;
+    return `
+      <div class="flex-1-2 flex flex-col background-doll border-r-doll relative overflow-hidden">
+        <div class="doll-texture"></div>
+        ${this.renderPreviewContainer()}
+        <div class="flex-1 flex flex-col items-center justify-start relative z-10 overflow-hidden pt-0">
+          <div class="paper-doll-container">
+            ${this.renderEquipmentTopRow(equipped)}
+            ${this.renderEquipmentGrid(equipped)}
+          </div>
+        </div>
+        ${this.renderStatsPanel()}
+      </div>
+    `;
+  }
+
+  renderPreviewContainer() {
+    return `
+      <div id="preview-canvas-container" class="silhouette-overlay">
+          <div class="silhouette-glow"></div>
+          <div class="silhouette-gradient"></div>
+      </div>
+    `;
+  }
+
+  renderEquipmentTopRow(equipped) {
+    return `
+      <div class="flex justify-center items-end gap-6 mb-4">
+        <div class="flex flex-col items-center gap-2">
+           ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-10 h-10 rounded-full amulet-slot', label: 'Neck' })}
+        </div>
+        <div class="flex flex-col items-center">
+          ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-14 h-14 helmet-slot', label: 'Head' })}
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          ${this.renderEquipSlot({ slotKey: 'TRINKET', item: equipped.TRINKET, className: 'w-10 h-10 rounded-full relic-slot', label: 'Relic' })}
+        </div>
+      </div>
+    `;
+  }
+
+  renderEquipmentGrid(equipped) {
+    return `
+      <div class="equipment-grid-v3">
+        <div class="equip-column-side">
+          ${this.renderEquipSlot({ slotKey: 'WEAPON_MAIN', item: equipped.WEAPON_MAIN, className: 'w-16 h-32 weapon-slot', label: 'Main' })}
+          ${this.renderEquipSlot({ slotKey: 'RING_1', item: equipped.RING_1, className: 'w-10 h-10 ring-slot', label: 'Ring' })}
+        </div>
+        
+        <div class="equip-column-center">
+          ${this.renderEquipSlot({ slotKey: 'BODY', item: equipped.BODY, className: 'w-24 h-24 body-slot', label: 'Torso' })}
+          ${this.renderEquipSlot({ slotKey: 'VEST', item: equipped.VEST, className: 'w-24 h-24 vest-slot', label: 'Vest' })}
+          ${this.renderEquipSlot({ slotKey: 'BELT', item: equipped.BELT, className: 'w-24 h-8 belt-slot', label: 'Waist' })}
+          ${this.renderEquipSlot({ slotKey: 'SHORTS', item: equipped.SHORTS, className: 'w-24 h-24 legs-slot', label: 'Legs' })}
+        </div>
+
+        <div class="equip-column-side">
+          ${this.renderEquipSlot({ slotKey: 'BACK', item: equipped.BACK, className: 'w-16 h-16 cloak-slot', label: 'Cloak' })}
+          ${this.renderEquipSlot({ slotKey: 'WEAPON_OFF', item: equipped.WEAPON_OFF, className: 'w-16 h-32 weapon-slot', label: 'Off' })}
+          ${this.renderEquipSlot({ slotKey: 'RING_2', item: equipped.RING_2, className: 'w-10 h-10 ring-slot', label: 'Ring' })}
+        </div>
+        
+        <div class="equip-row-bottom">
+           ${this.renderEquipSlot({ slotKey: 'GLOVES', item: equipped.GLOVES, className: 'w-14 h-14 gloves-slot', label: 'Hands' })}
+           ${this.renderEquipSlot({ slotKey: 'BOOTS', item: equipped.BOOTS, className: 'w-14 h-14 boots-slot', label: 'Feet' })}
+        </div>
+      </div>
+    `;
+  }
+
+  renderStatsPanel() {
     const stats = this.player?.stats;
     const charName = (this.player?.characterData?.name || 'ADVENTURER').toUpperCase();
     const charLevel = this.player?.level || 1;
     const charClass = this.player?.characterData?.class || 'Nomad';
 
-    const equipped = this.state.equipped;
-
     return `
-      <div class="flex-1-2 flex flex-col background-doll border-r-doll relative overflow-hidden">
-        <div class="doll-texture"></div>
-
-        <!-- Player Preview -->
-        <div id="preview-canvas-container" class="silhouette-overlay">
-            <div class="silhouette-glow"></div>
-            <div class="silhouette-gradient"></div>
-        </div>
-
-        <div class="flex-1 flex flex-col items-center justify-start relative z-10 overflow-hidden pt-0">
-          <div class="paper-doll-container">
-            <!-- Header Row: Accessories -->
-            <div class="flex justify-center gap-4 mb-2">
-              ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-8 h-8 rounded-full', label: 'Neck' })}
-              ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-10 h-10', label: 'Head' })}
-              ${this.renderEquipSlot({ slotKey: 'TRINKET', item: equipped.TRINKET, className: 'w-8 h-8 rounded-full', label: 'Relic' })}
-            </div>
-
-            <!-- Main Body & Weapons -->
-            <div class="equipment-grid-main" style="gap: 0.5rem;">
-              <!-- Far Left: Main Hand -->
-              <div class="equipment-column" style="gap: 0.5rem;">
-                ${this.renderEquipSlot({ slotKey: 'WEAPON_MAIN', item: equipped.WEAPON_MAIN, className: 'w-14 h-28', label: 'Main' })}
-              </div>
-
-              <!-- Near Left Column: Ring 1 & Hands -->
-              <div class="equipment-column" style="gap: 0.5rem;">
-                ${this.renderEquipSlot({ slotKey: 'RING_1', item: equipped.RING_1, className: 'w-8 h-8', label: 'Ring' })}
-                ${this.renderEquipSlot({ slotKey: 'GLOVES', item: equipped.GLOVES, className: 'w-12 h-12', label: 'Hands' })}
-              </div>
-
-              <!-- Center Column: Body, Belt, Legs -->
-              <div class="equipment-column" style="gap: 0.5rem;">
-                ${this.renderEquipSlot({ slotKey: 'BODY', item: equipped.BODY, className: 'w-20 h-28', label: 'Torso' })}
-                ${this.renderEquipSlot({ slotKey: 'BELT', item: equipped.BELT, className: 'w-20 h-6', label: 'Waist' })}
-                ${this.renderEquipSlot({ slotKey: 'SHORTS', item: equipped.SHORTS, className: 'w-20 h-20', label: 'Legs' })}
-              </div>
-
-              <!-- Near Right Column: Ring 2 & Feet -->
-              <div class="equipment-column" style="gap: 0.5rem;">
-                ${this.renderEquipSlot({ slotKey: 'RING_2', item: equipped.RING_2, className: 'w-8 h-8', label: 'Ring' })}
-                ${this.renderEquipSlot({ slotKey: 'BOOTS', item: equipped.BOOTS, className: 'w-12 h-12', label: 'Feet' })}
-              </div>
-
-              <!-- Far Right: Off Hand -->
-              <div class="equipment-column" style="gap: 0.5rem;">
-                ${this.renderEquipSlot({ slotKey: 'WEAPON_OFF', item: equipped.WEAPON_OFF, className: 'w-14 h-28', label: 'Off' })}
-              </div>
-            </div>
+      <div class="stats-panel-doll relative z-20">
+        <div class="stats-panel-glow"></div>
+        <div class="flex flex-col p-3 gap-2">
+          ${this.renderStatsHeader(charName, charLevel, charClass)}
+          <div class="stats-grid-doll">
+            ${this.renderAttributes(stats)}
+            ${this.renderDefenses(stats)}
+            ${this.renderResistances(stats)}
           </div>
         </div>
+      </div>
+    `;
+  }
 
-        <!-- Stats Panel -->
-        <div class="stats-panel-doll relative z-20">
-          <div class="stats-panel-glow"></div>
-
-          <div class="flex flex-col p-3 gap-2">
-            <div class="char-header-row" style="padding-bottom: 0.25rem;">
-              <div>
-                <h2 class="char-name-doll">
-                  ${charName}
-                </h2>
-                <div class="char-subtitle-doll">
-                  <span class="level-label-doll">Level ${charLevel}</span>
-                  <span class="doll-dot"></span>
-                  <span class="class-label-doll">${charClass}</span>
-                </div>
-              </div>
-              <div class="doll-icon-container" style="width: 2rem; height: 2rem;">
-                <svg class="doll-icon-svg" style="width: 1.25rem; height: 1.25rem;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
-              </div>
-            </div>
-
-            <div class="stats-grid-doll">
-              <div class="stats-col-doll">
-                <h4 class="stats-header-doll">Attributes</h4>
-                <div class="stats-row-doll">
-                  <span>Str</span> <span class="text-white">${stats?.base?.strength || 0}</span>
-                </div>
-                <div class="stats-row-doll">
-                  <span>Dex</span> <span class="text-white">${stats?.base?.dexterity || 0}</span>
-                </div>
-                <div class="stats-row-doll highlight-blue">
-                  <span>Int</span> <span class="font-bold">${stats?.base?.intelligence || 0}</span>
-                </div>
-              </div>
-
-              <div class="stats-col-doll">
-                <h4 class="stats-header-doll">Defenses</h4>
-                <div class="stats-row-doll">
-                  <span>Armour</span> <span class="text-white">${stats?.derived?.defense || 0}</span>
-                </div>
-                <div class="stats-row-doll">
-                  <span>Evasion</span> <span class="text-white">${stats?.derived?.dodge || 0}</span>
-                </div>
-                <div class="stats-row-doll highlight-blue">
-                  <span>ES</span> <span class="font-bold">0</span>
-                </div>
-              </div>
-
-              <div class="stats-col-doll">
-                <h4 class="stats-header-doll">Resists</h4>
-                <div class="grid grid-cols-2 gap-x-4">
-                  <div class="stats-row-doll highlight-red">
-                    <span>Fire</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll highlight-blue-dark">
-                    <span>Wind</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll highlight-blue">
-                    <span>Water</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll highlight-yellow">
-                    <span>Earth</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll" style="color: #fbbf24;">
-                    <span>Lightn</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll" style="color: #fff;">
-                    <span>Light</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll" style="color: #a855f7;">
-                    <span>Shadow</span> <span>0%</span>
-                  </div>
-                  <div class="stats-row-doll" style="color: #22d3ee;">
-                    <span>Reson</span> <span>0%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+  renderStatsHeader(name, level, className) {
+    return `
+      <div class="char-header-row" style="padding-bottom: 0.25rem;">
+        <div>
+          <h2 class="char-name-doll">${name}</h2>
+          <div class="char-subtitle-doll">
+            <span class="level-label-doll">Level ${level}</span>
+            <span class="doll-dot"></span>
+            <span class="class-label-doll">${className}</span>
           </div>
+        </div>
+        <div class="doll-icon-container" style="width: 2rem; height: 2rem;">
+          <svg class="doll-icon-svg" style="width: 1.25rem; height: 1.25rem;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
+        </div>
+      </div>
+    `;
+  }
+
+  renderAttributes(stats) {
+    return `
+      <div class="stats-col-doll">
+        <h4 class="stats-header-doll">Attributes</h4>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">STRENGTH</span>
+          <span class="stat-value-v3">${stats?.base?.strength || 0}</span>
+        </div>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">DEXTERITY</span>
+          <span class="stat-value-v3">${stats?.base?.dexterity || 0}</span>
+        </div>
+        <div class="stats-row-v3 highlight-blue">
+          <span class="stat-label-v3">INTELLIGENCE</span>
+          <span class="stat-value-v3">${stats?.base?.intelligence || 0}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  renderDefenses(stats) {
+    return `
+      <div class="stats-col-doll">
+        <h4 class="stats-header-doll">Defenses</h4>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">ARMOUR</span>
+          <span class="stat-value-v3">${stats?.derived?.defense || 0}</span>
+        </div>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">EVASION</span>
+          <span class="stat-value-v3">${stats?.derived?.dodge || 0}</span>
+        </div>
+        <div class="stats-row-v3 highlight-blue">
+          <span class="stat-label-v3">EN. SHIELD</span>
+          <span class="stat-value-v3">0</span>
+        </div>
+      </div>
+    `;
+  }
+
+  renderResistances(stats) {
+    return `
+      <div class="stats-col-doll">
+        <h4 class="stats-header-doll">Resistances</h4>
+        <div class="grid grid-cols-2 gap-x-6">
+          <div class="stats-row-v3 highlight-red"><span class="stat-label-v3">FIRE</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-wind"><span class="stat-label-v3">WIND</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-water"><span class="stat-label-v3">WATER</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-earth"><span class="stat-label-v3">EARTH</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-lightning"><span class="stat-label-v3">LIGHTN</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-light"><span class="stat-label-v3">LIGHT</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-shadow"><span class="stat-label-v3">SHADOW</span> <span class="stat-value-v3">0%</span></div>
+          <div class="stats-row-v3 highlight-reson"><span class="stat-label-v3">RESON</span> <span class="stat-value-v3">0%</span></div>
         </div>
       </div>
     `;
@@ -656,57 +728,41 @@ export class InventoryUI {
       .map((tab) => {
         const isActive = this.state.activeTab === tab;
         return `
-          <button
+          <div
             data-tab="${tab}"
-            class="inventory-tab-premium ${isActive ? 'active' : ''}"
+            class="inventory-tab-v3 ${isActive ? 'active' : ''}"
           >
-            ${tab}
-          </button>
+            <span class="tab-label-v3">${tab}</span>
+            <div class="tab-indicator-v3"></div>
+          </div>
         `;
-      })
-      .join('');
-
-    const sortControls = this.state.activeTab === 'GENERAL' ? `
-      <div id="inventory-sort-controls" class="inventory-sort-row">
-        ${['NAME', 'TYPE', 'RARITY'].map((label) => (
-          `<button
-            data-sort="${label}"
-            class="sort-button-premium"
-          >
-            ${label}
-          </button>`
-        )).join('')}
-      </div>
-    ` : '';
+      }).join('');
 
     return `
-      <div class="inventory-grid-pane">
-        <div class="inventory-tabs-container no-scrollbar">
+      <div class="inventory-pane-v3">
+        <div class="inventory-tabs-v3">
           ${tabs}
-          <div class="flex-1"></div>
-          ${sortControls}
         </div>
 
-        <div class="inventory-main-content custom-scrollbar">
-          <div class="mx-auto w-fit">
+        <div class="inventory-main-content-v3 custom-scrollbar">
+          <div class="mx-auto w-fit py-4">
             ${this.renderInventoryContent()}
           </div>
         </div>
 
-        <div class="inventory-footer-premium">
-          <div class="footer-stats-container">
-            <div class="footer-stat">
-              <span class="footer-stat-dot-gold"></span>
-              <span class="footer-stat-label">Gold</span>
-              <span class="footer-stat-value text-unique">${this.player?.inventory?.currency?.gold || 0}</span>
+        <div class="inventory-footer-v3">
+          <div class="footer-stats-v3">
+            <div class="footer-stat-v3">
+              <img src="assets/icons/gold_coin.png" class="footer-icon-v3" />
+              <span class="footer-stat-value-v3 text-unique">${this.player?.inventory?.currency?.gold || 0}</span>
             </div>
-            <div class="footer-stat">
-              <span class="footer-stat-dot-resonance"></span>
-              <span class="footer-stat-label">Resonance</span>
-              <span class="footer-stat-value text-magic">0</span>
+            <div class="footer-stat-v3">
+              <div class="footer-icon-v3 resonance-icon"></div>
+              <span class="footer-stat-value-v3 text-magic">0</span>
             </div>
           </div>
-          <div class="footer-status-text">
+          <div class="footer-status-v3">
+            <span class="status-dot-v3"></span>
             Awaiting Input
           </div>
         </div>
@@ -729,30 +785,36 @@ export class InventoryUI {
           <div class="doll-gradient-bg"></div>
         </div>
 
-        <div class="inventory-modal-container">
-          <div class="inventory-header">
-            <div class="flex items-center gap-2">
-              <div class="inventory-header-dot"></div>
-              <h1 class="inventory-header-title">
-                INVENTORY
-              </h1>
+        <div class="inventory-modal-container-v3">
+          <div class="inventory-header-v3">
+            <div class="header-left-v3">
+              <div class="header-dot-v3"></div>
+              <h1 class="header-title-v3">INVENTORY</h1>
             </div>
-            <div class="inventory-header-system">
-              <span class="system-protocol-text">System Protocol <span class="system-id-text">X7-AEGIS</span></span>
-              <div id="close-new-inv" class="close-btn-doll">&times;</div>
+            <div class="header-right-v3">
+              <div class="system-info-v3">
+                <span class="system-label-v3">PROTOCOL</span>
+                <span class="system-value-v3">X7-AEGIS</span>
+              </div>
+              <div id="close-new-inv" class="close-btn-v3">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </div>
             </div>
           </div>
 
-          <div class="inventory-layout">
+          <div class="inventory-layout-v3">
             ${this.renderEquipmentSection()}
             ${this.renderInventoryPane()}
           </div>
+          
+          <div class="inventory-border-v3 t"></div>
+          <div class="inventory-border-v3 b"></div>
+          <div class="inventory-border-v3 l"></div>
+          <div class="inventory-border-v3 r"></div>
         </div>
 
-        <div class="inventory-version-footer">
-          <span class="version-text-doll">
-            Inventory System v1.0.4
-          </span>
+        <div class="inventory-version-v3">
+          Ver. 1.0.4 <span class="version-dot-v3"></span> Secure Connection Established
         </div>
       </div>
     `;
@@ -772,12 +834,24 @@ export class InventoryUI {
   }
 
   bindEvents() {
+    const wrapper = document.getElementById('inventory-overlay-wrapper');
+    if (!wrapper) return;
+
+    this.bindCloseButton();
+    this.bindTabs(wrapper);
+    this.bindTooltips(wrapper);
+    this.bindActions(wrapper);
+  }
+
+  bindCloseButton() {
     const closeBtn = document.getElementById('close-new-inv');
     if (closeBtn) closeBtn.onclick = () => this.toggle();
+  }
 
-    // Tab switching
-    this.appEl.querySelectorAll('.inventory-tab-premium').forEach(tab => {
-      tab.onclick = () => {
+  bindTabs(wrapper) {
+    wrapper.querySelectorAll('.inventory-tab-v3').forEach(tab => {
+      tab.onclick = (e) => {
+        e.stopPropagation();
         const tabName = tab.dataset.tab;
         if (this.state.activeTab !== tabName) {
           this.state.activeTab = tabName;
@@ -785,14 +859,55 @@ export class InventoryUI {
         }
       };
     });
+  }
 
-    this.appEl.querySelectorAll('[data-tooltip-id]').forEach(el => {
-      el.onmouseenter = (e) => this.showTooltip(this.getTooltipItemById(el.dataset.tooltipId), e.clientX, e.clientY);
-      el.onmouseleave = () => this.hideTooltip();
-    });
-    this.appEl.querySelectorAll('[data-action="equip"]').forEach(el => {
-      el.ondblclick = () => this.handleEquip(el.dataset.itemId);
-    });
+  bindTooltips(wrapper) {
+    // Tooltip delegation for mousemove to ensure smooth following
+    const handleMove = (e) => {
+      const target = e.target.closest('[data-tooltip-id]');
+      if (target) {
+        const item = this.getTooltipItemById(target.dataset.tooltipId);
+        if (item) {
+          this.showTooltip(item, e.clientX, e.clientY);
+        }
+      } else {
+        this.hideTooltip();
+      }
+    };
+
+    wrapper.addEventListener('mousemove', handleMove, { passive: true });
+    wrapper.addEventListener('mouseleave', () => this.hideTooltip(), { passive: true });
+    
+    // Explicitly hide on any click to prevent stuck tooltips
+    wrapper.addEventListener('mousedown', () => this.hideTooltip(), { passive: true });
+  }
+
+  bindActions(wrapper) {
+    // Right-click delegation
+    wrapper.oncontextmenu = (e) => {
+      const target = e.target.closest('[data-action]');
+      if (!target) return;
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (target.dataset.action === 'equip') {
+        this.handleEquip(target.dataset.itemId);
+      } else if (target.dataset.action === 'unequip') {
+        this.handleUnequip(target.dataset.slot);
+      }
+    };
+
+    // Double-click delegation
+    wrapper.ondblclick = (e) => {
+      const equipTarget = e.target.closest('[data-action="equip"]');
+      if (equipTarget) {
+        e.stopPropagation();
+        this.handleEquip(equipTarget.dataset.itemId);
+      }
+    };
+
+    // Prevent propagation
+    wrapper.onclick = (e) => e.stopPropagation();
   }
 }
 

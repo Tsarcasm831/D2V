@@ -4,11 +4,29 @@ export class PlayerInventory {
         this.player = player;
         this.hotbar = new Array(8).fill(null);
         this.storage = new Array(64).fill(null);
+        
+        // Starting items
+        this.storage[0] = { id: 'start-armor', name: 'Armor Vest', type: 'vest', icon: 'assets/gear/vest.png', slot: 'vest', meshName: 'Vest', count: 1 };
+        this.storage[1] = { id: 'start-cloak', name: "Assassin's Cloak", type: 'clothing', icon: 'assets/gear/assassins_cloak.png', slot: 'back', count: 1 };
+        this.storage[2] = { id: 'start-band', name: 'Ninja Band', type: 'clothing', icon: 'assets/gear/ninja_headband.png', slot: 'head', count: 1 };
+        this.storage[3] = { id: 'start-cap', name: "Hunter's Cap", type: 'clothing', icon: 'assets/gear/hunters_cap.png', slot: 'head', count: 1 };
+        this.storage[4] = { id: 'start-gloves', name: "Assassin's Gloves", type: 'clothing', icon: 'assets/gear/leather_gloves.png', slot: 'gloves', count: 1 };
+        this.storage[5] = { id: 'start-boots', name: 'Leather Boots', type: 'clothing', icon: 'assets/gear/leather_boots.png', slot: 'boots', count: 1 };
+        this.storage[6] = { id: 'start-pants', name: 'Black Pants', type: 'clothing', icon: 'assets/gear/black_pants.png', slot: 'pants', count: 1 };
+        this.storage[7] = { id: 'start-sword', name: 'Iron Sword', type: 'weapon', icon: 'assets/icons/sword_icon.png', slot: 'main_hand', count: 1 };
+        this.storage[8] = { id: 'start-wood', name: 'Wood', type: 'material', icon: 'assets/icons/wood_log_icon.png', count: 50 };
+        this.storage[9] = { id: 'start-stone', name: 'Stone', type: 'material', icon: 'assets/icons/wall_icon.png', count: 50 };
+        this.storage[10] = { id: 'start-gold', name: 'Gold Coin', type: 'currency', icon: 'assets/icons/gold_coin.png', count: 100 };
+        this.storage[11] = { id: 'leather-armor', name: 'Leather Armor', type: 'armor', icon: 'assets/gear/leather_armor.png', slot: 'chest', meshName: 'LeatherArmor', count: 1 };
+        this.storage[12] = { id: 'konoha-vest', name: 'Konoha Vest', type: 'vest', icon: 'assets/gear/vest.png', slot: 'vest', meshName: 'Vest', count: 1 };
+        
         this.selectedSlot = 0;
         this.currency = { gold: 0 };
         this.equipment = {
             HELMET: null,
-            BODY: { id: 'default-shirt', name: 'Shirt', type: 'shirt', icon: 'assets/gear/shirt.png', slot: 'BODY' },
+            BODY: { id: 'default-shirt', name: 'Shirt', type: 'body', icon: 'assets/gear/shirt.png', slot: 'BODY' },
+            VEST: null,
+            BACK: null,
             GLOVES: null,
             BOOTS: null,
             BELT: null,
@@ -34,8 +52,14 @@ export class PlayerInventory {
         }
     }
 
-    addItem(item) {
+    addItem(item, preferStorage = false) {
         if (!item) return false;
+        
+        // Ensure item has an ID
+        if (!item.id) {
+            item.id = `item-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
+        }
+
         // Special case: currency
         if (item.type === 'gold_coin' || item.type === 'gold') {
             this.currency.gold += (item.count || 1);
@@ -46,7 +70,27 @@ export class PlayerInventory {
         const stackLimit = item.stackLimit || 99;
         const countToAdd = item.count || 1;
 
-        // 1. Try to stack in hotbar
+        if (preferStorage) {
+            // 1. Try to stack in storage
+            for (let i = 0; i < this.storage.length; i++) {
+                const existing = this.storage[i];
+                if (existing && existing.type === item.type && existing.count < stackLimit) {
+                    const room = stackLimit - existing.count;
+                    const canAdd = Math.min(room, countToAdd);
+                    existing.count += canAdd;
+                    return true;
+                }
+            }
+            // 2. Try empty storage slot
+            for (let i = 0; i < this.storage.length; i++) {
+                if (this.storage[i] === null) {
+                    this.storage[i] = { ...item };
+                    return true;
+                }
+            }
+        }
+
+        // 3. Try to stack in hotbar (if not already tried or failed storage)
         for (let i = 0; i < this.hotbar.length; i++) {
             const existing = this.hotbar[i];
             if (existing && existing.type === item.type && existing.count < stackLimit) {
@@ -58,33 +102,49 @@ export class PlayerInventory {
             }
         }
 
-        // 2. Try to stack in storage
-        for (let i = 0; i < this.storage.length; i++) {
-            const existing = this.storage[i];
-            if (existing && existing.type === item.type && existing.count < stackLimit) {
-                const room = stackLimit - existing.count;
-                const canAdd = Math.min(room, countToAdd);
-                existing.count += canAdd;
-                return true;
+        if (!preferStorage) {
+            // 4. Try to stack in storage
+            for (let i = 0; i < this.storage.length; i++) {
+                const existing = this.storage[i];
+                if (existing && existing.type === item.type && existing.count < stackLimit) {
+                    const room = stackLimit - existing.count;
+                    const canAdd = Math.min(room, countToAdd);
+                    existing.count += canAdd;
+                    return true;
+                }
             }
         }
 
-        // 3. Try empty hotbar slot
-        for (let i = 0; i < this.hotbar.length; i++) {
-            if (this.hotbar[i] === null) {
-                this.hotbar[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
-                if (this.player.ui) this.player.ui.updateHotbar();
-                return true;
+        // 5. Try empty hotbar slot (if not already tried or failed storage)
+        if (!preferStorage) {
+            for (let i = 0; i < this.hotbar.length; i++) {
+                if (this.hotbar[i] === null) {
+                    this.hotbar[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
+                    if (this.player.ui) this.player.ui.updateHotbar();
+                    return true;
+                }
             }
         }
 
-        // 4. Try empty storage slot
-        for (let i = 0; i < this.storage.length; i++) {
-            if (this.storage[i] === null) {
-                this.storage[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
-                return true;
+        // 6. Try empty storage slot (if not already tried or failed hotbar)
+        if (!preferStorage) {
+            for (let i = 0; i < this.storage.length; i++) {
+                if (this.storage[i] === null) {
+                    this.storage[i] = { ...item };
+                    return true;
+                }
+            }
+        } else {
+            // If preferStorage was true and we are here, we already tried storage, so try hotbar as last resort
+            for (let i = 0; i < this.hotbar.length; i++) {
+                if (this.hotbar[i] === null) {
+                    this.hotbar[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
+                    if (this.player.ui) this.player.ui.updateHotbar();
+                    return true;
+                }
             }
         }
+
         return false;
     }
 
@@ -102,15 +162,61 @@ export class PlayerInventory {
         this.storage[index] = currentEquipped;
 
         if (this.player.recalculateStats) this.player.recalculateStats();
+        if (this.player.gear && this.player.gear.updateVisuals) this.player.gear.updateVisuals();
         return true;
     }
 
+    unequip(slotName) {
+        if (!this.equipment[slotName]) return false;
+        
+        const item = this.equipment[slotName];
+        
+        // Try to add back to storage (prefer storage for unequipping)
+        if (this.addItem(item, true)) {
+            this.equipment[slotName] = null;
+            if (this.player.recalculateStats) this.player.recalculateStats();
+            if (this.player.gear && this.player.gear.updateVisuals) this.player.gear.updateVisuals();
+            return true;
+        }
+        
+        if (this.player.ui) this.player.ui.showStatus("Inventory Full!", true);
+        return false;
+    }
+
     getSlotForItem(item) {
-        const type = item.type.toLowerCase();
-        if (['helmet', 'headband'].includes(type)) return 'HELMET';
-        if (['body', 'shirt', 'armor'].includes(type)) return 'BODY';
-        if (['gloves', 'hands'].includes(type)) return 'GLOVES';
-        if (['boots', 'shoes'].includes(type)) return 'BOOTS';
+        const type = (item.type || '').toLowerCase();
+        const itemSlot = (item.slot || '').toLowerCase();
+
+        // Check explicit slot property first
+        if (itemSlot === 'head') return 'HELMET';
+        if (itemSlot === 'vest') return 'VEST';
+        if (itemSlot === 'chest') return 'VEST';
+        if (itemSlot === 'torso') return 'BODY';
+        if (itemSlot === 'body') return 'BODY';
+        if (itemSlot === 'back') return 'BACK';
+        if (itemSlot === 'pants') return 'SHORTS';
+        if (itemSlot === 'gloves') return 'GLOVES';
+        if (itemSlot === 'boots') return 'BOOTS';
+        if (itemSlot === 'main_hand') return 'WEAPON_MAIN';
+        if (itemSlot === 'off_hand') return 'WEAPON_OFF';
+
+        // Fallback to type mapping
+        if (['helmet', 'headband', 'hunters_cap', 'assassins_cap', 'head'].includes(type)) return 'HELMET';
+        if (['vest', 'armor_vest'].includes(type)) return 'VEST';
+        if (['body', 'shirt', 'chest'].includes(type)) {
+            return 'BODY';
+        }
+        if (['armor', 'leather_armor'].includes(type)) {
+            // Check if it's actually a vest by ID or meshName
+            if (item.id && (item.id.toLowerCase().includes('vest') || item.id === 'start-armor')) return 'VEST';
+            if (item.meshName === 'Vest') return 'VEST';
+            if (item.id === 'leather-armor') return 'VEST'; // Leather Armor also goes to VEST slot to avoid overlapping with shirt
+            return 'VEST'; 
+        }
+        if (['cloak', 'back'].includes(type)) return 'BACK';
+        if (['shorts', 'pants', 'legs', 'black_pants'].includes(type)) return 'SHORTS';
+        if (['gloves', 'hands', 'assassins_gloves', 'leather_gloves'].includes(type)) return 'GLOVES';
+        if (['boots', 'shoes', 'leather_boots'].includes(type)) return 'BOOTS';
         if (type === 'belt') return 'BELT';
         if (type === 'ring') return this.equipment.RING_1 ? 'RING_2' : 'RING_1';
         if (type === 'amulet') return 'AMULET';

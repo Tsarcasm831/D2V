@@ -273,7 +273,16 @@ export class InputManager {
             this.game.cameraRotation.distance = Math.max(10, Math.min(80, this.game.cameraRotation.distance));
         }, { passive: true });
 
-        window.addEventListener('contextmenu', (e) => e.preventDefault());
+        window.addEventListener('contextmenu', (e) => {
+        const inventoryWrapper = document.getElementById('inventory-overlay-wrapper');
+        const isInventoryOpen = inventoryWrapper && window.getComputedStyle(inventoryWrapper).display !== 'none';
+        
+        if (isInventoryOpen && e.target.closest('#inventory-overlay-wrapper')) {
+            // Let the inventory UI handle its own context menu events
+            return;
+        }
+        e.preventDefault();
+    });
     }
 
     triggerActionFeedback() {

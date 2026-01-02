@@ -7,7 +7,8 @@
       "description": "Basic building material.",
       "stackable": true,
       "maxStack": 50,
-      "value": 1
+      "value": 1,
+      "icon": "assets/icons/wood_log_icon.png"
     },
     "stone": {
       "id": "stone",
@@ -16,7 +17,8 @@
       "description": "Sturdy building material.",
       "stackable": true,
       "maxStack": 50,
-      "value": 1
+      "value": 1,
+      "icon": "assets/icons/wall_icon.png"
     },
     "wheat_seeds": {
       "id": "wheat_seeds",
@@ -134,7 +136,23 @@
         "damage": 15,
         "attackSpeed": 1.2,
         "critChance": 0.05
-      }
+      },
+      "icon": "assets/icons/sword_icon.png"
+    },
+    "armor_vest": {
+      "id": "armor_vest",
+      "name": "Armor Vest",
+      "type": "vest",
+      "description": "A sturdy protective vest.",
+      "stackable": false,
+      "slot": "vest",
+      "meshName": "Vest",
+      "value": 60,
+      "stats": {
+        "defense": 15
+      },
+      "icon": "assets/gear/vest.png",
+      "asset": "assets/gear/vest.png"
     },
     "leather_chest": {
       "id": "leather_chest",
@@ -147,7 +165,10 @@
       "stats": {
         "defense": 10,
         "dodge": 0.02
-      }
+      },
+      "icon": "assets/gear/leather_armor.png",
+      "asset": "assets/gear/leather_armor.png",
+      "meshName": "LeatherArmor"
     },
     "assassins_cloak": {
       "id": "assassins_cloak",
@@ -161,7 +182,84 @@
         "stealth": 10,
         "dodge": 0.05
       },
-      "asset": "assets/gear/assassins_cloak.png"
+      "icon": "assets/gear/assassins_cloak.png",
+      "asset": "assets/gear/assassins_cloak.png",
+      "meshName": "Cloak"
+    },
+    "ninja_headband": {
+      "id": "ninja_headband",
+      "name": "Ninja Band",
+      "type": "clothing",
+      "description": "A traditional shinobi headband.",
+      "stackable": false,
+      "slot": "head",
+      "value": 30,
+      "stats": {
+        "dodge": 0.03
+      },
+      "icon": "assets/gear/ninja_headband.png",
+      "asset": "assets/gear/ninja_headband.png",
+      "meshName": "Headband"
+    },
+    "hunters_cap": {
+      "id": "hunters_cap",
+      "name": "Hunter's Cap",
+      "type": "clothing",
+      "description": "A cap favored by trackers.",
+      "stackable": false,
+      "slot": "head",
+      "value": 35,
+      "stats": {
+        "accuracy": 5
+      },
+      "icon": "assets/gear/hunters_cap.png",
+      "asset": "assets/gear/hunters_cap.png",
+      "meshName": "LeatherHuntersCap"
+    },
+    "assassins_gloves": {
+      "id": "assassins_gloves",
+      "name": "Assassin's Gloves",
+      "type": "clothing",
+      "description": "Gloves that allow for swift strikes.",
+      "stackable": false,
+      "slot": "gloves",
+      "value": 45,
+      "stats": {
+        "attackSpeed": 0.1
+      },
+      "icon": "assets/gear/leather_gloves.png",
+      "asset": "assets/gear/leather_gloves.png",
+      "meshName": "LeatherGloves"
+    },
+    "leather_boots": {
+      "id": "leather_boots",
+      "name": "Leather Boots",
+      "type": "clothing",
+      "description": "Durable boots for long journeys.",
+      "stackable": false,
+      "slot": "boots",
+      "value": 25,
+      "stats": {
+        "moveSpeed": 0.05
+      },
+      "icon": "assets/gear/leather_boots.png",
+      "asset": "assets/gear/leather_boots.png",
+      "meshName": "LeatherBoots"
+    },
+    "black_pants": {
+      "id": "black_pants",
+      "name": "Black Pants",
+      "type": "clothing",
+      "description": "Sturdy black pants.",
+      "stackable": false,
+      "slot": "pants",
+      "value": 20,
+      "stats": {
+        "defense": 2
+      },
+      "icon": "assets/gear/black_pants.png",
+      "asset": "assets/gear/black_pants.png",
+      "meshName": "Pants"
     },
     "gold_coin": {
       "id": "gold_coin",
@@ -170,7 +268,8 @@
       "description": "Standard currency.",
       "stackable": true,
       "maxStack": 9999,
-      "value": 1
+      "value": 1,
+      "icon": "assets/icons/gold_coin.png"
     },
     "shirt": {
       "id": "shirt",
@@ -183,6 +282,7 @@
       "stats": {
         "defense": 1
       },
+      "icon": "assets/gear/shirt.png",
       "asset": "assets/gear/shirt.png"
     },
     "shorts": {
@@ -196,6 +296,7 @@
       "stats": {
         "defense": 1
       },
+      "icon": "assets/gear/shorts.png",
       "asset": "assets/gear/shorts.png"
     },
     "honey": {

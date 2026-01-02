@@ -1,0 +1,133 @@
+/* HUD Styles */
+#hud-container {
+    position: absolute;
+    top: 20px; left: 20px;
+    display: flex; flex-direction: column; gap: 6px;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(5, 10, 20, 0.7) 0%, transparent 100%);
+    padding: 12px;
+    border-radius: 0 10px 10px 0;
+    border-left: 3px solid var(--primary);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+}
+
+.hud-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hud-label {
+    width: 60px;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 1px 1px 1px black;
+}
+
+.bar-container {
+    width: 180px; height: 10px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    position: relative; 
+    overflow: hidden;
+}
+
+.bar-fill { 
+    height: 100%; 
+    width: 100%; 
+    transition: width 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); 
+    position: relative;
+}
+
+.bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 45%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    pointer-events: none;
+}
+
+#health-fill { 
+    background: linear-gradient(90deg, #ff4444, #990000); 
+    box-shadow: 0 0 10px rgba(255, 50, 50, 0.2);
+}
+#stamina-fill { 
+    background: linear-gradient(90deg, #44ff44, #007700); 
+    box-shadow: 0 0 10px rgba(50, 255, 50, 0.2);
+}
+#chakra-fill { 
+    background: linear-gradient(90deg, #00aaff, #0033aa); 
+    box-shadow: 0 0 10px rgba(50, 150, 255, 0.2);
+}
+#xp-fill { 
+    background: linear-gradient(90deg, #ffcc00, #aa7700); 
+    box-shadow: 0 0 10px rgba(255, 200, 0, 0.2);
+}
+
+.hud-text {
+    position: absolute; width: 100%; text-align: right;
+    padding-right: 10px;
+    font-size: 9px; font-weight: 900; line-height: 14px;
+    text-shadow: 1px 1px 2px black;
+    box-sizing: border-box;
+    z-index: 1;
+    font-family: 'Courier New', Courier, monospace;
+    color: white;
+    letter-spacing: 1px;
+}
+
+@keyframes low-hp-pulse {
+    0% { box-shadow: inset 0 0 5px rgba(255,0,0,0.5); border-color: rgba(255,0,0,0.3); }
+    50% { box-shadow: inset 0 0 15px rgba(255,0,0,0.8); border-color: rgba(255,0,0,0.6); }
+    100% { box-shadow: inset 0 0 5px rgba(255,0,0,0.5); border-color: rgba(255,0,0,0.3); }
+}
+
+.low-hp { animation: low-hp-pulse 0.8s infinite; }
+
+/* Hotbar */
+#hotbar-wrapper, #build-hotbar-wrapper {
+    position: absolute; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px;
+    padding: 10px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 12px;
+    pointer-events: auto;
+}
+
+#build-hotbar-wrapper { display: none; border-color: #ffaa00; }
+
+.hotbar-slot, .build-slot, .ability-slot {
+    width: 48px; height: 48px;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid var(--border); border-radius: 8px;
+    position: relative; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+
+.hotbar-slot.active, .build-slot.active { border-color: var(--primary); background: rgba(0, 170, 255, 0.2); }
+.slot-key { position: absolute; top: 2px; left: 4px; font-size: 10px; opacity: 0.7; }
+.hotbar-icon { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
+.slot-count { position: absolute; bottom: 2px; right: 4px; font-size: 11px; font-weight: bold; }
+
+/* Minimap */
+#minimap-container { position: absolute; top: 20px; right: 20px; pointer-events: auto; display: none; }
+#minimap-canvas { width: 180px; height: 180px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); }
+#minimap-biome-display { text-align: center; font-size: 12px; margin-top: 5px; color: var(--primary); font-weight: bold; text-transform: uppercase; }
+
+/* Location Display */
+#location-display {
+    position: absolute;
+    bottom: 10px;
+    left: 20px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    text-shadow: 1px 1px 1px black;
+    pointer-events: none;
+    z-index: 90;
+}
