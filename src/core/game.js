@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Player } from '../entities/player.js';
+import { TimeManager } from '../systems/time_manager.js';
+import Player from '../entities/player.js';
 import { WorldManager } from '../world/world_manager.js';
 import { Minimap } from '../ui/minimap.js';
 import { ShardMap } from '../world/shard_map.js';
@@ -10,8 +11,10 @@ import { Shard } from '../world/shard.js';
 import { SHARD_SIZE } from '../world/world_bounds.js';
 import { InputManager } from '../core/input_manager.js';
 import { BuildManager } from '../systems/build_manager.js';
+import { EnvironmentManager } from '../systems/environment_manager.js';
 import { ChatUI } from '../entities/player_stubs.js';
 
+import { WeatherManager } from '../systems/weather_manager.js';
 import { FireballProjectile } from '../systems/fireball_projectile.js';
 
 export class Game {
@@ -24,6 +27,8 @@ export class Game {
 
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
         this.cameraRotation = { theta: Math.PI / 4, phi: 0.8, distance: 30 };
+        this.cameraMode = 'topdown'; // 'topdown' or 'fpv'
+        this.fpvRotation = { yaw: 0, pitch: 0 };
         this.camera.position.set(20, 20, 20);
         this.camera.lookAt(0, 0, 0);
 
@@ -34,12 +39,15 @@ export class Game {
 
         this.setupLights();
         
+        this.timeManager = new TimeManager(this);
         this.worldManager = new WorldManager(this.scene);
         this.scene.worldManager = this.worldManager;
         this.player = new Player(this.scene, this.worldManager, characterData);
         this.player.game = this;
 
         this.buildManager = new BuildManager(this);
+        this.weatherManager = new WeatherManager(this);
+        this.environmentManager = new EnvironmentManager(this);
         this.chat = new ChatUI(this.player);
         this.inputManager = new InputManager(this);
         this.input = this.inputManager.input; // Shortcut for player update
@@ -73,6 +81,76 @@ export class Game {
         this._tempVec1 = new THREE.Vector3();
         this._tempVec2 = new THREE.Vector3();
         
+        // Initialize options from storage
+        this.initOptions();
+
+        window.addEventListener('resize', () => this.onResize());
+    }
+
+    initOptions() {
+        const showFPS = localStorage.getItem('showFPS') === 'true';
+        this.toggleFPS(showFPS);
+
+        const quality = localStorage.getItem('graphicsQuality') || 'medium';
+        this.setQuality(quality);
+
+        const bloom = (localStorage.getItem('bloomEnabled') ?? 'true') === 'true';
+        this.toggleBloom(bloom);
+    }
+
+    toggleFPS(enabled) {
+        if (enabled) {
+            if (!this.fpsCounter) {
+                this.fpsCounter = document.createElement('div');
+                this.fpsCounter.style.position = 'absolute';
+                this.fpsCounter.style.top = '10px';
+                this.fpsCounter.style.right = '10px';
+                this.fpsCounter.style.color = '#00ff00';
+                this.fpsCounter.style.fontFamily = 'monospace';
+                this.fpsCounter.style.fontSize = '12px';
+                this.fpsCounter.style.pointerEvents = 'none';
+                this.fpsCounter.style.zIndex = '1000';
+                document.body.appendChild(this.fpsCounter);
+                this.lastFPSUpdate = 0;
+                this.frames = 0;
+            }
+            this.fpsCounter.style.display = 'block';
+        } else if (this.fpsCounter) {
+            this.fpsCounter.style.display = 'none';
+        }
+    }
+
+    setQuality(quality) {
+        if (!this.renderer) return;
+        switch (quality) {
+            case 'low':
+                this.renderer.setPixelRatio(1);
+                this.renderer.shadowMap.enabled = false;
+                break;
+            case 'medium':
+                this.renderer.setPixelRatio(window.devicePixelRatio * 0.8);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFShadowMap;
+                break;
+            case 'high':
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                break;
+            case 'ultra':
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.VSMShadowMap;
+                break;
+        }
+    }
+
+    toggleBloom(enabled) {
+        // Placeholder for post-processing bloom toggle
+        console.log("Bloom toggled:", enabled);
+    }
+
+    initAfterLoading() {
         // Initial world generation sweep
         this.worldManager.update(this.player, 0);
         
@@ -87,13 +165,20 @@ export class Game {
         }
         this.worldManager.invalidateCache();
         
+        // Ensure player is at correct height after world is ready
+        if (this.player && this.player.playerPhysics) {
+            const floorY = this.worldManager.getTerrainHeight(this.player.playerPhysics.position.x, this.player.playerPhysics.position.z);
+            this.player.playerPhysics.position.y = floorY;
+            if (this.player.mesh) this.player.mesh.position.y = floorY;
+        }
+        
         // Spawn starter building
         this.spawnStarterTent();
 
+        // Start the loop
         this.animate();
-
-        window.addEventListener('resize', () => this.onResize());
     }
+
 
     setupLights() {
         const ambient = new THREE.AmbientLight(0x4040ff, 0.4);
@@ -253,6 +338,24 @@ export class Game {
         }
     }
 
+    toggleCameraMode() {
+        this.cameraMode = this.cameraMode === 'topdown' ? 'fpv' : 'topdown';
+        
+        if (this.cameraMode === 'fpv') {
+            // Initial FPV orientation based on current player rotation if available, or just forward
+            this.fpvRotation.yaw = this.cameraRotation.theta;
+            this.fpvRotation.pitch = 0;
+            this.inputManager.requestPointerLock();
+        } else {
+            this.inputManager.exitPointerLock();
+        }
+        
+        // Ensure player mesh visibility is handled
+        if (this.player && this.player.mesh) {
+            this.player.mesh.visible = (this.cameraMode !== 'fpv');
+        }
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
         const delta = Math.min(this.clock.getDelta(), 0.1);
@@ -260,6 +363,8 @@ export class Game {
 
         this.inputManager.updateMouseWorldPos(this.worldManager.terrainMeshes);
 
+        this.timeManager.update(delta);
+        this.weatherManager.update(delta);
         this.worldManager.update(this.player, delta);
         this.player.update(delta, this.input, this.camera);
         
@@ -273,23 +378,54 @@ export class Game {
         }
 
         if (this.multiplayer) this.multiplayer.update(performance.now(), delta);
-        this.minimap.update();
-        this.shardMap.update();
-        this.gridLabels.update(this.player.mesh.position, this.grid.visible);
-        this.updateUnitTooltip();
-        this.buildManager.update();
+        
+        // Throttle secondary systems to ~20 FPS
+        this._secondaryUpdateTimer = (this._secondaryUpdateTimer || 0) + delta;
+        if (this._secondaryUpdateTimer >= 0.05) {
+            this.minimap.update();
+            this.shardMap.update();
+            this.gridLabels.update(this.player.mesh.position, this.grid.visible);
+            this.environmentManager.update(this.player.mesh.position);
+            this.updateUnitTooltip();
+            this.buildManager.update();
+            this._secondaryUpdateTimer = 0;
+        }
 
         const targetPos = this._tempVec1.copy(this.player.mesh.position);
         targetPos.y += 1.2;
 
-        const offset = this._tempVec2.set(
-            this.cameraRotation.distance * Math.sin(this.cameraRotation.theta) * Math.cos(this.cameraRotation.phi),
-            this.cameraRotation.distance * Math.sin(this.cameraRotation.phi),
-            this.cameraRotation.distance * Math.cos(this.cameraRotation.theta) * Math.cos(this.cameraRotation.phi)
-        );
+        if (this.cameraMode === 'fpv') {
+            // FPV Camera Logic
+            const headOffset = 1.6; // Eye level
+            targetPos.y = this.player.mesh.position.y + headOffset;
+            
+            this.camera.position.copy(targetPos);
+            
+            // Apply FPV rotation
+            const quaternion = new THREE.Quaternion();
+            const euler = new THREE.Euler(this.fpvRotation.pitch, this.fpvRotation.yaw, 0, 'YXZ');
+            this.camera.quaternion.setFromEuler(euler);
+            
+            // Basic collision/pushback for FPV
+            const rayDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+            this.raycaster.set(this.camera.position, rayDirection);
+            
+            // Push camera back if it's too close to terrain or objects
+            const terrainHeight = this.worldManager.getTerrainHeight(this.camera.position.x, this.camera.position.z);
+            if (this.camera.position.y < terrainHeight + 0.5) {
+                this.camera.position.y = terrainHeight + 0.5;
+            }
+        } else {
+            // TopDown/Third-Person Logic
+            const offset = this._tempVec2.set(
+                this.cameraRotation.distance * Math.sin(this.cameraRotation.theta) * Math.cos(this.cameraRotation.phi),
+                this.cameraRotation.distance * Math.sin(this.cameraRotation.phi),
+                this.cameraRotation.distance * Math.cos(this.cameraRotation.theta) * Math.cos(this.cameraRotation.phi)
+            );
 
-        this.camera.position.copy(targetPos).add(offset);
-        this.camera.lookAt(targetPos);
+            this.camera.position.copy(targetPos).add(offset);
+            this.camera.lookAt(targetPos);
+        }
 
         if (this.sun) {
             this.sun.position.set(targetPos.x + 30, targetPos.y + 60, targetPos.z + 30);
@@ -298,5 +434,14 @@ export class Game {
         }
 
         this.renderer.render(this.scene, this.camera);
+
+        if (this.fpsCounter && this.fpsCounter.style.display !== 'none') {
+            this.frames++;
+            if (now - this.lastFPSUpdate > 1000) {
+                this.fpsCounter.textContent = `FPS: ${Math.round((this.frames * 1000) / (now - this.lastFPSUpdate))}`;
+                this.lastFPSUpdate = now;
+                this.frames = 0;
+            }
+        }
     }
 }

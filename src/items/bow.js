@@ -46,3 +46,12 @@ export function createBow() {
 
     return group;
 }
+
+export function attachBow(parts) {
+    const bow = createBow();
+    // Position bow in the left hand by default
+    if (parts.leftHand) {
+        parts.leftHand.add(bow);
+    }
+    return bow;
+}

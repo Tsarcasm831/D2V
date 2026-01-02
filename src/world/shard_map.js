@@ -61,8 +61,36 @@ export class ShardMap {
             'rgba(80, 120, 60, 0.5)', // Steppes
             'rgba(255, 255, 255, 0.0)' // Snow
         ];
+        this.needsImageDataUpdate = true;
+        this.isCachingComplete = false;
+        this.cachingProgress = 0;
+        this.onCachingComplete = null;
 
         this.setupListeners();
+    }
+
+    async preCacheWorld(onProgress) {
+        const totalShards = this.worldSize * this.worldSize;
+        let processed = 0;
+        const batchSize = 500; // Process in chunks to avoid blocking UI
+
+        for (let x = -this.worldLimit; x < this.worldLimit; x++) {
+            for (let z = -this.worldLimit; z < this.worldLimit; z++) {
+                this.renderShardToCache(x, z);
+                processed++;
+                
+                if (processed % batchSize === 0) {
+                    this.cachingProgress = processed / totalShards;
+                    if (onProgress) onProgress(this.cachingProgress);
+                    await new Promise(resolve => setTimeout(resolve, 0)); // Yield to UI
+                }
+            }
+        }
+        
+        this.isCachingComplete = true;
+        this.cachingProgress = 1.0;
+        if (onProgress) onProgress(1.0);
+        if (this.onCachingComplete) this.onCachingComplete();
     }
 
     initTerrainImageData() {
@@ -138,6 +166,24 @@ export class ShardMap {
         
         const idx = arrayZ * this.worldSize + arrayX;
         if (this.cachedShardsArray[idx] === 1) return;
+
+        // Mask check for ShardMap
+        if (this.worldManager && this.worldManager.worldMask && !this.worldManager.worldMask.containsShard(x, z)) {
+            // Render as deep water/void
+            const data = this.terrainImageData.data;
+            const width = this.offscreenCanvas.width;
+            const sX = arrayX * this.cacheScale;
+            const sY = arrayZ * this.cacheScale;
+            for (let dy = 0; dy < this.cacheScale; dy++) {
+                for (let dx = 0; dx < this.cacheScale; dx++) {
+                    const pIdx = ((sY + dy) * width + (sX + dx)) * 4;
+                    data[pIdx] = 5; data[pIdx+1] = 10; data[pIdx+2] = 20; data[pIdx+3] = 255;
+                }
+            }
+            this.cachedShardsArray[idx] = 1;
+            this.needsImageDataUpdate = true;
+            return;
+        }
 
         const h = this.getTerrainNoise(x * SHARD_SIZE, z * SHARD_SIZE);
         let r, g, b, a;
@@ -226,19 +272,6 @@ export class ShardMap {
             const dW = (endX - startX + 1) * SHARD_SIZE * effectiveScale;
             const dH = (endZ - startZ + 1) * SHARD_SIZE * effectiveScale;
 
-            // Progressive fill
-            let rendered = 0;
-            const fillRad = this.zoom < 0.1 ? 50 : 20;
-            for (let x = Math.max(startX, curShardX - fillRad); x <= Math.min(endX, curShardX + fillRad) && rendered < 100; x++) {
-                for (let z = Math.max(startZ, curShardZ - fillRad); z <= Math.min(endZ, curShardZ + fillRad) && rendered < 100; z++) {
-                    const idx = (z + this.worldLimit) * this.worldSize + (x + this.worldLimit);
-                    if (this.cachedShardsArray[idx] === 0) {
-                        this.renderShardToCache(x, z);
-                        rendered++;
-                    }
-                }
-            }
-
             if (this.needsImageDataUpdate) {
                 this.offscreenCtx.putImageData(this.terrainImageData, 0, 0);
                 this.needsImageDataUpdate = false;
@@ -252,6 +285,9 @@ export class ShardMap {
 
             for (let x = startX; x <= endX; x++) {
                 for (let z = startZ; z <= endZ; z++) {
+                    // Skip detailed rendering for masked shards
+                    if (this.worldManager && this.worldManager.worldMask && !this.worldManager.worldMask.containsShard(x, z)) continue;
+
                     const sx = (x * SHARD_SIZE - px) * effectiveScale - sSize / 2;
                     const sz = (z * SHARD_SIZE - pz) * effectiveScale - sSize / 2;
                     const h = this.getTerrainNoise(x * SHARD_SIZE, z * SHARD_SIZE);

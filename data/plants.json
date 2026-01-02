@@ -1,0 +1,64 @@
+{
+  "plants": {
+    "wheat": {
+      "id": "wheat",
+      "name": "Wheat",
+      "growthStages": 4,
+      "timePerStage": 30,
+      "yield": {
+        "itemId": "wheat",
+        "min": 2,
+        "max": 4
+      },
+      "seedId": "wheat_seeds"
+    },
+    "carrot": {
+      "id": "carrot",
+      "name": "Carrot",
+      "growthStages": 3,
+      "timePerStage": 20,
+      "yield": {
+        "itemId": "carrot",
+        "min": 1,
+        "max": 3
+      },
+      "seedId": "carrot_seeds"
+    },
+    "potato": {
+      "id": "potato",
+      "name": "Potato",
+      "growthStages": 3,
+      "timePerStage": 25,
+      "yield": {
+        "itemId": "potato",
+        "min": 2,
+        "max": 5
+      },
+      "seedId": "potato_seeds"
+    },
+    "tomato": {
+      "id": "tomato",
+      "name": "Tomato",
+      "growthStages": 4,
+      "timePerStage": 35,
+      "yield": {
+        "itemId": "tomato",
+        "min": 3,
+        "max": 6
+      },
+      "seedId": "tomato_seeds"
+    },
+    "lettuce": {
+      "id": "lettuce",
+      "name": "Lettuce",
+      "growthStages": 2,
+      "timePerStage": 15,
+      "yield": {
+        "itemId": "lettuce",
+        "min": 1,
+        "max": 2
+      },
+      "seedId": "lettuce_seeds"
+    }
+  }
+}

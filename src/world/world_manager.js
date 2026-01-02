@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { Shard } from './shard.js';
 import { SHARD_SIZE, WORLD_SHARD_LIMIT } from './world_bounds.js';
+import { WorldMask } from './world_mask.js';
 
 export class WorldManager {
     constructor(scene) {
         this.scene = scene;
+        this.worldMask = new WorldMask();
         this.activeShards = new Map(); // key: "x,z", value: Shard instance
         this.terrainMeshes = []; // NEW: Array of terrain meshes for raycasting
         this.lastShardCoord = { x: null, z: null };
@@ -42,6 +44,32 @@ export class WorldManager {
         this._nearbyResourcesResult = [];
         this._nearbyItemsResult = [];
         this.ponds = []; // Cache for active ponds to flatten terrain
+
+        // Load data files
+        this.itemsData = null;
+        this.lootTables = null;
+        this.plantsData = null;
+        this.statsData = null;
+        
+        this.loadData();
+    }
+
+    async loadData() {
+        try {
+            const [items, loot, plants, stats] = await Promise.all([
+                fetch('data/items.json').then(r => r.json()),
+                fetch('data/loot_tables.json').then(r => r.json()),
+                fetch('data/plants.json').then(r => r.json()),
+                fetch('data/stats.json').then(r => r.json())
+            ]);
+            this.itemsData = items;
+            this.lootTables = loot;
+            this.plantsData = plants;
+            this.statsData = stats;
+            console.log('WorldManager: Data files loaded successfully');
+        } catch (e) {
+            console.error('WorldManager: Error loading data files', e);
+        }
     }
 
     clearHeightCache() {
@@ -146,10 +174,13 @@ export class WorldManager {
     _updateEntityCaches() {
         if (!this._needsCacheUpdate) return;
         
-        this._cachedNPCs = [];
-        this._cachedFauna = [];
-        this._cachedResources = [];
-        this._cachedItems = [];
+        // Use a simpler check or throttle this if needed, 
+        // but for now, we'll keep the full update when invalidated.
+        
+        this._cachedNPCs.length = 0;
+        this._cachedFauna.length = 0;
+        this._cachedResources.length = 0;
+        this._cachedItems.length = 0;
         
         this.stats.resourceCount = 0;
         this.stats.npcCount = 0;
@@ -210,6 +241,9 @@ export class WorldManager {
             
             for (let z = centerZ - viewDist; z <= centerZ + viewDist; z++) {
                 if (z < -WORLD_SHARD_LIMIT || z > WORLD_SHARD_LIMIT) continue;
+
+                // Skip shards outside the world mask
+                if (this.worldMask && !this.worldMask.containsShard(x, z)) continue;
 
                 const key = `${x},${z}`;
                 newKeys.add(key);
@@ -280,6 +314,11 @@ export class WorldManager {
     }
 
     getTerrainHeight(x, z) {
+        // Cut out terrain outside the world mask
+        if (this.worldMask && !this.worldMask.containsXZ(x, z)) {
+            return -2.0; // Ocean/Void height
+        }
+
         // Apply pond flattening first
         for (const pond of this.ponds) {
             const dx = x - pond.x;

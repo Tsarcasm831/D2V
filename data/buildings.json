@@ -1,0 +1,78 @@
+{
+  "buildings": {
+    "hut": {
+      "id": "hut",
+      "name": "Hut",
+      "footprint": { "width": 5.0, "depth": 5.0 },
+      "requirements": { "wood": 10, "stone": 5 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" },
+        { "x": 2.5, "y": 0, "z": 0, "type": "edge" },
+        { "x": -2.5, "y": 0, "z": 0, "type": "edge" }
+      ]
+    },
+    "tavern": {
+      "id": "tavern",
+      "name": "Tavern",
+      "footprint": { "width": 10.0, "depth": 10.0 },
+      "requirements": { "wood": 50, "stone": 30 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" }
+      ]
+    },
+    "silo": {
+      "id": "silo",
+      "name": "Silo",
+      "footprint": { "width": 4.0, "depth": 4.0 },
+      "requirements": { "wood": 20, "stone": 10 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" }
+      ]
+    },
+    "square_hut": {
+      "id": "square_hut",
+      "name": "Square Hut",
+      "footprint": { "width": 5.0, "depth": 5.0 },
+      "requirements": { "wood": 20, "stone": 10 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" },
+        { "x": 2.5, "y": 0, "z": 0, "type": "edge" },
+        { "x": -2.5, "y": 0, "z": 0, "type": "edge" },
+        { "x": 0, "y": 0, "z": 2.5, "type": "edge" },
+        { "x": 0, "y": 0, "z": -2.5, "type": "edge" }
+      ],
+      "doorSocket": { "x": 0, "y": 0, "z": 2.5 }
+    },
+    "long_tavern": {
+      "id": "long_tavern",
+      "name": "Long Tavern",
+      "footprint": { "width": 15.0, "depth": 5.0 },
+      "requirements": { "wood": 100, "stone": 50 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" },
+        { "x": 7.5, "y": 0, "z": 0, "type": "edge" },
+        { "x": -7.5, "y": 0, "z": 0, "type": "edge" }
+      ],
+      "doorSocket": { "x": 0, "y": 0, "z": 2.5 }
+    },
+    "grail_silo": {
+      "id": "grail_silo",
+      "name": "Grail Silo",
+      "footprint": { "width": 5.0, "depth": 5.0 },
+      "requirements": { "wood": 40, "stone": 80 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" }
+      ]
+    },
+    "crop_plot": {
+      "id": "crop_plot",
+      "name": "Crop Plot",
+      "footprint": { "width": 2.0, "depth": 2.0 },
+      "requirements": { "wood": 2, "stone": 0 },
+      "snapPoints": [
+        { "x": 0, "y": 0, "z": 0, "type": "center" }
+      ],
+      "isCropPlot": true
+    }
+  }
+}

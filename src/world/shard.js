@@ -9,8 +9,11 @@ import { HumanoidNPC } from '../entities/humanoid_npc.js';
 import { Pig } from '../entities/pig.js';
 import { Sheep } from '../entities/sheep.js';
 import { Chicken } from '../entities/chicken.js';
+import { Owl } from '../entities/owl.js';
 import { AssassinNPC } from '../entities/enemy_npc_assassin_1.js';
 import { KonohaNinjaNPC } from '../entities/konoha_ninja_npc.js';
+import { Cow } from '../entities/cow.js';
+import { Horse } from '../entities/horse.js';
 import { Tree } from './tree.js';
 import { Ore } from './ore.js';
 import { BerryBush } from './berry_bush.js';
@@ -675,7 +678,34 @@ export class Shard {
                 this.fauna.push(new Chicken(this.scene, this, new THREE.Vector3(x, y, z)));
             }
 
-            // 7. Assassin (1 per shard, except near spawn)
+            // 7. Owls (Avg ~0.4 per shard)
+            const numOwls = rng() < 0.4 ? 1 : 0;
+            for (let i = 0; i < numOwls; i++) {
+                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
+                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
+                const y = this.getTerrainHeight(x, z);
+                this.fauna.push(new Owl(this.scene, this, new THREE.Vector3(x, y, z)));
+            }
+
+            // 8. Cows (Avg ~0.4 per shard)
+            const numCows = rng() < 0.4 ? 1 : 0;
+            for (let i = 0; i < numCows; i++) {
+                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
+                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
+                const y = this.getTerrainHeight(x, z);
+                this.fauna.push(new Cow(this.scene, this, new THREE.Vector3(x, y, z)));
+            }
+
+            // 9. Horses (Avg ~0.3 per shard)
+            const numHorses = rng() < 0.3 ? 1 : 0;
+            for (let i = 0; i < numHorses; i++) {
+                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
+                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
+                const y = this.getTerrainHeight(x, z);
+                this.fauna.push(new Horse(this.scene, this, new THREE.Vector3(x, y, z)));
+            }
+
+            // 10. Assassin (1 per shard, except near spawn)
             const ax = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
             const az = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
             const ay = this.getTerrainHeight(ax, az);

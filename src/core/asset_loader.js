@@ -4,7 +4,7 @@ export class AssetLoader {
     constructor() {
         this.images = [
             'assets/icons/the_frozen_steppes_icon.png', 'assets/icons/firepit_icon.png', 'assets/icons/floor_icon.png', 'assets/icons/axe_icon.png',
-            'assets/icons/shirt_icon.png', 'assets/icons/pelt_icon.png', 'assets/icons/meat_icon.png', 'assets/icons/combat_icon.png',
+            'assets/gear/shirt.png', 'assets/icons/pelt_icon.png', 'assets/icons/meat_icon.png', 'assets/icons/combat_icon.png',
             'assets/icons/crafting_icon.png', 'assets/icons/wood_log_icon.png', 'assets/icons/attack_icon.png', 'assets/textures/snow_texture.png',
             'assets/textures/grass_texture.png', 'assets/textures/dirt_texture.png', 'assets/textures/forest_ground_texture.png', 'assets/textures/swamp_ground_texture.png',
             'assets/icons/pickaxe_icon.png', 'assets/icons/club_icon.png', 'assets/icons/berry_icon.png', 'assets/icons/wall_icon.png', 'assets/icons/doorway_icon.png',

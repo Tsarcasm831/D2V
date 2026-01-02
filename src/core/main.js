@@ -41,6 +41,7 @@ function initMenuSnow() {
 
     function animate() {
         const menuVisible = document.getElementById('main-menu').style.display !== 'none' || 
+                            document.getElementById('options-menu').style.display !== 'none' ||
                             document.getElementById('server-selection').style.display !== 'none';
         
         if (menuVisible) {
@@ -71,6 +72,7 @@ function initMenuSnow() {
 }
 
 async function startLoadingSequence(characterData, roomCode) {
+    const game = new Game(characterData, roomCode);
     const loader = new AssetLoader();
     const fill = document.getElementById('loading-bar-fill');
     const whimsicalFill = document.getElementById('whimsical-bar-fill');
@@ -103,7 +105,9 @@ async function startLoadingSequence(characterData, roomCode) {
         "Applying procedural frostbite...",
         "Calibrating cloak physics...",
         "Distilling swamp water...",
-        "Generating whimsical nonsense..."
+        "Generating whimsical nonsense...",
+        "Inscribing ghostly maps...",
+        "Caching the spectral realm..."
     ];
 
     if (tipElement) {
@@ -151,15 +155,26 @@ async function startLoadingSequence(characterData, roomCode) {
     }
     requestAnimationFrame(updateWhimsicalProgress);
     
-    await loader.loadAll((p) => {
+    // Start asset loading
+    const assetPromise = loader.loadAll((p) => {
         targetProgress = p;
     });
+
+    // Start world map pre-caching in parallel
+    const mapCachePromise = game.shardMap.preCacheWorld((p) => {
+        // We can optionally update a status message here if needed
+        if (whimsicalStatus && Math.random() < 0.05) {
+            whimsicalStatus.innerText = `Etching world map... ${Math.round(p * 100)}%`;
+        }
+    });
+
+    await Promise.all([assetPromise, mapCachePromise]);
 
     realLoadingFinished = true;
     targetProgress = 1;
     
-    // Ensure it takes at least 2 seconds longer than the real loading
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Ensure it takes at least 1 second longer than the real loading
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Wait for the whimsical bar to finish if it hasn't yet
     await new Promise(resolve => {
@@ -183,8 +198,36 @@ async function startLoadingSequence(characterData, roomCode) {
         setTimeout(() => finalLoadingScreen.style.display = 'none', 600);
     }
 
-    startGame(characterData, roomCode);
+    // Final initialization and start animation loop
+    game.initAfterLoading();
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.opacity = '1';
+    
+    // Reset character button logic
+    let resetBtn = document.getElementById('reset-character-btn');
+    if (!resetBtn) {
+        resetBtn = document.createElement('div');
+        resetBtn.id = 'reset-character-btn';
+        resetBtn.className = 'btn';
+        resetBtn.textContent = 'RESET CHARACTER';
+        resetBtn.style.position = 'absolute';
+        resetBtn.style.bottom = '60px';
+        resetBtn.style.left = '20px';
+        resetBtn.style.width = '160px';
+        resetBtn.style.padding = '8px';
+        resetBtn.style.fontSize = '12px';
+        resetBtn.style.zIndex = '1';
+        document.body.appendChild(resetBtn);
+    }
+    resetBtn.style.display = 'block';
+    resetBtn.onclick = () => {
+        if (confirm("Recreate your character? This will reload the page.")) {
+            localStorage.removeItem('character_config');
+            window.location.reload();
+        }
+    };
 }
+
 
 function showMainMenu() {
     const mainMenu = document.getElementById('main-menu');
@@ -202,7 +245,75 @@ function showMainMenu() {
     
     if (optionsBtn) {
         optionsBtn.onclick = () => {
-            alert("Options menu coming soon!");
+            if (mainMenu) mainMenu.style.display = 'none';
+            showOptionsMenu();
+        };
+    }
+}
+
+function showOptionsMenu() {
+    const optionsMenu = document.getElementById('options-menu');
+    const backBtn = document.getElementById('options-back');
+    const volumeSlider = document.getElementById('volume-slider');
+    const musicToggle = document.getElementById('music-toggle');
+    const sfxToggle = document.getElementById('sfx-toggle');
+    const fpsToggle = document.getElementById('fps-toggle');
+    const weatherSelect = document.getElementById('weather-select');
+    const timeSlider = document.getElementById('time-slider');
+    const timeDisplay = document.getElementById('time-display');
+
+    if (optionsMenu) optionsMenu.style.display = 'flex';
+
+    if (backBtn) {
+        backBtn.onclick = () => {
+            if (optionsMenu) optionsMenu.style.display = 'none';
+            showMainMenu();
+        };
+    }
+
+    // Load saved settings
+    const settings = JSON.parse(localStorage.getItem('game_settings') || '{}');
+    if (volumeSlider) volumeSlider.value = settings.volume ?? 80;
+    if (musicToggle) musicToggle.checked = settings.music !== false;
+    if (sfxToggle) sfxToggle.checked = settings.sfx !== false;
+    if (fpsToggle) fpsToggle.checked = settings.fps === true;
+    if (weatherSelect) weatherSelect.value = settings.weather || 'clear';
+    if (timeSlider) {
+        timeSlider.value = settings.time ?? 8;
+        if (timeDisplay) timeDisplay.innerText = `${timeSlider.value.toString().padStart(2, '0')}:00`;
+    }
+
+    const saveSettings = () => {
+        const newSettings = {
+            volume: volumeSlider?.value,
+            music: musicToggle?.checked,
+            sfx: sfxToggle?.checked,
+            fps: fpsToggle?.checked,
+            weather: weatherSelect?.value,
+            time: timeSlider?.value
+        };
+        localStorage.setItem('game_settings', JSON.stringify(newSettings));
+        
+        // Apply settings immediately if needed
+        if (window.gameInstance) {
+            if (newSettings.weather) window.gameInstance.weatherManager.setWeather(newSettings.weather);
+            if (newSettings.time !== undefined) window.gameInstance.timeManager.setTime(parseFloat(newSettings.time));
+        }
+    };
+
+    if (volumeSlider) volumeSlider.oninput = saveSettings;
+    if (musicToggle) musicToggle.onchange = saveSettings;
+    if (sfxToggle) sfxToggle.onchange = saveSettings;
+    if (fpsToggle) fpsToggle.onchange = saveSettings;
+    
+    if (weatherSelect) {
+        weatherSelect.onchange = saveSettings;
+    }
+    
+    if (timeSlider) {
+        timeSlider.oninput = () => {
+            if (timeDisplay) timeDisplay.innerText = `${timeSlider.value.toString().padStart(2, '0')}:00`;
+            saveSettings();
         };
     }
 }
@@ -306,37 +417,7 @@ async function showServerSelection() {
 }
 
 function startGame(characterData, roomCode = 'Alpha') {
-    new Game(characterData, roomCode);
-    const uiLayer = document.getElementById('ui-layer');
-    if (uiLayer) uiLayer.style.opacity = '1';
-
-    // Create reset character button dynamically if it doesn't exist
-    let resetBtn = document.getElementById('reset-character-btn');
-    if (!resetBtn) {
-        resetBtn = document.createElement('div');
-        resetBtn.id = 'reset-character-btn';
-        resetBtn.className = 'btn';
-        resetBtn.textContent = 'RESET CHARACTER';
-        resetBtn.style.position = 'absolute';
-        resetBtn.style.bottom = '60px';
-        resetBtn.style.left = '20px';
-        resetBtn.style.width = '160px';
-        resetBtn.style.padding = '8px';
-        resetBtn.style.fontSize = '12px';
-        resetBtn.style.zIndex = '100';
-        resetBtn.style.display = 'none';
-        document.body.appendChild(resetBtn);
-    }
-
-    if (resetBtn) {
-        resetBtn.style.display = 'block';
-        resetBtn.onclick = () => {
-            if (confirm("Recreate your character? This will reload the page.")) {
-                localStorage.removeItem('character_config');
-                window.location.reload();
-            }
-        };
-    }
+    // Moved initialization inside startLoadingSequence
 }
 
 init();

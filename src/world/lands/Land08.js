@@ -1,0 +1,43 @@
+export const Land08 = {
+  "id": "Land08",
+  "name": "Land of Rice Paddies",
+  "desc": "Formerly the Land of Rice Paddies, taken over by Orochimaru to establish the Hidden Sound Village.",
+  "points": [
+    [46.40513122198858, 15.466866611449188],
+    [46.63865664618891, 16.40828187800636],
+    [46.50243373188851, 16.797128787710648],
+    [46.54135413628899, 17.145043365226304],
+    [46.26890830768818, 17.636217164599206],
+    [46.2494466065892, 17.779474810135266],
+    [46.52189243519002, 18.864150874870866],
+    [46.191067498887215, 19.334859296310047],
+    [46.5608128395905, 20.337672272989575],
+    [45.84078086148545, 20.19441305113233],
+    [44.94560256688206, 20.62419071670406],
+    [43.93366305907723, 20.644656094637785],
+    [43.54445301947753, 20.787915316495027],
+    [43.447150509577604, 20.44000073897937],
+    [43.01902306337488, 20.460466116913096],
+    [42.10438606546998, 19.66230849589198],
+    [41.73463772696924, 19.723704629693152],
+    [41.96816315116958, 18.598097809090103],
+    [42.12384476877149, 18.291115563763075],
+    [42.74657723477407, 18.127390963972108],
+    [42.82441804357502, 17.697613298400373],
+    [43.25254848757521, 17.329233342950996],
+    [43.408230105177125, 17.022249521302783],
+    [44.069882975580185, 16.326420366271467],
+    [44.556392527282355, 15.896642700699735],
+    [45.10128418448397, 15.487331989382911],
+    [46.09376498898729, 14.975692812076286]
+  ],
+  "color": "#a3e635",
+  "ninjaRisks": [
+    { "name": "Orochimaru", "village": "Otogakure", "detail": "Founder, Legendary Sannin", "image": "/assets/characters/Land08/Orochimaru.png" },
+    { "name": "Kimimaro", "village": "Otogakure", "detail": "Kaguya Clan, Bone User", "image": "/assets/characters/Land08/Kimimaro.png" },
+    { "name": "Kabuto Yakushi", "village": "Otogakure", "detail": "Spy, Medic, Sage Mode", "image": "/assets/characters/Land08/Kabuto Yakushi.png" },
+    { "name": "Tayuya", "village": "Otogakure", "detail": "Sound Four, Flute Genjutsu", "image": "/assets/characters/Land08/Tayuya.png" },
+    { "name": "Kidomaru", "village": "Otogakure", "detail": "Sound Four, Spider Thread User", "image": "/assets/characters/Land08/Kidomaru.png" },
+    { "name": "Kagero", "village": "Otogakure", "detail": "Fuma Clan, Ephemeral Arts", "image": "/assets/characters/Land08/Kagero.png" }
+  ]
+};

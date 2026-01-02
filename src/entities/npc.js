@@ -5,7 +5,7 @@ export class NPC {
     constructor(scene, shard, pos) {
         this.scene = scene;
         this.shard = shard;
-        this.isEnemy = true;
+        this.isEnemy = false;
         this.isDead = false;
 
         const geometry = new THREE.BoxGeometry(0.8, 1.8, 0.8).scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
@@ -18,6 +18,14 @@ export class NPC {
         this.velocity = new THREE.Vector3();
         this.maxHealth = 2;
         this.health = this.maxHealth;
+
+        this.name = "Villager";
+        this.portrait = "assets/gear/assassins_cowl.png";
+        this.dialogue = "Welcome, traveler. What can I do for you today?";
+        this.dialogueOptions = [
+            { text: "Tell me about this place", dialogue: "This is a land of adventure and danger. Be careful out there!" },
+            { text: "Have you seen anything strange?", dialogue: "I've heard rumors of strange creatures in the forest to the north." }
+        ];
 
         // Performance: reuse objects
         this._tempVec1 = new THREE.Vector3();

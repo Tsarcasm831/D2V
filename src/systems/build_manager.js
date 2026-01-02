@@ -10,17 +10,30 @@ export class BuildManager {
         this.buildGhost = null;
         this.buildRotation = 0;
         this.selectedBuildIndex = 0;
+        this.buildElevation = 0;
+        this.elevationStep = 2.5; 
+        this.maxElevation = 10.0;
+        this.minElevation = -2.0;
+        this.isVerifying = false; 
+        this.verifiedPos = null;
+        this.verifiedRotation = 0;
         this.buildOptions = [
             { type: 'wall', name: 'Wooden Wall', cost: 10 },
             { type: 'floor', name: 'Wooden Floor', cost: 5 },
             { type: 'firepit', name: 'Firepit', cost: 5 },
-            { type: 'doorway', name: 'Wooden Doorway', cost: 12 }
+            { type: 'doorway', name: 'Wooden Doorway', cost: 12 },
+            { type: 'square_hut', name: 'Square Hut', cost: 20 },
+            { type: 'long_tavern', name: 'Long Tavern', cost: 100 },
+            { type: 'grail_silo', name: 'Grail Silo', cost: 120 },
+            { type: 'crop_plot', name: 'Crop Plot', cost: 2 }
         ];
     }
 
     toggle() {
         this.isBuildMode = !this.isBuildMode;
-        this.game.isBuildMode = this.isBuildMode; // Keep game state in sync for now
+        this.game.isBuildMode = this.isBuildMode;
+        this.isVerifying = false; 
+        this.verifiedPos = null;
 
         if (this.game.player.ui) {
             this.game.player.ui.showStatus(this.isBuildMode ? "Build Mode: ON" : "Build Mode: OFF", false);
@@ -45,6 +58,9 @@ export class BuildManager {
     selectSlot(index) {
         if (index >= 0 && index < this.buildOptions.length) {
             this.selectedBuildIndex = index;
+            this.buildElevation = 0;
+            this.isVerifying = false; 
+            this.verifiedPos = null;
             if (this.game.player.ui) this.game.player.ui.updateBuildHotbar(index);
             if (this.buildGhost) {
                 this.game.scene.remove(this.buildGhost);
@@ -56,6 +72,29 @@ export class BuildManager {
 
     rotate() {
         this.buildRotation += Math.PI / 2;
+    }
+
+    changeElevation(delta) {
+        const option = this.buildOptions[this.selectedBuildIndex];
+        if (option.type === 'floor' || option.type === 'wall' || option.type === 'doorway') {
+            this.buildElevation = THREE.MathUtils.clamp(
+                this.buildElevation + (delta * this.elevationStep),
+                this.minElevation,
+                this.maxElevation
+            );
+        }
+    }
+
+    cancel() {
+        if (this.isBuildMode) {
+            if (this.isVerifying) {
+                this.isVerifying = false;
+                this.verifiedPos = null;
+                if (this.game.player.ui) this.game.player.ui.showStatus("Placement Cancelled", false);
+            } else {
+                this.toggle();
+            }
+        }
     }
 
     createGhost() {
@@ -73,7 +112,7 @@ export class BuildManager {
 
         if (type === 'wall') {
             const logRad = 0.18;
-            const logLen = 5.0; // Increased to match grid width
+            const logLen = 5.0; 
             const logGeo = new THREE.CylinderGeometry(logRad, logRad, logLen, 8);
             logGeo.rotateZ(Math.PI / 2);
             for (let i = 0; i < 12; i++) {
@@ -81,7 +120,6 @@ export class BuildManager {
                 log.position.y = logRad + (i * logRad * 1.85);
                 this.buildGhost.add(log);
             }
-            // Vertical beams for ghost
             const beamGeo = new THREE.CylinderGeometry(logRad * 0.8, logRad * 0.8, logRad * 24, 8);
             for (let side of [-1, 1]) {
                 const beam = new THREE.Mesh(beamGeo, ghostMat);
@@ -89,7 +127,7 @@ export class BuildManager {
                 this.buildGhost.add(beam);
             }
         } else if (type === 'floor') {
-            const floorSize = 5.0; // Increased to match grid width
+            const floorSize = 5.0; 
             const floorGeo = new THREE.BoxGeometry(floorSize, 0.1, floorSize);
             const floor = new THREE.Mesh(floorGeo, ghostMat);
             floor.position.y = 0.05;
@@ -102,7 +140,7 @@ export class BuildManager {
             this.buildGhost.add(fire);
         } else if (type === 'doorway') {
             const logRad = 0.18;
-            const wallWidth = 5.0; // Increased to match grid width
+            const wallWidth = 5.0; 
             const openingWidth = 1.5;
             const sideLogWidth = (wallWidth - openingWidth) / 2;
             const fullLogGeo = new THREE.CylinderGeometry(logRad, logRad, wallWidth, 8);
@@ -132,27 +170,78 @@ export class BuildManager {
                 pillar.position.set(side * (openingWidth/2 + logRad/2), pillarHeight/2, 0);
                 this.buildGhost.add(pillar);
             }
+        } else if (type === 'square_hut') {
+            const size = 5.0;
+            const height = 3.0;
+            const wallGeo = new THREE.BoxGeometry(size, height, size);
+            const walls = new THREE.Mesh(wallGeo, ghostMat);
+            walls.position.y = height / 2;
+            this.buildGhost.add(walls);
+            const roofGeo = new THREE.ConeGeometry(size * 0.8, height * 0.6, 4);
+            const roof = new THREE.Mesh(roofGeo, ghostMat);
+            roof.position.y = height + (height * 0.3);
+            roof.rotation.y = Math.PI / 4;
+            this.buildGhost.add(roof);
+        } else if (type === 'long_tavern') {
+            const width = 15.0;
+            const depth = 5.0;
+            const height = 4.0;
+            const bodyGeo = new THREE.BoxGeometry(width, height, depth);
+            const body = new THREE.Mesh(bodyGeo, ghostMat);
+            body.position.y = height / 2;
+            this.buildGhost.add(body);
+            const roofGeo = new THREE.CylinderGeometry(0.1, depth * 0.7, width, 4);
+            const roof = new THREE.Mesh(roofGeo, ghostMat);
+            roof.position.y = height + (height * 0.2);
+            roof.rotation.z = Math.PI / 2;
+            roof.rotation.y = Math.PI / 4;
+            this.buildGhost.add(roof);
+        } else if (type === 'grail_silo') {
+            const radius = 2.5;
+            const height = 8.0;
+            const bodyGeo = new THREE.CylinderGeometry(radius, radius, height, 16);
+            const body = new THREE.Mesh(bodyGeo, ghostMat);
+            body.position.y = height / 2;
+            this.buildGhost.add(body);
+            const domeGeo = new THREE.SphereGeometry(radius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+            const dome = new THREE.Mesh(domeGeo, ghostMat);
+            dome.position.y = height;
+            this.buildGhost.add(dome);
+        } else if (type === 'crop_plot') {
+            const soilGeo = new THREE.BoxGeometry(1.8, 0.2, 1.8);
+            const soil = new THREE.Mesh(soilGeo, ghostMat);
+            soil.position.y = 0.05;
+            this.buildGhost.add(soil);
+
+            const borderGeo = new THREE.BoxGeometry(2.0, 0.3, 0.1);
+            for (let i = 0; i < 4; i++) {
+                const border = new THREE.Mesh(borderGeo, ghostMat);
+                border.position.y = 0.1;
+                if (i === 0) border.position.z = 0.95;
+                else if (i === 1) border.position.z = -0.95;
+                else if (i === 2) { border.position.x = 0.95; border.rotation.y = Math.PI / 2; }
+                else if (i === 3) { border.position.x = -0.95; border.rotation.y = Math.PI / 2; }
+                this.buildGhost.add(border);
+            }
         }
         this.game.scene.add(this.buildGhost);
     }
 
     place() {
-        console.log("BuildManager: place() called", {
-            mouseWorldPos: this.game.mouseWorldPos,
-            isBuildMode: this.isBuildMode,
-            selectedBuildIndex: this.selectedBuildIndex,
-            isInvulnerable: this.game.player.isInvulnerable,
-            playerName: this.game.player.characterData?.name,
-            sceneId: this.game.scene.uuid
-        });
-
-        if (!this.game.mouseWorldPos) {
-            console.warn("BuildManager: No mouseWorldPos found");
-            return;
-        }
+        const mousePos = this.game.mouseWorldPos;
+        if (!mousePos && !this.isVerifying) return;
 
         const option = this.buildOptions[this.selectedBuildIndex];
         const type = option.type;
+
+        if (!this.isVerifying) {
+            this.isVerifying = true;
+            this.verifiedPos = this.buildGhost.position.clone();
+            this.verifiedRotation = this.buildRotation;
+            if (this.game.player.ui) this.game.player.ui.showStatus("Click again to confirm", false);
+            return;
+        }
+
         const woodCost = option.cost;
         const isFree = this.game.player.isInvulnerable || 
                        (this.game.player.characterData && this.game.player.characterData.name?.toLowerCase() === 'lordtsarcasm');
@@ -167,10 +256,7 @@ export class BuildManager {
                 if (item && item.type === 'wood') totalWood += item.count;
             });
 
-            console.log(`BuildManager: Resource check - Have: ${totalWood}, Need: ${woodCost}`);
-
             if (totalWood < woodCost) {
-                console.log(`BuildManager: Not enough wood.`);
                 this.game.player.ui.showStatus(`Need ${woodCost} Wood!`);
                 return;
             }
@@ -190,63 +276,61 @@ export class BuildManager {
             };
             consumeFrom(this.game.player.inventory.hotbar);
             if (needed > 0) consumeFrom(this.game.player.inventory.storage);
-            console.log("BuildManager: Wood consumed, remaining needed:", needed);
-        } else {
-            console.log("BuildManager: Placement is free");
         }
 
-        const gridStep = 5.0; // Increased to match grid width
+        const gridStep = 5.0; 
         const halfStep = gridStep / 2;
-        let posX, posZ;
+        let posX, posY, posZ, finalRotation;
 
-        const mousePos = this.game.mouseWorldPos;
-
-        if (type === 'floor' || type === 'firepit') {
-            posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
-            posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
+        if (this.isVerifying && this.verifiedPos) {
+            posX = this.verifiedPos.x;
+            posY = this.verifiedPos.y;
+            posZ = this.verifiedPos.z;
+            finalRotation = this.verifiedRotation;
         } else {
-            const normRot = ((this.buildRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-            const isHorizontal = Math.abs(Math.sin(normRot)) < 0.1; 
-
-            if (isHorizontal) {
-                // Wall along X-axis: snap Z to line, center X in cell
+            if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot') {
                 posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
-                posZ = Math.round(mousePos.z / gridStep) * gridStep;
-            } else {
-                // Wall along Z-axis: snap X to line, center Z in cell
-                posX = Math.round(mousePos.x / gridStep) * gridStep;
                 posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
+            } else {
+                const normRot = ((this.buildRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+                const isHorizontal = Math.abs(Math.sin(normRot)) < 0.1; 
+                if (isHorizontal) {
+                    posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
+                    posZ = Math.round(mousePos.z / gridStep) * gridStep;
+                } else {
+                    posX = Math.round(mousePos.x / gridStep) * gridStep;
+                    posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
+                }
             }
+            let snappedPos = this.checkSnapping(posX, posZ, type);
+            if (snappedPos) {
+                posX = snappedPos.x;
+                posY = snappedPos.y;
+                posZ = snappedPos.z;
+            } else {
+                posY = this.game.worldManager.getTerrainHeight(posX, posZ) + this.buildElevation;
+            }
+            finalRotation = this.buildRotation;
         }
 
-        const pos = new THREE.Vector3(posX, 0, posZ);
-        pos.y = this.game.worldManager.getTerrainHeight(pos.x, pos.z);
-
+        const pos = new THREE.Vector3(posX, posY, posZ);
         const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
         const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
         const shard = this.game.worldManager.activeShards.get(`${sx},${sz}`);
 
-        console.log(`BuildManager: Target shard ${sx},${sz}`, {
-            shardFound: !!shard,
-            activeShards: Array.from(this.game.worldManager.activeShards.keys())
-        });
-
         if (shard) {
-            console.log(`BuildManager: Placing ${type} at ${pos.x}, ${pos.y}, ${pos.z} in shard ${sx}, ${sz}`);
-            
-            // Place locally immediately (Prediction)
-            const building = new Building(this.game.scene, shard, type, pos, this.buildRotation);
+            const building = new Building(this.game.scene, shard, type, pos, finalRotation);
             if (!shard.resources) shard.resources = [];
             shard.resources.push(building);
             if (this.game.worldManager) this.game.worldManager.invalidateCache();
-            console.log("BuildManager: Local placement complete, shard resource count:", shard.resources.length);
-
-            // Notify server if in multiplayer
+            
             const isMultiplayer = this.game.multiplayer && this.game.multiplayer.socket && this.game.multiplayer.socket.isConnected;
             if (isMultiplayer) {
-                console.log("BuildManager: Notifying multiplayer server");
-                this.game.multiplayer.requestPlaceBuilding(type, pos, this.buildRotation, sx, sz);
+                this.game.multiplayer.requestPlaceBuilding(type, pos, finalRotation, sx, sz);
             }
+
+            this.isVerifying = false; 
+            this.verifiedPos = null;
 
             if (this.game.player.ui) {
                 this.game.player.ui.updateHotbar();
@@ -254,32 +338,61 @@ export class BuildManager {
             }
             audioManager.play('harvest', 0.5, 0.8);
         } else {
-            console.warn(`BuildManager: Shard not found at ${sx}, ${sz}. Active shards:`, Array.from(this.game.worldManager.activeShards.keys()));
             this.game.player.ui.showStatus("Cannot build here (Shard not loaded)");
         }
+    }
+
+    checkSnapping(posX, posZ, type) {
+        const gridStep = 5.0;
+        const halfStep = gridStep / 2;
+        const nearbyResources = this.game.worldManager.getNearbyResources(new THREE.Vector3(posX, 0, posZ), 10);
+        
+        for (const res of nearbyResources) {
+            if (!(res instanceof Building)) continue;
+            
+            if (type === 'floor') {
+                if (res.type === 'floor') {
+                    const distSq = Math.pow(res.group.position.x - posX, 2) + Math.pow(res.group.position.z - posZ, 2);
+                    if (distSq < 0.1) return new THREE.Vector3(posX, res.group.position.y, posZ);
+                    if (distSq < gridStep * gridStep + 0.1) return new THREE.Vector3(posX, res.group.position.y, posZ);
+                }
+            }
+            
+            if (type === 'wall' || type === 'doorway') {
+                if (res.type === 'floor') {
+                    const dx = Math.abs(res.group.position.x - posX);
+                    const dz = Math.abs(res.group.position.z - posZ);
+                    if ((dx < 0.1 && dz < halfStep + 0.1) || (dz < 0.1 && dx < halfStep + 0.1)) {
+                        return new THREE.Vector3(posX, res.group.position.y, posZ);
+                    }
+                } else if (res.type === 'wall' || res.type === 'doorway') {
+                    const distSq = Math.pow(res.group.position.x - posX, 2) + Math.pow(res.group.position.z - posZ, 2);
+                    if (distSq < 0.1) return new THREE.Vector3(posX, res.group.position.y, posZ);
+                }
+            }
+        }
+        return null;
     }
 
     update() {
         const mousePos = this.game.mouseWorldPos;
         if (this.isBuildMode && this.buildGhost) {
-            // Update location UI if possible
             if (mousePos) {
                 const hx = Math.floor((mousePos.x + SHARD_SIZE / 2) / SHARD_SIZE);
                 const hz = Math.floor((mousePos.z + SHARD_SIZE / 2) / SHARD_SIZE);
                 const locationDisplay = document.getElementById('location-display');
                 if (locationDisplay) {
-                    locationDisplay.innerHTML = `Shard: ${hx}, ${hz} (Building...)`;
+                    locationDisplay.innerHTML = `Shard: ${hx}, ${hz} (Building...) Elevation: ${this.buildElevation.toFixed(1)}`;
                 }
             }
 
-            // Ghost placement logic
-            const gridStep = 5.0; // Increased to match grid width
+            const gridStep = 5.0; 
             const halfStep = gridStep / 2;
-            let posX = 0, posZ = 0;
+            let posX = 0, posY = 0, posZ = 0;
 
             if (mousePos) {
                 const type = this.buildOptions[this.selectedBuildIndex].type;
-                if (type === 'floor' || type === 'firepit') {
+                if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot') {
                     posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
                     posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
                 } else {
@@ -287,25 +400,67 @@ export class BuildManager {
                     const isHorizontal = Math.abs(Math.sin(normRot)) < 0.1; 
 
                     if (isHorizontal) {
-                         // Wall along X-axis: snap Z to line, center X in cell
                         posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
                         posZ = Math.round(mousePos.z / gridStep) * gridStep;
                     } else {
-                        // Wall along Z-axis: snap X to line, center Z in cell
                         posX = Math.round(mousePos.x / gridStep) * gridStep;
                         posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
                     }
                 }
                 
-                this.buildGhost.position.set(posX, this.game.worldManager.getTerrainHeight(posX, posZ), posZ);
-                
-                if (type === 'firepit') {
-                    const normal = this.game.worldManager.getTerrainNormal(posX, posZ);
-                    const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-                    const rotY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.buildRotation);
-                    this.buildGhost.quaternion.multiplyQuaternions(quaternion, rotY);
+                let snappedPos = this.checkSnapping(posX, posZ, type);
+                if (snappedPos) {
+                    posX = snappedPos.x;
+                    posY = snappedPos.y;
+                    posZ = snappedPos.z;
                 } else {
-                    this.buildGhost.rotation.set(0, this.buildRotation, 0);
+                    posY = this.game.worldManager.getTerrainHeight(posX, posZ) + this.buildElevation;
+                }
+
+                if (this.isVerifying && this.verifiedPos) {
+                    this.buildGhost.position.copy(this.verifiedPos);
+                    
+                    const option = this.buildOptions[this.selectedBuildIndex];
+                    if (option.type === 'firepit') {
+                        const normal = this.game.worldManager.getTerrainNormal(this.verifiedPos.x, this.verifiedPos.z);
+                        const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+                        const rotY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.verifiedRotation);
+                        this.buildGhost.quaternion.multiplyQuaternions(quaternion, rotY);
+                    } else {
+                        this.buildGhost.rotation.set(0, this.verifiedRotation, 0);
+                    }
+                    
+                    const pulse = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
+                    this.buildGhost.traverse(child => {
+                        if (child.material) {
+                            child.material.opacity = 0.4 * pulse;
+                            child.material.transparent = true;
+                        }
+                    });
+
+                    const distSq = Math.pow(mousePos.x - this.verifiedPos.x, 2) + Math.pow(mousePos.z - this.verifiedPos.z, 2);
+                    if (distSq > 4.0) { 
+                        this.isVerifying = false;
+                        this.verifiedPos = null;
+                        if (this.game.player.ui) this.game.player.ui.showStatus("Build Mode", false);
+                    }
+                } else {
+                    this.buildGhost.position.set(posX, posY, posZ);
+                    if (type === 'firepit') {
+                        const normal = this.game.worldManager.getTerrainNormal(posX, posZ);
+                        const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+                        const rotY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.buildRotation);
+                        this.buildGhost.quaternion.multiplyQuaternions(quaternion, rotY);
+                    } else {
+                        this.buildGhost.rotation.set(0, this.buildRotation, 0);
+                    }
+
+                    this.buildGhost.traverse(child => {
+                        if (child.material) {
+                            child.material.opacity = 0.5;
+                            child.material.transparent = true;
+                        }
+                    });
                 }
                 
                 this.buildGhost.visible = true;

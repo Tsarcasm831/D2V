@@ -10,7 +10,7 @@ export function attachShirt(parts, config = {}) {
     const isLordTsarcasm = config.name?.toLowerCase() === 'lordtsarcasm';
     
     if (!isLordTsarcasm && !isLeather && !config.shirtColor) return null;
-
+    
     // Generate Procedural Texture
     const canvas = document.createElement('canvas');
     canvas.width = 512;

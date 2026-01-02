@@ -169,24 +169,45 @@ export class Bear {
             audioManager.play('enemy_hit', 0.6);
         });
 
-        // Loot drops
+        // Loot drops using loot tables
         if (player && player.inventory) {
-            const peltCount = Math.floor(Math.random() * 3) + 1;
-            const meatCount = Math.floor(Math.random() * 11) + 5;
-            player.inventory.addItem({ 
-                type: 'pelt', 
-                name: 'Thick Pelt', 
-                icon: 'assets/icons/pelt_icon.png', 
-                count: peltCount,
-                stackLimit: 99
-            });
-            player.inventory.addItem({ 
-                type: 'meat', 
-                name: 'Raw Meat', 
-                icon: 'assets/icons/meat_icon.png', 
-                count: meatCount,
-                stackLimit: 99
-            });
+            const lootTable = player.worldManager?.lootTables?.loot_tables?.enemy_bear;
+            if (lootTable) {
+                for (let i = 0; i < (lootTable.rolls || 1); i++) {
+                    lootTable.items.forEach(loot => {
+                        if (Math.random() < loot.chance) {
+                            const count = Math.floor(Math.random() * (loot.max - loot.min + 1)) + loot.min;
+                            const itemData = player.worldManager.itemsData?.items?.[loot.id];
+                            player.inventory.addItem({
+                                type: loot.id,
+                                name: itemData?.name || loot.id,
+                                icon: itemData?.icon || `assets/icons/${loot.id}_icon.png`,
+                                count: count,
+                                stackLimit: itemData?.maxStack || 99
+                            });
+                        }
+                    });
+                }
+            } else {
+                // Fallback if loot table not loaded
+                const peltCount = Math.floor(Math.random() * 3) + 1;
+                const meatCount = Math.floor(Math.random() * 11) + 5;
+                player.inventory.addItem({ 
+                    type: 'pelt', 
+                    name: 'Thick Pelt', 
+                    icon: 'assets/icons/pelt_icon.png', 
+                    count: peltCount,
+                    stackLimit: 99
+                });
+                player.inventory.addItem({ 
+                    type: 'meat', 
+                    name: 'Raw Meat', 
+                    icon: 'assets/icons/meat_icon.png', 
+                    count: meatCount,
+                    stackLimit: 99
+                });
+            }
+            player.addXP(20 + this.level * 2);
         }
     }
 

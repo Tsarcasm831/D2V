@@ -1,0 +1,14 @@
+{
+  "slots": {
+    "head": { "id": "head", "name": "Head", "description": "Helmets and hats" },
+    "shoulders": { "id": "shoulders", "name": "Shoulders", "description": "Pauldrons and shoulder wraps" },
+    "chest": { "id": "chest", "name": "Chest", "description": "Chest armor or tunics" },
+    "back": { "id": "back", "name": "Back", "description": "Cloaks and capes" },
+    "legs": { "id": "legs", "name": "Legs", "description": "Pants and greaves" },
+    "feet": { "id": "feet", "name": "Feet", "description": "Boots and shoes" },
+    "main_hand": { "id": "main_hand", "name": "Main Hand", "description": "Primary weapon" },
+    "off_hand": { "id": "off_hand", "name": "Off Hand", "description": "Shields or secondary items" },
+    "neck": { "id": "neck", "name": "Neck", "description": "Amulets and necklaces" },
+    "ring": { "id": "ring", "name": "Ring", "description": "Magic rings", "multiSlot": 2 }
+  }
+}

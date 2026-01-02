@@ -1,0 +1,24 @@
+{
+  "shops": {
+    "blacksmith_starter": {
+      "name": "Starter Blacksmith",
+      "items": [
+        { "id": "iron_sword", "price": 50 },
+        { "id": "iron_axe", "price": 30 },
+        { "id": "iron_pickaxe", "price": 30 },
+        { "id": "leather_chest", "price": 40 }
+      ]
+    },
+    "merchant_starter": {
+      "name": "Traveling Merchant",
+      "items": [
+        { "id": "wheat_seeds", "price": 5 },
+        { "id": "potato_seeds", "price": 5 },
+        { "id": "tomato_seeds", "price": 8 },
+        { "id": "lettuce_seeds", "price": 3 },
+        { "id": "carrot_seeds", "price": 5 },
+        { "id": "berry", "price": 10 }
+      ]
+    }
+  }
+}

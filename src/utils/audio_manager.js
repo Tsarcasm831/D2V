@@ -5,6 +5,26 @@ class AudioManager {
         this.context = new (window.AudioContext || window.webkitAudioContext)();
         this.buffers = new Map();
         this.enabled = true;
+        
+        // Volume controls
+        this.masterVolume = parseFloat(localStorage.getItem('masterVolume')) || 0.8;
+        this.musicVolume = parseFloat(localStorage.getItem('musicVolume')) || 0.5;
+        
+        this.masterGain = this.context.createGain();
+        this.masterGain.gain.value = this.masterVolume;
+        this.masterGain.connect(this.context.destination);
+    }
+
+    setMasterVolume(value) {
+        this.masterVolume = value;
+        this.masterGain.gain.setTargetAtTime(value, this.context.currentTime, 0.05);
+        localStorage.setItem('masterVolume', value);
+    }
+
+    setMusicVolume(value) {
+        this.musicVolume = value;
+        localStorage.setItem('musicVolume', value);
+        // If there's a music node, update its volume here
     }
 
     async load(name, url) {
@@ -38,7 +58,7 @@ class AudioManager {
         source.playbackRate.value = p;
 
         source.connect(gainNode);
-        gainNode.connect(this.context.destination);
+        gainNode.connect(this.masterGain);
         source.start(0);
     }
 }

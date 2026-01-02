@@ -33,6 +33,120 @@ export class Building {
         console.log(`Building: Added ${this.type} to scene ${this.scene.uuid} at`, this.group.position);
 
         this.setupMesh();
+
+        if (this.type === 'crop_plot') {
+            this.isCropPlot = true;
+            this.plantedCrop = null;
+            this.growthStage = 0;
+            this.growthTimer = 0;
+            this.lastUpdate = Date.now();
+            this.cropMesh = null;
+        }
+    }
+
+    update() {
+        if (this.isCropPlot && this.plantedCrop) {
+            const now = Date.now();
+            const dt = (now - this.lastUpdate) / 1000;
+            this.lastUpdate = now;
+
+            const plantData = this.shard.worldManager.plantsData?.plants?.[this.plantedCrop];
+            if (plantData && this.growthStage < plantData.growthStages - 1) {
+                this.growthTimer += dt;
+                if (this.growthTimer >= plantData.timePerStage) {
+                    this.growthTimer = 0;
+                    this.growthStage++;
+                    this.updateCropMesh();
+                }
+            }
+        }
+    }
+
+    plantSeed(seedId) {
+        if (!this.isCropPlot || this.plantedCrop) return false;
+
+        const itemData = this.shard.worldManager.itemsData?.items?.[seedId];
+        if (!itemData || !itemData.plantId) return false;
+
+        this.plantedCrop = itemData.plantId;
+        this.growthStage = 0;
+        this.growthTimer = 0;
+        this.lastUpdate = Date.now();
+        this.updateCropMesh();
+        return true;
+    }
+
+    updateCropMesh() {
+        if (this.cropMesh) {
+            this.group.remove(this.cropMesh);
+            this.cropMesh = null;
+        }
+
+        if (!this.plantedCrop) return;
+
+        const plantData = this.shard.worldManager.plantsData?.plants?.[this.plantedCrop];
+        if (!plantData) return;
+
+        const wm = this.shard.worldManager;
+        const color = this.getPlantColor(this.plantedCrop, this.growthStage, plantData.growthStages);
+        const mat = wm ? wm.getSharedMaterial('standard', { color }) : new THREE.MeshStandardMaterial({ color });
+        
+        const scale = 0.2 + (this.growthStage / (plantData.growthStages - 1)) * 0.8;
+        const height = 0.5 * scale;
+        const geo = wm ? wm.getSharedGeometry('cylinder', 0.1 * scale, 0.05 * scale, height) : new THREE.CylinderGeometry(0.1 * scale, 0.05 * scale, height);
+        
+        this.cropMesh = new THREE.Mesh(geo, mat);
+        this.cropMesh.position.y = height / 2;
+        this.group.add(this.cropMesh);
+    }
+
+    getPlantColor(plantId, stage, totalStages) {
+        const isMature = stage === totalStages - 1;
+        switch (plantId) {
+            case 'wheat': return isMature ? 0xEDC9AF : 0x7CFC00;
+            case 'carrot': return isMature ? 0xFFA500 : 0x228B22;
+            case 'potato': return isMature ? 0x8B4513 : 0x556B2F;
+            case 'tomato': return isMature ? 0xFF0000 : 0x32CD32;
+            case 'lettuce': return isMature ? 0x90EE90 : 0x006400;
+            default: return 0x00FF00;
+        }
+    }
+
+    harvest() {
+        if (!this.isCropPlot || !this.plantedCrop) return null;
+
+        const wm = this.shard.worldManager;
+        const plantData = wm?.plantsData?.plants?.[this.plantedCrop];
+        if (!plantData || this.growthStage < plantData.growthStages - 1) return null;
+
+        const yieldData = plantData.yield;
+        const lootKey = `harvest_${this.plantedCrop}`;
+        const lootTable = wm?.lootTables?.loot_tables?.[lootKey];
+
+        let results = [];
+        if (lootTable) {
+            for (let i = 0; i < (lootTable.rolls || 1); i++) {
+                lootTable.items.forEach(loot => {
+                    if (Math.random() < loot.chance) {
+                        const count = Math.floor(Math.random() * (loot.max - loot.min + 1)) + loot.min;
+                        results.push({ itemId: loot.id, count });
+                    }
+                });
+            }
+        }
+
+        // If no loot table results, use default yield
+        if (results.length === 0) {
+            const count = Math.floor(Math.random() * (yieldData.max - yieldData.min + 1)) + yieldData.min;
+            results.push({ itemId: yieldData.itemId, count });
+        }
+        
+        this.plantedCrop = null;
+        this.growthStage = 0;
+        this.growthTimer = 0;
+        this.updateCropMesh();
+
+        return results;
     }
 
     setupMesh() {
@@ -441,6 +555,107 @@ export class Building {
             this.radius = maxR * 0.9; 
             this.radiusVariations = radiusVariations;
             this.health = 10000; // Indestructible terrain-like object
+        } else if (this.type === 'square_hut') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const roofMat = wm ? wm.getSharedMaterial('standard', { color: 0x3e2723 }) : new THREE.MeshStandardMaterial({ color: 0x3e2723 });
+            
+            const size = 5.0 * SCALE_FACTOR;
+            const height = 3.0 * SCALE_FACTOR;
+            
+            // Walls
+            const wallGeo = wm ? wm.getSharedGeometry('box', size, height, size) : new THREE.BoxGeometry(size, height, size);
+            const walls = new THREE.Mesh(wallGeo, woodMat);
+            walls.position.y = height / 2;
+            walls.castShadow = true;
+            walls.receiveShadow = true;
+            this.group.add(walls);
+            
+            // Roof (Pyramid)
+            const roofGeo = new THREE.ConeGeometry(size * 0.8, height * 0.6, 4);
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = height + (height * 0.3);
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            this.group.add(roof);
+            
+            this.health = 100;
+            this.radius = size / 2;
+        } else if (this.type === 'long_tavern') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const roofMat = wm ? wm.getSharedMaterial('standard', { color: 0x2e1a16 }) : new THREE.MeshStandardMaterial({ color: 0x2e1a16 });
+            
+            const width = 15.0 * SCALE_FACTOR;
+            const depth = 5.0 * SCALE_FACTOR;
+            const height = 4.0 * SCALE_FACTOR;
+            
+            // Main structure
+            const bodyGeo = wm ? wm.getSharedGeometry('box', width, height, depth) : new THREE.BoxGeometry(width, height, depth);
+            const body = new THREE.Mesh(bodyGeo, woodMat);
+            body.position.y = height / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            this.group.add(body);
+            
+            // Slanted roof
+            const roofGeo = new THREE.CylinderGeometry(0.1, depth * 0.7, width, 4);
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = height + (height * 0.2);
+            roof.rotation.z = Math.PI / 2;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            this.group.add(roof);
+            
+            this.health = 300;
+            this.radius = width / 2;
+        } else if (this.type === 'grail_silo') {
+            const stoneMat = wm ? wm.getSharedMaterial('standard', { color: 0x808080 }) : new THREE.MeshStandardMaterial({ color: 0x808080 });
+            const topMat = wm ? wm.getSharedMaterial('standard', { color: 0xffd700, metalness: 0.8, roughness: 0.2 }) : new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 });
+            
+            const radius = 2.5 * SCALE_FACTOR;
+            const height = 8.0 * SCALE_FACTOR;
+            
+            // Tower body
+            const bodyGeo = wm ? wm.getSharedGeometry('cylinder', radius, radius, height, 16) : new THREE.CylinderGeometry(radius, radius, height, 16);
+            const body = new THREE.Mesh(bodyGeo, stoneMat);
+            body.position.y = height / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            this.group.add(body);
+            
+            // Dome top
+            const domeGeo = new THREE.SphereGeometry(radius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+            const dome = new THREE.Mesh(domeGeo, topMat);
+            dome.position.y = height;
+            dome.castShadow = true;
+            this.group.add(dome);
+            
+            this.health = 500;
+            this.radius = radius;
+        } else if (this.type === 'crop_plot') {
+            const dirtMat = wm ? wm.getSharedMaterial('standard', { color: 0x3d2b1f }) : new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            
+            // Soil area
+            const soilGeo = wm ? wm.getSharedGeometry('box', 1.8, 0.2, 1.8) : new THREE.BoxGeometry(1.8, 0.2, 1.8);
+            const soil = new THREE.Mesh(soilGeo, dirtMat);
+            soil.position.y = 0.05;
+            soil.receiveShadow = true;
+            this.group.add(soil);
+
+            // Border
+            const borderGeo = wm ? wm.getSharedGeometry('box', 2.0, 0.3, 0.1) : new THREE.BoxGeometry(2.0, 0.3, 0.1);
+            for (let i = 0; i < 4; i++) {
+                const border = new THREE.Mesh(borderGeo, woodMat);
+                border.position.y = 0.1;
+                if (i === 0) border.position.z = 0.95;
+                else if (i === 1) border.position.z = -0.95;
+                else if (i === 2) { border.position.x = 0.95; border.rotation.y = Math.PI / 2; }
+                else if (i === 3) { border.position.x = -0.95; border.rotation.y = Math.PI / 2; }
+                border.castShadow = true;
+                border.receiveShadow = true;
+                this.group.add(border);
+            }
+            this.radius = 1.0;
         }
     }
 

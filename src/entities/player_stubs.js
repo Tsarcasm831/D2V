@@ -1,29 +1,29 @@
+
 export class PlayerInventory {
     constructor(player) { 
         this.player = player;
         this.hotbar = new Array(8).fill(null);
-        this.storage = new Array(20).fill(null);
+        this.storage = new Array(64).fill(null);
         this.selectedSlot = 0;
-        
-        // Default items
-        this.hotbar[0] = { type: 'sword', name: 'Iron Sword', icon: 'assets/icons/sword_icon.png', count: 1 };
-        this.hotbar[1] = { type: 'axe', name: 'Iron Axe', icon: 'assets/icons/axe_icon.png', count: 1 };
-        this.hotbar[2] = { type: 'club', name: 'Wooden Club', icon: 'assets/icons/club_icon.png', count: 1 };
-        this.hotbar[3] = { type: 'pickaxe', name: 'Iron Pickaxe', icon: 'assets/icons/pickaxe_icon.png', count: 1 };
-
-        // Some sample inventory items
-        this.storage[0] = { type: 'iron', name: 'Iron Ore', icon: 'assets/icons/pickaxe_icon.png', count: 1 }; 
-        this.storage[1] = { type: 'wood', name: 'Wood Log', icon: 'assets/icons/wood_log_icon.png', count: 1 };
-
+        this.currency = { gold: 0 };
         this.equipment = {
-            helmet: null,
-            chest: { type: 'shirt', name: 'Nomad Tunic', icon: 'assets/icons/shirt_icon.png' },
-            pants: null,
-            shoes: null,
-            hands: null,
-            back: null,
-            mainhand: null,
-            offhand: null
+            HELMET: null,
+            BODY: { id: 'default-shirt', name: 'Shirt', type: 'shirt', icon: 'assets/gear/shirt.png', slot: 'BODY' },
+            GLOVES: null,
+            BOOTS: null,
+            BELT: null,
+            RING_1: null,
+            RING_2: null,
+            AMULET: null,
+            WEAPON_MAIN: null,
+            WEAPON_OFF: null,
+            TRINKET: null,
+            FLASK_1: null,
+            FLASK_2: null,
+            FLASK_3: null,
+            FLASK_4: null,
+            FLASK_5: null,
+            SHORTS: { id: 'default-shorts', name: 'Shorts', type: 'shorts', icon: 'assets/gear/black_pants.png', slot: 'SHORTS' }
         };
     }
 
@@ -31,133 +31,106 @@ export class PlayerInventory {
         if (index >= 0 && index < 8) {
             this.selectedSlot = index;
             if (this.player.ui) this.player.ui.updateHotbar();
-            if (this.player.updateHeldItem) this.player.updateHeldItem();
         }
     }
 
-    pickup(item) { 
-        console.log("Picked up", item);
-        if (item.parent) item.parent.remove(item);
-    }
-
-    unequip(slotName) {
-        const item = this.equipment[slotName];
-        if (!item) return;
-
-        // Try to put back in storage
-        for (let i = 0; i < this.storage.length; i++) {
-            if (this.storage[i] === null) {
-                this.storage[i] = item;
-                this.equipment[slotName] = null;
-                if (this.player.ui) {
-                    this.player.ui.renderEquipment();
-                    this.player.ui.renderProfileGrid();
-                    if (this.player.updateHeldItem) this.player.updateHeldItem();
-                }
-                return true;
-            }
-        }
-        if (this.player.ui) this.player.ui.showStatus("Inventory Full!");
-        return false;
-    }
-
-    equip(item, storageIndex) {
-        let slotName = null;
-        if (item.type === 'shirt') slotName = 'chest';
-        if (item.type === 'vest' || item.type === 'leather-armor') slotName = 'chest';
-        if (item.type === 'headband' || item.type === 'leather-hunters-cap' || item.type === 'assassins-cap') slotName = 'helmet';
-        if (item.type === 'leather-gloves') slotName = 'hands';
-        if (item.type === 'leather-boots') slotName = 'shoes';
-        if (item.type === 'cloak') slotName = 'back';
-        if (item.type === 'pants') slotName = 'pants';
-        if (['axe', 'club', 'pickaxe', 'sword'].includes(item.type)) slotName = 'mainhand';
-        
-        if (!slotName) {
-            if (this.player.ui) this.player.ui.showStatus("Not equippable!");
-            return false;
+    addItem(item) {
+        if (!item) return false;
+        // Special case: currency
+        if (item.type === 'gold_coin' || item.type === 'gold') {
+            this.currency.gold += (item.count || 1);
+            if (this.player.ui) this.player.ui.showStatus(`+${item.count || 1} Gold`, false);
+            return true;
         }
 
-        const currentEquipped = this.equipment[slotName];
-        this.equipment[slotName] = item;
-        this.storage[storageIndex] = currentEquipped;
-
-        if (this.player.ui) {
-            this.player.ui.renderEquipment();
-            this.player.ui.renderProfileGrid();
-            if (this.player.updateHeldItem) this.player.updateHeldItem();
-        }
-        return true;
-    }
-
-    addItem(item, preferredSlot = -1) {
         const stackLimit = item.stackLimit || 99;
         const countToAdd = item.count || 1;
 
-        const findAndAdd = (arr) => {
-            for (let i = 0; i < arr.length; i++) {
-                const existing = arr[i];
-                if (existing && existing.type === item.type && existing.count < stackLimit) {
-                    const room = stackLimit - existing.count;
-                    const canAdd = Math.min(room, countToAdd);
-                    existing.count += canAdd;
-                    // Logic for partial stacks if we ever added multiple at once could go here
-                    return true;
-                }
-            }
-            return false;
-        };
-
-        // 1. Try to stack in preferred slot
-        if (preferredSlot !== -1) {
-            const existing = this.hotbar[preferredSlot];
+        // 1. Try to stack in hotbar
+        for (let i = 0; i < this.hotbar.length; i++) {
+            const existing = this.hotbar[i];
             if (existing && existing.type === item.type && existing.count < stackLimit) {
-                existing.count += countToAdd;
+                const room = stackLimit - existing.count;
+                const canAdd = Math.min(room, countToAdd);
+                existing.count += canAdd;
                 if (this.player.ui) this.player.ui.updateHotbar();
                 return true;
             }
         }
 
-        // 2. Try to stack in hotbar
-        if (findAndAdd(this.hotbar)) {
-            if (this.player.ui) this.player.ui.updateHotbar();
-            return true;
-        }
-
-        // 3. Try to stack in storage
-        if (findAndAdd(this.storage)) {
-            if (this.player.ui && document.getElementById('inventory-container').style.display === 'flex') {
-                this.player.ui.renderInventory();
+        // 2. Try to stack in storage
+        for (let i = 0; i < this.storage.length; i++) {
+            const existing = this.storage[i];
+            if (existing && existing.type === item.type && existing.count < stackLimit) {
+                const room = stackLimit - existing.count;
+                const canAdd = Math.min(room, countToAdd);
+                existing.count += canAdd;
+                return true;
             }
-            return true;
         }
 
-        // 4. Try empty preferred slot
-        if (preferredSlot !== -1 && this.hotbar[preferredSlot] === null) {
-            this.hotbar[preferredSlot] = { ...item, count: countToAdd };
-            if (this.player.ui) this.player.ui.updateHotbar();
-            return true;
-        }
-
-        // 5. Try empty hotbar slot
+        // 3. Try empty hotbar slot
         for (let i = 0; i < this.hotbar.length; i++) {
             if (this.hotbar[i] === null) {
-                this.hotbar[i] = { ...item, count: countToAdd };
+                this.hotbar[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
                 if (this.player.ui) this.player.ui.updateHotbar();
                 return true;
             }
         }
 
-        // 6. Try empty storage slot
+        // 4. Try empty storage slot
         for (let i = 0; i < this.storage.length; i++) {
             if (this.storage[i] === null) {
-                this.storage[i] = { ...item, count: countToAdd };
-                if (this.player.ui && document.getElementById('inventory-container').style.display === 'flex') {
-                    this.player.ui.renderInventory();
-                }
+                this.storage[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
                 return true;
             }
         }
+        return false;
+    }
 
+    equipById(itemId) {
+        const index = this.storage.findIndex(i => i && i.id === itemId);
+        if (index === -1) return false;
+        
+        const item = this.storage[index];
+        let slotName = this.getSlotForItem(item);
+        
+        if (!slotName) return false;
+
+        const currentEquipped = this.equipment[slotName];
+        this.equipment[slotName] = item;
+        this.storage[index] = currentEquipped;
+
+        if (this.player.recalculateStats) this.player.recalculateStats();
+        return true;
+    }
+
+    getSlotForItem(item) {
+        const type = item.type.toLowerCase();
+        if (['helmet', 'headband'].includes(type)) return 'HELMET';
+        if (['body', 'shirt', 'armor'].includes(type)) return 'BODY';
+        if (['gloves', 'hands'].includes(type)) return 'GLOVES';
+        if (['boots', 'shoes'].includes(type)) return 'BOOTS';
+        if (type === 'belt') return 'BELT';
+        if (type === 'ring') return this.equipment.RING_1 ? 'RING_2' : 'RING_1';
+        if (type === 'amulet') return 'AMULET';
+        if (['weapon', 'sword', 'axe', 'pickaxe', 'staff', 'bow', 'dagger', 'kunai'].includes(type)) return 'WEAPON_MAIN';
+        if (type === 'shield') return 'WEAPON_OFF';
+        if (type === 'flask') {
+            const flasks = ['FLASK_1', 'FLASK_2', 'FLASK_3', 'FLASK_4', 'FLASK_5'];
+            return flasks.find(f => !this.equipment[f]) || 'FLASK_1';
+        }
+        return null;
+    }
+
+    consumeItem(index, amount, isHotbar = true) {
+        const arr = isHotbar ? this.hotbar : this.storage;
+        if (arr[index]) {
+            arr[index].count -= amount;
+            if (arr[index].count <= 0) arr[index] = null;
+            if (this.player.ui) this.player.ui.updateHotbar();
+            return true;
+        }
         return false;
     }
 }
@@ -177,15 +150,7 @@ export class PlayerUI {
 
         this.hotbarSlots = document.querySelectorAll('#hotbar .hotbar-slot');
         this.inventoryContainer = document.getElementById('inventory-container');
-        this.inventoryGrid = document.getElementById('inventory-grid');
-        this.craftingList = document.getElementById('crafting-list');
-        this.abilitySlots = {
-            lmb: document.getElementById('slot-lmb'),
-            r: document.getElementById('slot-r'),
-            x: document.getElementById('slot-x'),
-            c: document.getElementById('slot-c')
-        };
-        this.skillsContainer = document.getElementById('skills-container');
+        this.mainInventoryGrid = document.getElementById('main-inventory-grid');
         this.statusEl = document.getElementById('status-message');
         this.statusTimeout = null;
 
@@ -193,55 +158,89 @@ export class PlayerUI {
         this.buildHotbarWrapper = document.getElementById('build-hotbar-wrapper');
         this.buildSlots = document.querySelectorAll('#build-hotbar .build-slot');
 
-        const invToggle = document.getElementById('invulnerable-toggle');
-        if (invToggle) {
-            invToggle.addEventListener('change', (e) => {
+        this.plantingModal = document.getElementById('planting-modal');
+        this.plantingSeedList = document.getElementById('planting-seed-list');
+        this.noSeedsMsg = document.getElementById('no-seeds-msg');
+        this.activePlot = null;
+
+        const closeInv = document.getElementById('close-new-inv');
+        if (closeInv) {
+            closeInv.onclick = () => this.toggleInventory();
+        }
+
+        const startInvuln = document.getElementById('start-invulnerable');
+        if (startInvuln) {
+            // Check localStorage for saved preference
+            const saved = localStorage.getItem('startInvulnerable') === 'true';
+            startInvuln.checked = saved;
+            if (saved) {
+                this.player.isInvulnerable = true;
+                this.showStatus("Invulnerability Active", false);
+            }
+            startInvuln.addEventListener('change', (e) => {
+                localStorage.setItem('startInvulnerable', e.target.checked);
                 this.player.isInvulnerable = e.target.checked;
-                this.showStatus(this.player.isInvulnerable ? "God Mode On" : "God Mode Off", !this.player.isInvulnerable);
+                this.showStatus(e.target.checked ? "Invulnerability Enabled" : "Invulnerability Disabled", !e.target.checked);
             });
         }
 
-        this.previewContainer = document.getElementById('player-preview-container');
-        this.previewRenderer = null;
-        this.previewScene = null;
-        this.previewCamera = null;
-        this.previewMesh = null;
-        this.isPreviewDragging = false;
-        this.lastPreviewX = 0;
+        // Audio Controls
+        import('../utils/audio_manager.js').then(({ audioManager }) => {
+            const masterVol = document.getElementById('master-volume');
+            if (masterVol) {
+                masterVol.value = audioManager.masterVolume * 100;
+                masterVol.addEventListener('input', (e) => {
+                    audioManager.setMasterVolume(e.target.checked ? 0 : e.target.value / 100);
+                });
+            }
+            const musicVol = document.getElementById('music-volume');
+            if (musicVol) {
+                musicVol.value = audioManager.musicVolume * 100;
+                musicVol.addEventListener('input', (e) => {
+                    audioManager.setMusicVolume(e.target.value / 100);
+                });
+            }
+        });
+
+        // FPS Toggle
+        const fpsToggle = document.getElementById('show-fps');
+        if (fpsToggle) {
+            fpsToggle.checked = localStorage.getItem('showFPS') === 'true';
+            fpsToggle.addEventListener('change', (e) => {
+                localStorage.setItem('showFPS', e.target.checked);
+                if (this.player.game) this.player.game.toggleFPS(e.target.checked);
+            });
+        }
+
+        // Bloom Toggle
+        const bloomToggle = document.getElementById('bloom-toggle');
+        if (bloomToggle) {
+            bloomToggle.checked = (localStorage.getItem('bloomEnabled') ?? 'true') === 'true';
+            bloomToggle.addEventListener('change', (e) => {
+                localStorage.setItem('bloomEnabled', e.target.checked);
+                if (this.player.game) this.player.game.toggleBloom(e.target.checked);
+            });
+        }
+
+        // Quality Select
+        const qualitySelect = document.getElementById('graphics-quality');
+        if (qualitySelect) {
+            qualitySelect.value = localStorage.getItem('graphicsQuality') || 'medium';
+            qualitySelect.addEventListener('change', (e) => {
+                localStorage.setItem('graphicsQuality', e.target.value);
+                if (this.player.game) this.player.game.setQuality(e.target.value);
+            });
+        }
+
+        // Add Escape key listener to open options
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.toggleOptions();
+            }
+        });
+
 
         // Tab Switching
-        this.tabs = document.querySelectorAll('.inventory-tab');
-        this.panes = {
-            items: document.getElementById('inventory-pane-items'),
-            crafting: document.getElementById('inventory-pane-crafting')
-        };
-
-        this.tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const target = tab.getAttribute('data-tab');
-                this.switchTab(target);
-            });
-        });
-
-        this.equipmentSlots = document.querySelectorAll('.equipment-slot-v2');
-        this.profileGearGrid = document.getElementById('profile-gear-grid');
-
-        // Add click listeners to equipment slots for unequipping
-        this.equipmentSlots.forEach(slot => {
-            slot.addEventListener('click', () => {
-                const slotName = slot.getAttribute('data-slot');
-                this.player.inventory.unequip(slotName);
-            });
-        });
-
-        // Add click listeners to hotbar slots for manual selection
-        this.hotbarSlots.forEach((slot, i) => {
-            slot.style.pointerEvents = 'auto'; 
-            slot.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.player.inventory.selectSlot(i);
-            });
-        });
 
         this.buildSlots.forEach((slot, i) => {
             slot.style.pointerEvents = 'auto';
@@ -252,33 +251,6 @@ export class PlayerUI {
         });
 
         this.skillMenu = document.getElementById('skill-selection-menu');
-        
-        // Right-click on R slot
-        if (this.abilitySlots.r) {
-            this.abilitySlots.r.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                this.showSkillMenu(e.clientX, e.clientY);
-            });
-        }
-
-        // Skill menu item clicks
-        if (this.skillMenu) {
-            this.skillMenu.querySelectorAll('.menu-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const skillId = item.getAttribute('data-skill');
-                    this.selectSkill(skillId);
-                    this.skillMenu.style.display = 'none';
-                });
-            });
-
-            // Close menu when clicking elsewhere
-            window.addEventListener('mousedown', (e) => {
-                if (!this.skillMenu.contains(e.target)) {
-                    this.skillMenu.style.display = 'none';
-                }
-            });
-        }
-
         this.updateHotbar();
     }
 
@@ -302,26 +274,20 @@ export class PlayerUI {
         }
     }
 
-    switchTab(tabName) {
-        this.tabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tabName));
-        Object.keys(this.panes).forEach(k => {
-            if (this.panes[k]) this.panes[k].style.display = (k === tabName) ? 'flex' : 'none';
-        });
 
-        if (tabName === 'items') this.renderInventory();
-        if (tabName === 'crafting') this.renderCrafting();
-    }
-
-    toggleInventory() {
-        const isVisible = this.inventoryContainer.style.display === 'flex';
-        this.inventoryContainer.style.display = isVisible ? 'none' : 'flex';
+    toggleOptions() {
+        if (!this.optionsContainer) return;
+        const isVisible = this.optionsContainer.style.display === 'flex';
+        this.optionsContainer.style.display = isVisible ? 'none' : 'flex';
+        
+        // Close other modals if opening options
         if (!isVisible) {
-            // Default to items tab when opening
-            this.switchTab('items');
+            if (this.inventoryContainer) this.inventoryContainer.style.display = 'none';
             if (this.previewContainer) this.previewContainer.style.display = 'none';
             if (this.skillsContainer) this.skillsContainer.style.display = 'none';
         }
     }
+
 
     toggleSkills() {
         if (!this.skillsContainer) return;
@@ -333,6 +299,7 @@ export class PlayerUI {
             this.renderSkills();
         }
     }
+
 
     renderSkills() {
         const grid = this.skillsContainer.querySelector('.skills-grid');
@@ -372,74 +339,15 @@ export class PlayerUI {
         });
     }
 
-    togglePlayerPreview() {
-        const isVisible = this.previewContainer.style.display === 'flex';
-        this.previewContainer.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) {
-            this.inventoryContainer.style.display = 'none';
-            this.initPreviewRenderer();
-            this.updateStats();
-            this.renderEquipment();
-            this.renderProfileGrid();
+    toggleInventory() {
+        if (this.player.inventoryUI) {
+            this.player.inventoryUI.toggle();
         }
     }
 
-    renderProfileGrid() {
-        if (!this.profileGearGrid) return;
-        this.profileGearGrid.innerHTML = '';
-        
-        const storage = this.player.inventory.storage;
-        storage.forEach((item, i) => {
-            const slot = document.createElement('div');
-            slot.className = 'inventory-slot';
-            slot.style.width = '100%';
-            slot.style.height = 'auto';
-            slot.style.aspectRatio = '1';
-            
-            if (item && item.icon) {
-                const img = document.createElement('img');
-                img.src = item.icon;
-                img.className = 'hotbar-icon';
-                slot.appendChild(img);
-                slot.title = `Equip ${item.name}`;
-                slot.style.cursor = 'pointer';
-                
-                slot.addEventListener('click', () => {
-                    this.player.inventory.equip(item, i);
-                });
-
-                if (item.count > 1) {
-                    const countLabel = document.createElement('div');
-                    countLabel.className = 'slot-count';
-                    countLabel.textContent = item.count;
-                    slot.appendChild(countLabel);
-                }
-            }
-            
-            this.profileGearGrid.appendChild(slot);
-        });
-    }
-
     renderEquipment() {
-        const equipment = this.player.inventory.equipment;
-        this.equipmentSlots.forEach(slot => {
-            const slotName = slot.getAttribute('data-slot');
-            const item = equipment[slotName];
-            
-            // Clear current icon
-            const existingIcon = slot.querySelector('.hotbar-icon');
-            if (existingIcon) existingIcon.remove();
-
-            if (item && item.icon) {
-                const img = document.createElement('img');
-                img.src = item.icon;
-                img.className = 'hotbar-icon';
-                slot.appendChild(img);
-                slot.title = item.name;
-            } else {
-                slot.title = slot.getAttribute('data-label');
-            }
-        });
+        // Legacy method - disabled to prevent TypeErrors
+        // Equipment is now handled by InventoryUI.renderPaperDoll
     }
 
     updateStats() {
@@ -461,164 +369,8 @@ export class PlayerUI {
         if (elChakra) elChakra.textContent = `${Math.ceil(this.player.chakra)}/${this.player.maxChakra}`;
         if (fillChakra) fillChakra.style.width = `${(this.player.chakra / this.player.maxChakra) * 100}%`;
         
-        const tool = this.player.inventory.hotbar[this.player.inventory.selectedSlot];
-        const tier = (tool && tool.tier) || 0;
-        if (elTier) elTier.textContent = tier;
     }
 
-    updatePreviewHeldItem() {
-        if (!this.previewHeldItems) return;
-        const slot = this.player.inventory.selectedSlot;
-        const item = this.player.inventory.hotbar[slot];
-        
-        for (const [type, mesh] of Object.entries(this.previewHeldItems)) {
-            mesh.visible = !!(item && item.type === type);
-        }
-    }
-
-    initPreviewRenderer() {
-        if (this.previewRenderer) return;
-
-        import('three').then(THREE => {
-            const container = document.getElementById('preview-canvas-container');
-            const rect = container.getBoundingClientRect();
-
-            this.previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            this.previewRenderer.setSize(rect.width, rect.height);
-            this.previewRenderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(this.previewRenderer.domElement);
-
-            this.previewScene = new THREE.Scene();
-            this.previewCamera = new THREE.PerspectiveCamera(45, rect.width / rect.height, 0.1, 100);
-            this.previewCamera.position.set(0, 1.2, 3.5);
-            this.previewCamera.lookAt(0, 1.1, 0);
-
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            this.previewScene.add(ambient);
-            const directional = new THREE.DirectionalLight(0xffffff, 1.0);
-            directional.position.set(2, 2, 5);
-            this.previewScene.add(directional);
-
-            import('./player_mesh.js').then(({ createPlayerMesh }) => {
-                const { mesh, parts } = createPlayerMesh(this.player.characterData);
-                this.previewMesh = mesh;
-
-                // Attach the base clothing and weapons to the preview character
-                Promise.all([
-                    import('../items/underwear.js'),
-                    import('../items/shorts.js'),
-                    import('../items/shirt.js'),
-                    import('../items/axe.js'),
-                    import('../items/club.js'),
-                    import('../items/pickaxe.js'),
-                    import('../items/gear.js'),
-                    import('../world/world_bounds.js')
-                ]).then(([underwear, shorts, shirt, axe, club, pick, gear, bounds]) => {
-                    underwear.attachUnderwear(parts);
-                    shorts.attachShorts(parts, this.player.characterData);
-                    shirt.attachShirt(parts, this.player.characterData);
-
-                    // Attach currently equipped gear
-                    const equipment = this.player.inventory.equipment;
-                    const gearMapping = {
-                        chest: ['vest', 'leatherArmor'],
-                        helmet: ['headband', 'leatherHuntersCap', 'assassinsCap'],
-                        hands: ['leatherGloves'],
-                        shoes: ['leatherBoots'],
-                        back: ['cloak'],
-                        pants: ['pants']
-                    };
-
-                    Object.entries(equipment).forEach(([slot, item]) => {
-                        if (item) {
-                            // Find the internal key (e.g., 'leatherArmor' from 'leather-armor')
-                            let gearKey = item.type.split('-').map((word, i) => i === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)).join('');
-                            const fnName = `attach${gearKey.charAt(0).toUpperCase() + gearKey.slice(1)}`;
-                            if (gear[fnName]) gear[fnName](parts);
-                        }
-                    });
-
-                    const scale = bounds.SCALE_FACTOR;
-                    const rightHand = new THREE.Group();
-                    rightHand.position.set(0, -0.35 * scale, 0);
-                    rightHand.rotation.x = Math.PI / 2;
-                    parts.rightForeArm.add(rightHand);
-
-                    this.previewHeldItems = {
-                        axe: axe.createAxe(),
-                        club: club.createClub(),
-                        pickaxe: pick.createPickaxe()
-                    };
-
-                    Object.values(this.previewHeldItems).forEach(m => {
-                        m.visible = false;
-                        rightHand.add(m);
-                    });
-                    
-                    this.updatePreviewHeldItem();
-                });
-
-                // Face the character slightly forward-right initially
-                this.previewMesh.rotation.y = Math.PI * 0.15;
-                this.previewScene.add(this.previewMesh);
-                
-                const animate = () => {
-                    if (this.previewContainer.style.display === 'none') return;
-                    requestAnimationFrame(animate);
-                    this.previewRenderer.render(this.previewScene, this.previewCamera);
-                };
-                animate();
-            });
-
-            // Handle Preview Rotation
-            container.addEventListener('mousedown', (e) => {
-                if (e.button === 0) { // Left click
-                    this.isPreviewDragging = true;
-                    this.lastPreviewX = e.clientX;
-                }
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (this.isPreviewDragging && this.previewMesh) {
-                    const deltaX = e.clientX - this.lastPreviewX;
-                    this.previewMesh.rotation.y += deltaX * 0.015;
-                    this.lastPreviewX = e.clientX;
-                }
-            });
-
-            window.addEventListener('mouseup', () => {
-                this.isPreviewDragging = false;
-            });
-        });
-    }
-
-    renderInventory() {
-        if (!this.inventoryGrid) return;
-        this.inventoryGrid.innerHTML = '';
-        
-        const storage = this.player.inventory.storage;
-        storage.forEach((item, i) => {
-            const slot = document.createElement('div');
-            slot.className = 'inventory-slot';
-            
-            if (item && item.icon) {
-                const img = document.createElement('img');
-                img.src = item.icon;
-                img.className = 'hotbar-icon';
-                slot.appendChild(img);
-                slot.title = item.name;
-
-                if (item.count > 1) {
-                    const countLabel = document.createElement('div');
-                    countLabel.className = 'slot-count';
-                    countLabel.textContent = item.count;
-                    slot.appendChild(countLabel);
-                }
-            }
-            
-            this.inventoryGrid.appendChild(slot);
-        });
-    }
 
     renderCrafting() {
         if (!this.craftingList) return;
@@ -713,7 +465,6 @@ export class PlayerUI {
                 this.player.ui.showStatus(`Crafted ${recipe.name}!`, false);
                 this.renderCrafting(); 
                 this.updateHotbar();
-                this.renderInventory();
             });
 
             div.appendChild(info);
@@ -736,10 +487,12 @@ export class PlayerUI {
     }
 
     updateHotbar() {
-        this.updatePreviewHeldItem();
         if (this.hotbarSlots) {
-            const selected = this.player.inventory.selectedSlot;
-            const inventory = this.player.inventory.hotbar;
+            const inventoryObj = this.player.inventory;
+            if (!inventoryObj) return;
+
+            const selected = inventoryObj.selectedSlot || 0;
+            const hotbar = inventoryObj.hotbar || [];
             
             this.hotbarSlots.forEach((slot, i) => {
                 // Handle active state
@@ -750,7 +503,7 @@ export class PlayerUI {
                 }
 
                 // Handle icon display
-                const item = inventory[i];
+                const item = hotbar[i];
                 let iconImg = slot.querySelector('.hotbar-icon');
                 
                 if (item && item.icon) {
@@ -1008,5 +761,99 @@ export class ChatUI {
 }
 
 export class CraftingMenu { constructor(p) {} toggle() {} }
-export class ConversationUI { constructor(p) {} isOpen() { return false; } close() {} open(n) {} }
+export class ConversationUI { 
+    constructor(player) {
+        this.player = player;
+        this.modal = document.getElementById('npc-interaction-modal');
+        this.npcName = document.getElementById('npc-name');
+        this.npcPortrait = document.getElementById('npc-portrait');
+        this.npcDialogue = document.getElementById('npc-dialogue');
+        this.npcOptions = document.getElementById('npc-options');
+        this.btnClose = document.getElementById('close-npc-interaction');
+        this.btnLeave = document.getElementById('npc-btn-leave');
+        this.btnTrade = document.getElementById('npc-btn-trade');
+        this.btnQuest = document.getElementById('npc-btn-quest');
+
+        if (this.btnClose) this.btnClose.onclick = () => this.close();
+        if (this.btnLeave) this.btnLeave.onclick = () => this.close();
+        
+        if (this.btnTrade) {
+            this.btnTrade.onclick = () => {
+                this.player.ui.showStatus("Trading is not yet implemented", false);
+            };
+        }
+        
+        if (this.btnQuest) {
+            this.btnQuest.onclick = () => {
+                this.player.ui.showStatus("Quests are not yet implemented", false);
+            };
+        }
+    }
+
+    isOpen() { 
+        return this.modal && this.modal.style.display === 'flex'; 
+    }
+
+    close() { 
+        if (this.modal) this.modal.style.display = 'none';
+        if (this.player.game && this.player.game.inputManager) {
+            // Restore input focus if needed, though input_manager handles locking
+        }
+    }
+
+    open(npc) { 
+        console.log("ConversationUI.open called for NPC:", npc.name);
+        if (!this.modal) {
+            console.error("ConversationUI: Modal element 'npc-interaction-modal' not found!");
+            return;
+        }
+        
+        console.log("Setting UI elements for:", npc.name);
+        if (this.npcName) this.npcName.textContent = npc.name || "Unknown NPC";
+        if (this.npcPortrait) this.npcPortrait.src = npc.portrait || "assets/gear/assassins_cowl.png";
+        if (this.npcDialogue) this.npcDialogue.textContent = npc.dialogue || "Hello there.";
+        
+        // Clear and render options
+        if (this.npcOptions) {
+            this.npcOptions.innerHTML = '';
+            if (npc.dialogueOptions) {
+                npc.dialogueOptions.forEach(opt => {
+                    const btn = document.createElement('div');
+                    btn.className = 'npc-dialogue-option';
+                    btn.textContent = opt.text;
+                    btn.onclick = () => {
+                        this.npcDialogue.textContent = opt.dialogue;
+                    };
+                    this.npcOptions.appendChild(btn);
+                });
+            }
+        } else {
+            console.error("ConversationUI: 'npc-options' container not found!");
+        }
+        
+        console.log("Showing modal");
+        this.modal.style.display = 'flex';
+        
+        // Lock player movement/input via input manager logic
+        if (this.player.game && this.player.game.inputManager) {
+            this.player.game.inputManager.input.x = 0;
+            this.player.game.inputManager.input.y = 0;
+            this.player.game.inputManager.input.run = false;
+        }
+    }
+}
+
 export function getClosestTalkableNpc(pos, npcs, range) { return null; }
+export class InventoryUI {
+    constructor(player) {
+        this.player = player;
+        this.container = document.getElementById('inventory-container');
+    }
+    toggle() {
+        if (!this.container) return;
+        const isVisible = window.getComputedStyle(this.container).display !== 'none';
+        this.container.style.display = isVisible ? 'none' : 'flex';
+    }
+    render() {}
+    syncWithPlayer() {}
+}

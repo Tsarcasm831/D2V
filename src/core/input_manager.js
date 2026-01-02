@@ -17,17 +17,51 @@ export class InputManager {
         this.setupControls();
     }
 
+    requestPointerLock() {
+        const canvas = this.game.renderer.domElement;
+        canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+        canvas.requestPointerLock();
+    }
+
+    exitPointerLock() {
+        document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+    }
+
     setupControls() {
         window.addEventListener('keydown', (e) => {
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
+            // Lock input if NPC interaction or other blocking UI is open
+            if (this.game.player.conversation && this.game.player.conversation.isOpen()) {
+                if (e.key === 'Escape') {
+                    this.game.player.conversation.close();
+                }
+                return;
+            }
+
             const key = e.key.toLowerCase();
+            if (key === 'v') this.game.toggleCameraMode();
             if (key === 'w') this.input.y = -1;
             if (key === 's') this.input.y = 1;
             if (key === 'a') this.input.x = -1;
             if (key === 'd') this.input.x = 1;
             if (key === 'shift') this.input.run = true;
             if (key === ' ') this.input.jump = true;
+            if (key === 'q') {
+                if (this.game.buildManager.isBuildMode) {
+                    this.game.buildManager.changeElevation(1);
+                } else {
+                    this.game.player.eatBerries();
+                }
+            }
+            if (key === 'e') {
+                if (this.game.buildManager.isBuildMode) {
+                    this.game.buildManager.changeElevation(-1);
+                }
+            }
             if (key === 'x') this.game.player.toggleCombat();
             if (key === 'c') {
                 const cSlot = document.getElementById('slot-c');
@@ -60,10 +94,13 @@ export class InputManager {
                 this.game.player.ui.toggleInventory();
             }
             if (key === 'p') {
-                this.game.player.ui.togglePlayerPreview();
+                this.game.player.ui.toggleInventory();
             }
-            if (key === 'f') this.game.player.tryHarvest();
-            if (key === 'q') this.game.player.eatBerries();
+            if (key === 'f') {
+                console.log("InputManager: 'f' key pressed");
+                this.game.player.tryHarvest();
+            }
+            // Removed duplicate 'q' entry from here
             if (key === 'b') this.game.buildManager.toggle();
             if (key === 'k') this.game.player.ui.toggleSkills();
             if (key === 'enter') {
@@ -83,11 +120,11 @@ export class InputManager {
 
             // Hotbar keys 1-8
             const num = parseInt(key);
-            if (!isNaN(num) && num >= 1 && num <= 8) {
+            if (num >= 1 && num <= 8) {
                 if (this.game.buildManager.isBuildMode) {
                     this.game.buildManager.selectSlot(num - 1);
                 } else {
-                    this.game.player.inventory.selectSlot(num - 1);
+                    // Hotbar selection removed
                 }
             }
         });
@@ -134,11 +171,28 @@ export class InputManager {
         });
 
         window.addEventListener('mousedown', (e) => {
-            if (e.button === 2) this.isRotating = true;
+            // Block game clicks if inventory is open
+            if (this.game.player.inventoryUI && 
+                this.game.player.inventoryUI.container && 
+                window.getComputedStyle(this.game.player.inventoryUI.container).display !== 'none') {
+                return;
+            }
+
+            if (e.button === 2) {
+                if (this.game.buildManager.isBuildMode) {
+                    this.game.buildManager.cancel();
+                    return;
+                }
+                // Try to interact with plot on right click
+                if (this.game.player.tryInteractPlot(true)) {
+                    return;
+                }
+                this.isRotating = true;
+            }
             if (e.button === 0) {
                 // Discover slots based on ID for click support
                 if (e.target.closest('#slot-p')) {
-                    this.game.player.ui.togglePlayerPreview();
+                    // Profile preview toggle removed
                     return;
                 }
 
@@ -173,19 +227,37 @@ export class InputManager {
             this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
-            if (this.isRotating) {
+            if (this.game.cameraMode === 'fpv' && document.pointerLockElement) {
+                const sensitivity = 0.002;
+                this.game.fpvRotation.yaw -= e.movementX * sensitivity;
+                this.game.fpvRotation.pitch -= e.movementY * sensitivity;
+                
+                // Constrain pitch
+                this.game.fpvRotation.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.game.fpvRotation.pitch));
+                
+                // Sync player rotation with camera yaw in FPV
+                if (this.game.player && this.game.player.mesh) {
+                    this.game.player.mesh.rotation.y = this.game.fpvRotation.yaw;
+                }
+            } else if (this.isRotating) {
                 this.game.cameraRotation.theta -= e.movementX * 0.01;
                 this.game.cameraRotation.phi = Math.max(0.2, Math.min(Math.PI / 2 - 0.1, this.game.cameraRotation.phi + e.movementY * 0.01));
             }
         });
 
         window.addEventListener('wheel', (e) => {
-            const modalIds = ['inventory-container', 'shard-map-container', 'player-preview-container', 'ore-modal', 'death-screen'];
+            const modalIds = ['shard-map-container', 'ore-modal', 'death-screen'];
             const isModalOpen = modalIds.some(id => {
                 const el = document.getElementById(id);
                 return el && window.getComputedStyle(el).display !== 'none';
             });
             if (isModalOpen) return;
+
+            if (this.game.buildManager.isBuildMode) {
+                const delta = e.deltaY > 0 ? -1 : 1;
+                this.game.buildManager.changeElevation(delta);
+                return;
+            }
 
             const zoomStep = 2.0;
             if (e.deltaY > 0) {
@@ -209,7 +281,8 @@ export class InputManager {
 
     updateMouseWorldPos(terrainMeshes) {
         const now = performance.now();
-        if (now - this._lastRaycastTime < 16) return; // Max 60Hz raycasting
+        // Throttle raycasting to ~30Hz (33ms) to save CPU, especially on complex terrain
+        if (now - this._lastRaycastTime < 33) return; 
         this._lastRaycastTime = now;
 
         this.raycaster.setFromCamera(this.mouse, this.game.camera);

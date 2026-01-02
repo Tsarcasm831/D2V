@@ -1,0 +1,18 @@
+{
+  "world_params": {
+    "shape": "yurei",
+    "seed": "sairon_prime",
+    "size": { "width": 2048, "height": 2048 },
+    "biomes": [
+      { "id": "forest", "frequency": 0.4, "trees": ["oak", "pine"] },
+      { "id": "plains", "frequency": 0.3, "trees": ["oak"] },
+      { "id": "swamp", "frequency": 0.2, "trees": ["oak_swamp"] }
+    ]
+  },
+  "town_rules": {
+    "min_distance_between_towns": 500,
+    "max_towns": 5,
+    "required_buildings": ["tavern", "well"],
+    "optional_buildings": ["blacksmith", "silo", "hut"]
+  }
+}

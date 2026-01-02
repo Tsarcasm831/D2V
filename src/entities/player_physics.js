@@ -5,7 +5,8 @@ export class PlayerPhysics {
     constructor(player) {
         this.player = player;
         this.worldManager = player.worldManager;
-        this.position = new THREE.Vector3(0, 0, 0);
+        const terrainHeight = this.worldManager ? this.worldManager.getTerrainHeight(0, 0) : 0;
+        this.position = new THREE.Vector3(0, terrainHeight, 0);
         this.velocity = new THREE.Vector3(0, 0, 0);
         
         this.walkSpeed = 15 * SCALE_FACTOR;
@@ -143,9 +144,24 @@ export class PlayerPhysics {
         this.position.x = THREE.MathUtils.clamp(this.position.x, -boundary, boundary);
         this.position.z = THREE.MathUtils.clamp(this.position.z, -boundary, boundary);
 
-        // Ground/Plateau collisions
+        // World Mask Boundary Enforcement
         const wm = this.worldManager || (this.player ? this.player.worldManager : null);
+        if (wm && wm.worldMask && !wm.worldMask.containsXZ(this.position.x, this.position.z)) {
+            // Simple approach: reject movement if it puts us outside the mask
+            // Find a valid point near the boundary or just revert
+            this.position.x -= this.velocity.x * delta;
+            this.position.z -= this.velocity.z * delta;
+            this.velocity.x = 0;
+            this.velocity.z = 0;
+        }
+
+        // Ground/Plateau collisions
         let floorY = wm ? wm.getTerrainHeight(this.position.x, this.position.z) : 0;
+
+        // Safety check for first frame or if terrain wasn't loaded yet
+        if (this.position.y < floorY) {
+            this.position.y = floorY;
+        }
         
         // Check for buildings/floors at this position
         if (wm) {

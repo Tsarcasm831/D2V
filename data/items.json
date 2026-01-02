@@ -1,0 +1,202 @@
+{
+  "items": {
+    "wood": {
+      "id": "wood",
+      "name": "Wood",
+      "type": "material",
+      "description": "Basic building material.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 1
+    },
+    "stone": {
+      "id": "stone",
+      "name": "Stone",
+      "type": "material",
+      "description": "Sturdy building material.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 1
+    },
+    "wheat_seeds": {
+      "id": "wheat_seeds",
+      "name": "Wheat Seeds",
+      "type": "crop",
+      "description": "Plant these to grow wheat.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 2,
+      "plantId": "wheat"
+    },
+    "wheat": {
+      "id": "wheat",
+      "name": "Wheat",
+      "type": "crop",
+      "description": "Harvested grain.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 5
+    },
+    "potato_seeds": {
+      "id": "potato_seeds",
+      "name": "Potato Seeds",
+      "type": "crop",
+      "description": "Plant these to grow potatoes.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 2,
+      "plantId": "potato"
+    },
+    "potato": {
+      "id": "potato",
+      "name": "Potato",
+      "type": "crop",
+      "description": "A starchy tuber.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 4
+    },
+    "tomato_seeds": {
+      "id": "tomato_seeds",
+      "name": "Tomato Seeds",
+      "type": "crop",
+      "description": "Plant these to grow tomatoes.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 3,
+      "plantId": "tomato"
+    },
+    "tomato": {
+      "id": "tomato",
+      "name": "Tomato",
+      "type": "crop",
+      "description": "A juicy red fruit.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 6
+    },
+    "lettuce_seeds": {
+      "id": "lettuce_seeds",
+      "name": "Lettuce Seeds",
+      "type": "crop",
+      "description": "Plant these to grow lettuce.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 1,
+      "plantId": "lettuce"
+    },
+    "lettuce": {
+      "id": "lettuce",
+      "name": "Lettuce",
+      "type": "crop",
+      "description": "Crispy green leaves.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 3
+    },
+    "carrot_seeds": {
+      "id": "carrot_seeds",
+      "name": "Carrot Seeds",
+      "type": "crop",
+      "description": "Plant these to grow carrots.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 2,
+      "plantId": "carrot"
+    },
+    "carrot": {
+      "id": "carrot",
+      "name": "Carrot",
+      "type": "crop",
+      "description": "A crunchy orange root.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 4
+    },
+    "crop_plot": {
+      "id": "crop_plot",
+      "name": "Crop Plot",
+      "type": "building",
+      "description": "A plot of tilled soil for growing crops.",
+      "stackable": true,
+      "maxStack": 10,
+      "value": 10
+    },
+    "iron_sword": {
+      "id": "iron_sword",
+      "name": "Iron Sword",
+      "type": "weapon",
+      "description": "A basic iron blade.",
+      "stackable": false,
+      "slot": "main_hand",
+      "value": 50,
+      "stats": {
+        "damage": 15,
+        "attackSpeed": 1.2,
+        "critChance": 0.05
+      }
+    },
+    "leather_chest": {
+      "id": "leather_chest",
+      "name": "Leather Chestplate",
+      "type": "armor",
+      "description": "Light protection made of leather.",
+      "stackable": false,
+      "slot": "chest",
+      "value": 40,
+      "stats": {
+        "defense": 10,
+        "dodge": 0.02
+      }
+    },
+    "assassins_cloak": {
+      "id": "assassins_cloak",
+      "name": "Assassin's Cloak",
+      "type": "clothing",
+      "description": "Dark cloak for stealthy movements.",
+      "stackable": false,
+      "slot": "back",
+      "value": 75,
+      "stats": {
+        "stealth": 10,
+        "dodge": 0.05
+      },
+      "asset": "assets/gear/assassins_cloak.png"
+    },
+    "gold_coin": {
+      "id": "gold_coin",
+      "name": "Gold Coin",
+      "type": "currency",
+      "description": "Standard currency.",
+      "stackable": true,
+      "maxStack": 9999,
+      "value": 1
+    },
+    "shirt": {
+      "id": "shirt",
+      "name": "Shirt",
+      "type": "clothing",
+      "description": "A simple cotton shirt.",
+      "stackable": false,
+      "slot": "chest",
+      "value": 10,
+      "stats": {
+        "defense": 1
+      },
+      "asset": "assets/gear/shirt.png"
+    },
+    "shorts": {
+      "id": "shorts",
+      "name": "Shorts",
+      "type": "clothing",
+      "description": "Comfortable shorts for everyday wear.",
+      "stackable": false,
+      "slot": "pants",
+      "value": 8,
+      "stats": {
+        "defense": 1
+      },
+      "asset": "assets/gear/shorts.png"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "definitions": {
+    "strength": { "name": "Strength", "description": "Increases physical damage.", "perPoint": { "meleeDamage": 2 } },
+    "dexterity": { "name": "Dexterity", "description": "Increases attack speed and dodge chance.", "perPoint": { "attackSpeed": 0.05, "dodge": 0.01 } },
+    "intelligence": { "name": "Intelligence", "description": "Increases mana and magic power.", "perPoint": { "maxChakra": 10, "magicDamage": 2 } },
+    "vitality": { "name": "Vitality", "description": "Increases maximum health.", "perPoint": { "maxHealth": 10 } }
+  },
+  "formulas": {
+    "max_health": "base_health + (vitality * 10) + gear_health",
+    "max_chakra": "base_chakra + (intelligence * 10) + gear_chakra",
+    "melee_damage": "(base_weapon_damage + (strength * 2)) * (1 + gear_damage_mult)",
+    "dodge_chance": "(dexterity * 0.01) + gear_dodge",
+    "defense_reduction": "defense / (defense + 100)"
+  },
+  "base_stats": {
+    "health": 100,
+    "chakra": 100,
+    "stamina": 100,
+    "strength": 5,
+    "dexterity": 5,
+    "intelligence": 5,
+    "vitality": 5
+  }
+}

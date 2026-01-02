@@ -1,0 +1,34 @@
+{
+  "npcs": {
+    "blacksmith_olric": {
+      "id": "blacksmith_olric",
+      "name": "Olric",
+      "role": "Blacksmith",
+      "shopTable": "blacksmith_basic",
+      "dialogueHooks": {
+        "greeting": "Need some ironwork, traveler?",
+        "trade": "Take a look at my wares.",
+        "quest": "That old bear in the woods has been a nuisance..."
+      }
+    },
+    "innkeeper_martha": {
+      "id": "innkeeper_martha",
+      "name": "Martha",
+      "role": "Innkeeper",
+      "shopTable": "inn_basic",
+      "dialogueHooks": {
+        "greeting": "Welcome to the Hearth! Warm bed or cold ale?",
+        "trade": "We've got fresh bread and cider."
+      }
+    }
+  },
+  "shop_tables": {
+    "blacksmith_basic": [
+      { "itemId": "iron_sword", "priceMultiplier": 1.2 },
+      { "itemId": "leather_chest", "priceMultiplier": 1.1 }
+    ],
+    "inn_basic": [
+      { "itemId": "wheat", "priceMultiplier": 2.0 }
+    ]
+  }
+}

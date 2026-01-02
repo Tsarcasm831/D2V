@@ -1,0 +1,20 @@
+{
+  "quests": {
+    "bear_hunt": {
+      "id": "bear_hunt",
+      "title": "The Forest Menace",
+      "description": "Hunt the bear that's been terrorizing the town.",
+      "steps": [
+        { "id": "find_bear", "description": "Track the bear in the Northern Woods.", "target": "zone_north_woods" },
+        { "id": "kill_bear", "description": "Defeat the Great Bear.", "target": "enemy_bear", "count": 1 }
+      ],
+      "rewards": {
+        "items": [ { "id": "gold_coin", "count": 100 } ],
+        "xp": 500
+      },
+      "conditions": {
+        "minLevel": 5
+      }
+    }
+  }
+}

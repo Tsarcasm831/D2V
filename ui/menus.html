@@ -7,6 +7,46 @@
     <div id="options-btn" class="btn">OPTIONS</div>
 </div>
 
+<div id="options-menu" class="menu-screen" style="display: none;">
+    <div class="menu-logo">SETTINGS</div>
+    <div class="options-container" style="width: 400px; background: rgba(0,0,0,0.4); padding: 30px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 20px;">
+        <div class="option-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <label>MASTER VOLUME</label>
+            <input type="range" id="volume-slider" min="0" max="100" value="80" style="width: 200px;">
+        </div>
+        <div class="option-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <label>MUSIC</label>
+            <input type="checkbox" id="music-toggle" checked>
+        </div>
+        <div class="option-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <label>SFX</label>
+            <input type="checkbox" id="sfx-toggle" checked>
+        </div>
+        <div class="option-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <label>SHOW FPS</label>
+            <input type="checkbox" id="fps-toggle">
+        </div>
+        <div class="option-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <label>WEATHER</label>
+            <select id="weather-select" style="width: 200px; background: rgba(0,0,0,0.6); color: white; border: 1px solid var(--border); border-radius: 4px; padding: 4px;">
+                <option value="clear">Clear</option>
+                <option value="cloudy">Cloudy</option>
+                <option value="rain">Rain</option>
+                <option value="storm">Storm</option>
+                <option value="fog">Fog</option>
+            </select>
+        </div>
+        <div class="option-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <label>TIME OF DAY</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="range" id="time-slider" min="0" max="23" step="1" value="8" style="width: 150px;">
+                <span id="time-display" style="min-width: 40px;">08:00</span>
+            </div>
+        </div>
+    </div>
+    <div id="options-back" class="btn" style="margin-top: 30px; border-color: rgba(255,255,255,0.3);">BACK</div>
+</div>
+
 <div id="server-selection" class="menu-screen" style="display: none;">
     <div class="menu-logo">CHOOSE REALM</div>
     <div class="server-list" style="display: flex; flex-direction: column; gap: 10px; width: 400px;"></div>
