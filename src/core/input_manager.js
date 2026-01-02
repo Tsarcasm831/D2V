@@ -162,6 +162,10 @@ export class InputManager {
 
         // Tap/Click Actions
         document.body.addEventListener('touchstart', (e) => {
+            const inventoryWrapper = document.getElementById('inventory-overlay-wrapper');
+            const isInventoryOpen = inventoryWrapper && window.getComputedStyle(inventoryWrapper).display !== 'none';
+            
+            if (isInventoryOpen && e.target.closest('#inventory-overlay-wrapper')) return;
             if (e.target.closest('#ui-layer')) return;
             this.input.action = true;
             this.triggerActionFeedback();
@@ -172,9 +176,10 @@ export class InputManager {
 
         window.addEventListener('mousedown', (e) => {
             // Block game clicks if inventory is open
-            if (this.game.player.inventoryUI && 
-                this.game.player.inventoryUI.container && 
-                window.getComputedStyle(this.game.player.inventoryUI.container).display !== 'none') {
+            const inventoryWrapper = document.getElementById('inventory-overlay-wrapper');
+            const isInventoryOpen = inventoryWrapper && window.getComputedStyle(inventoryWrapper).display !== 'none';
+            
+            if (isInventoryOpen && e.target.closest('#inventory-overlay-wrapper')) {
                 return;
             }
 
