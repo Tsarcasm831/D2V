@@ -132,6 +132,29 @@ export class Player {
         if (this.ui) this.ui.updateHud();
     }
 
+    respawn() {
+        this.playerPhysics.position.set(0, 5, 0);
+        this.playerPhysics.velocity.set(0, 0, 0);
+        this.stats.health = this.stats.maxHealth;
+        this.isDead = false;
+        if (this.ui) this.ui.updateHud();
+    }
+
+    teleport(x, z) {
+        this.playerPhysics.position.set(x, 20, z); // Start slightly in air to avoid ground issues
+        this.playerPhysics.velocity.set(0, 0, 0);
+        if (this.mesh) this.mesh.position.copy(this.playerPhysics.position);
+        
+        // Force world update around new position
+        if (this.worldManager) {
+            this.worldManager.updateShards(Math.floor((x + SHARD_SIZE / 2) / SHARD_SIZE), Math.floor((z + SHARD_SIZE / 2) / SHARD_SIZE));
+            const groundY = this.worldManager.getTerrainHeight(x, z);
+            this.playerPhysics.position.y = groundY + 1;
+        }
+        
+        if (this.ui) this.ui.showStatus(`Teleported to ${Math.round(x/SHARD_SIZE)}, ${Math.round(z/SHARD_SIZE)}`, false);
+    }
+
     updateHeldItem() {
         if (this.gear) this.gear.updateHeldItem();
     }

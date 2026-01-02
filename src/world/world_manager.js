@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { Shard } from './shard.js';
-import { SHARD_SIZE, WORLD_SHARD_LIMIT } from './world_bounds.js';
+import { TownManager } from './town_manager.js';
+import { SHARD_SIZE, WORLD_SEED, WORLD_SHARD_LIMIT } from './world_bounds.js';
 import { WorldMask } from './world_mask.js';
 
 export class WorldManager {
     constructor(scene) {
         this.scene = scene;
         this.worldMask = new WorldMask();
+        this.townManager = new TownManager(this);
         this.activeShards = new Map(); // key: "x,z", value: Shard instance
         this.terrainMeshes = []; // NEW: Array of terrain meshes for raycasting
         this.lastShardCoord = { x: null, z: null };
@@ -52,6 +54,7 @@ export class WorldManager {
         this.statsData = null;
         
         this.loadData();
+        this.townManager.initialize(WORLD_SEED);
     }
 
     async loadData() {
@@ -273,21 +276,52 @@ export class WorldManager {
         const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
         const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
         const ui = document.getElementById('location-display');
-        if (ui) ui.innerHTML = `Shard Coordinate: ${sx}, ${sz}`;
+        if (ui) {
+            ui.innerHTML = `Shard Coordinate: ${sx}, ${sz}`;
+            
+            // Check if teleport button exists, if not create it
+            if (!document.getElementById('tp-shard-btn')) {
+                const tpBtn = document.createElement('button');
+                tpBtn.id = 'tp-shard-btn';
+                tpBtn.textContent = 'Teleport to Shard (67, -95)';
+                tpBtn.style.marginLeft = '15px';
+                tpBtn.style.padding = '4px 8px';
+                tpBtn.style.background = 'rgba(0, 170, 255, 0.3)';
+                tpBtn.style.border = '1px solid var(--primary)';
+                tpBtn.style.color = 'white';
+                tpBtn.style.cursor = 'pointer';
+                tpBtn.style.borderRadius = '4px';
+                tpBtn.style.fontSize = '12px';
+                tpBtn.style.pointerEvents = 'auto';
+                tpBtn.onclick = () => {
+                    if (window.gameInstance && window.gameInstance.player) {
+                        const targetX = 67 * SHARD_SIZE;
+                        const targetZ = -95 * SHARD_SIZE;
+                        window.gameInstance.player.teleport(targetX, targetZ);
+                    }
+                };
+                ui.appendChild(tpBtn);
+            }
+        }
     }
 
     getBiomeNoise(x, z) {
+        // Shared noise logic for all systems
+        const scale = 0.005; 
+        
+        // Offset x,z to stay within smaller floating point range for Sin/Cos stability
+        // This prevents "jitter" and lag at large coordinates
+        const ox = x % 10000;
+        const oz = z % 10000;
+        
+        const nx = ox * scale, nz = oz * scale;
+        
         // Use higher precision for biome noise to avoid blocky transitions
-        // 0.1 unit precision (multiply by 10)
         const keyX = (x * 10 + 300000) | 0;
         const keyZ = (z * 10 + 300000) | 0;
         const numKey = BigInt(keyX) << 32n | BigInt(keyZ);
         
         if (this.biomeNoiseCache.has(numKey)) return this.biomeNoiseCache.get(numKey);
-
-        // Shared noise logic for all systems
-        const scale = 0.005; // Reduced from 0.02 for much larger biomes
-        const nx = x * scale, nz = z * scale;
         
         // Layered noise (octaves) with more variance
         const v1 = Math.sin(nx) + Math.sin(nz);

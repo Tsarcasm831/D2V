@@ -18,6 +18,7 @@ import { Tree } from './tree.js';
 import { Ore } from './ore.js';
 import { BerryBush } from './berry_bush.js';
 import { ItemDrop } from '../items/item_drop.js';
+import { Building } from '../systems/buildings.js';
 
 export class Shard {
     constructor(scene, gridX = 0, gridZ = 0, worldManager = null) {
@@ -39,6 +40,7 @@ export class Shard {
         this._lastUpdateNPC = 0;
 
         this.ponds = []; // Store pond data for exclusion
+        this.townData = worldManager ? worldManager.townManager.getTownAtShard(gridX, gridZ) : null;
         this.setupEnvironment();
     }
 
@@ -47,8 +49,13 @@ export class Shard {
             return this.worldManager.getBiomeNoise(x, z);
         }
         // Fallback noise logic (matching WorldManager.js exactly)
-        const scale = 0.005; // Reduced from 0.05 for much larger biomes
-        const nx = x * scale, nz = z * scale;
+        const scale = 0.005;
+        
+        // Offset x,z to stay within smaller floating point range for Sin/Cos stability
+        const ox = x % 10000;
+        const oz = z % 10000;
+        
+        const nx = ox * scale, nz = oz * scale;
         
         // Layered noise (octaves) with more variance
         const v1 = Math.sin(nx) + Math.sin(nz);
@@ -621,6 +628,33 @@ export class Shard {
             
             this.resources.push(new BerryBush(this.scene, this, pos));
         }
+
+        // --- Town Building Placement ---
+        if (this.townData) {
+            console.log(`Shard ${this.gridX}, ${this.gridZ}: Placing town ${this.townData.id}`);
+            for (const bData of this.townData.buildings) {
+                const wx = this.offsetX + bData.offsetX;
+                const wz = this.offsetZ + bData.offsetZ;
+                const wy = this.getTerrainHeight(wx, wz);
+                const pos = new THREE.Vector3(wx, wy, wz);
+                
+                const building = new Building(this.scene, this, bData.type, pos, bData.rotation);
+                this.resources.push(building);
+
+                // Place building NPCs
+                if (bData.npcs) {
+                    for (const npcData of bData.npcs) {
+                        if (npcData.type === 'innkeeper') {
+                            const npcPos = pos.clone().add(new THREE.Vector3(0, 0, 2)); // Offset from building center
+                            const npc = new HumanoidNPC(this.scene, this, npcPos);
+                            npc.name = "Innkeeper";
+                            this.npcs.push(npc);
+                        }
+                    }
+                }
+            }
+        }
+        // --- End Town Building Placement ---
 
         // Fauna Spawning (Animals)
         // Target: at least 5 deer, 3 wolves, and 1 bear per 9 shards.
