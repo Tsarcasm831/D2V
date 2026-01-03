@@ -7,6 +7,9 @@ import { WorldMask } from './world_mask.js';
 export class WorldManager {
     constructor(scene) {
         this.scene = scene;
+        const PLATEAU_X = 7509.5;
+        const PLATEAU_Z = -6949.1;
+        this.levelCenter = new THREE.Vector3(PLATEAU_X, 0, PLATEAU_Z);
         this.worldMask = new WorldMask();
         this.townManager = new TownManager(this);
         this.activeShards = new Map(); // key: "x,z", value: Shard instance
@@ -337,6 +340,9 @@ export class WorldManager {
                     if (window.gameInstance && window.gameInstance.player) {
                         const PLATEAU_X = 7509.5;
                         const PLATEAU_Z = -6949.1;
+                        if (this.levelCenter) {
+                            this.levelCenter.set(PLATEAU_X, 0, PLATEAU_Z);
+                        }
                         window.gameInstance.player.teleport(PLATEAU_X, PLATEAU_Z);
                     }
                 };

@@ -15,8 +15,9 @@ export class Owl {
         this.group.position.copy(pos);
         this.scene.add(this.group);
 
-        const dist = pos.length();
-        this.level = Math.floor(Math.min(100, 1 + (dist / 120)));
+        const levelCenter = (shard && shard.worldManager && shard.worldManager.levelCenter) ? shard.worldManager.levelCenter : new THREE.Vector3(0, 0, 0);
+        const dist = pos.distanceTo(levelCenter);
+        this.level = Math.floor(Math.min(100, 1 + (dist / 100)));
 
         // Summoned/Following state
         this.isSummoned = false;

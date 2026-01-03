@@ -50,6 +50,10 @@ export class KonohaNinjaNPC {
 
         this.animator = new PlayerAnimator(this.parts);
         
+        const levelCenter = (shard && shard.worldManager && shard.worldManager.levelCenter) ? shard.worldManager.levelCenter : new THREE.Vector3(0, 0, 0);
+        const dist = pos.distanceTo(levelCenter);
+        this.level = Math.floor(Math.min(100, 5 + (dist / 80)));
+
         this.velocity = new THREE.Vector3();
         this.maxHealth = 100;
         this.health = this.maxHealth;
@@ -79,7 +83,7 @@ export class KonohaNinjaNPC {
         ctx.fillStyle = 'white';
         ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(name, 128, 45);
+        ctx.fillText(`Lv. ${this.level} ${name}`, 128, 45);
 
         const tex = new THREE.CanvasTexture(canvas);
         const spriteMat = new THREE.SpriteMaterial({ map: tex });

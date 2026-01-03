@@ -212,7 +212,9 @@ export class Player {
     }
 
     respawn() {
-        this.playerPhysics.position.set(0, 5, 0);
+        const PLATEAU_X = 7509.5;
+        const PLATEAU_Z = -6949.1;
+        this.playerPhysics.position.set(PLATEAU_X, 5, PLATEAU_Z);
         this.playerPhysics.velocity.set(0, 0, 0);
         this.stats.health = this.stats.maxHealth;
         this.isDead = false;
