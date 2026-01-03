@@ -128,8 +128,8 @@ export class InputManager {
             if (num >= 1 && num <= 8) {
                 if (this.game.buildManager.isBuildMode) {
                     this.game.buildManager.selectSlot(num - 1);
-                } else {
-                    // Hotbar selection removed
+                } else if (this.game.player && this.game.player.inventory) {
+                    this.game.player.inventory.selectSlot(num - 1);
                 }
             }
         });

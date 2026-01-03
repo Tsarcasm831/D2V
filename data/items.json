@@ -139,6 +139,34 @@
       },
       "icon": "assets/icons/sword_icon.png"
     },
+    "iron_axe": {
+      "id": "iron_axe",
+      "name": "Iron Axe",
+      "type": "tool",
+      "description": "Used for chopping wood.",
+      "stackable": false,
+      "slot": "main_hand",
+      "value": 40,
+      "stats": {
+        "damage": 10,
+        "woodcutting": 1.5
+      },
+      "icon": "assets/icons/axe_icon.png"
+    },
+    "iron_pickaxe": {
+      "id": "iron_pickaxe",
+      "name": "Iron Pickaxe",
+      "type": "tool",
+      "description": "Used for mining stone.",
+      "stackable": false,
+      "slot": "main_hand",
+      "value": 40,
+      "stats": {
+        "damage": 8,
+        "mining": 1.5
+      },
+      "icon": "assets/icons/pickaxe_icon.png"
+    },
     "armor_vest": {
       "id": "armor_vest",
       "name": "Armor Vest",

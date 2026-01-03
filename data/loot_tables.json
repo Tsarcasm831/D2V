@@ -5,15 +5,26 @@
       "items": [
         { "id": "raw_meat", "chance": 0.8, "min": 1, "max": 3 },
         { "id": "bear_pelt", "chance": 0.5, "min": 1, "max": 1 },
-        { "id": "gold_coin", "chance": 0.3, "min": 5, "max": 15 }
+        { "id": "gold_coin", "chance": 0.3, "min": 5, "max": 15 },
+        { "id": "honey", "chance": 0.2, "min": 1, "max": 2 }
       ]
     },
     "chest_wooden": {
-      "rolls": 3,
+      "rolls": 4,
       "items": [
         { "id": "gold_coin", "chance": 1.0, "min": 10, "max": 50 },
         { "id": "iron_sword", "chance": 0.1, "min": 1, "max": 1 },
-        { "id": "wheat_seeds", "chance": 0.4, "min": 2, "max": 5 }
+        { "id": "armor_vest", "chance": 0.05, "min": 1, "max": 1 },
+        { "id": "leather_chest", "chance": 0.08, "min": 1, "max": 1 },
+        { "id": "leather_boots", "chance": 0.1, "min": 1, "max": 1 },
+        { "id": "black_pants", "chance": 0.1, "min": 1, "max": 1 },
+        { "id": "wheat_seeds", "chance": 0.3, "min": 2, "max": 5 },
+        { "id": "potato_seeds", "chance": 0.2, "min": 2, "max": 5 },
+        { "id": "tomato_seeds", "chance": 0.15, "min": 2, "max": 5 },
+        { "id": "carrot_seeds", "chance": 0.15, "min": 2, "max": 5 },
+        { "id": "lettuce_seeds", "chance": 0.15, "min": 2, "max": 5 },
+        { "id": "wood", "chance": 0.5, "min": 5, "max": 15 },
+        { "id": "stone", "chance": 0.4, "min": 5, "max": 15 }
       ]
     },
     "enemy_wolf": {
@@ -29,7 +40,23 @@
       "items": [
         { "id": "gold_coin", "chance": 1.0, "min": 20, "max": 50 },
         { "id": "assassins_cloak", "chance": 0.05, "min": 1, "max": 1 },
+        { "id": "assassins_gloves", "chance": 0.08, "min": 1, "max": 1 },
+        { "id": "ninja_headband", "chance": 0.1, "min": 1, "max": 1 },
         { "id": "kunai", "chance": 0.3, "min": 1, "max": 5 }
+      ]
+    },
+    "enemy_chicken": {
+      "rolls": 1,
+      "items": [
+        { "id": "raw_meat", "chance": 1.0, "min": 1, "max": 1 },
+        { "id": "feather", "chance": 0.5, "min": 1, "max": 2 }
+      ]
+    },
+    "enemy_cow": {
+      "rolls": 2,
+      "items": [
+        { "id": "raw_meat", "chance": 1.0, "min": 2, "max": 4 },
+        { "id": "leather_chest", "chance": 0.1, "min": 1, "max": 1 }
       ]
     },
     "harvest_wheat": {
@@ -37,6 +64,40 @@
       "items": [
         { "id": "wheat", "chance": 1.0, "min": 2, "max": 4 },
         { "id": "wheat_seeds", "chance": 0.3, "min": 1, "max": 2 }
+      ]
+    },
+    "harvest_potato": {
+      "rolls": 1,
+      "items": [
+        { "id": "potato", "chance": 1.0, "min": 2, "max": 3 },
+        { "id": "potato_seeds", "chance": 0.2, "min": 1, "max": 2 }
+      ]
+    },
+    "harvest_tomato": {
+      "rolls": 1,
+      "items": [
+        { "id": "tomato", "chance": 1.0, "min": 1, "max": 3 },
+        { "id": "tomato_seeds", "chance": 0.2, "min": 1, "max": 2 }
+      ]
+    },
+    "harvest_carrot": {
+      "rolls": 1,
+      "items": [
+        { "id": "carrot", "chance": 1.0, "min": 2, "max": 4 },
+        { "id": "carrot_seeds", "chance": 0.2, "min": 1, "max": 2 }
+      ]
+    },
+    "harvest_lettuce": {
+      "rolls": 1,
+      "items": [
+        { "id": "lettuce", "chance": 1.0, "min": 1, "max": 2 },
+        { "id": "lettuce_seeds", "chance": 0.2, "min": 1, "max": 1 }
+      ]
+    },
+    "harvest_beehive": {
+      "rolls": 1,
+      "items": [
+        { "id": "honey", "chance": 1.0, "min": 1, "max": 3 }
       ]
     }
   }

@@ -92,7 +92,7 @@ export class PlayerGear {
         
         let anyVisible = false;
         for (const [type, mesh] of Object.entries(this.heldItems)) {
-            const isMatch = !!(item && item.type === type);
+            const isMatch = !!(item && (item.type === type || (item.id && item.id.includes(type))));
             mesh.visible = isMatch;
             if (isMatch) anyVisible = true;
         }

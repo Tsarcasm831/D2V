@@ -259,7 +259,7 @@ export class Game {
             if (shard) {
                 pos.y = this.worldManager.getTerrainHeight(pos.x, pos.z);
                 const type = buildingPool[i % buildingPool.length];
-                const rotation = angle; // Face outwards from the center
+                const rotation = angle + Math.PI; // Face towards the center
                 
                 const building = new Building(this.scene, shard, type, pos, rotation);
                 shard.resources.push(building);

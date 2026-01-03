@@ -5,6 +5,10 @@ export class PlayerInventory {
         this.hotbar = new Array(8).fill(null);
         this.storage = new Array(64).fill(null);
         
+        // Initial hotbar items
+        this.hotbar[1] = { id: 'start-axe', name: 'Iron Axe', type: 'tool', icon: 'assets/icons/axe_icon.png', slot: 'main_hand', count: 1 };
+        this.hotbar[2] = { id: 'start-pickaxe', name: 'Iron Pickaxe', type: 'tool', icon: 'assets/icons/pickaxe_icon.png', slot: 'main_hand', count: 1 };
+        
         // Starting items
         this.storage[0] = { id: 'start-armor', name: 'Armor Vest', type: 'vest', icon: 'assets/gear/vest.png', slot: 'vest', meshName: 'Vest', count: 1 };
         this.storage[1] = { id: 'start-cloak', name: "Assassin's Cloak", type: 'clothing', icon: 'assets/gear/assassins_cloak.png', slot: 'back', count: 1 };
@@ -49,6 +53,9 @@ export class PlayerInventory {
         if (index >= 0 && index < 8) {
             this.selectedSlot = index;
             if (this.player.ui) this.player.ui.updateHotbar();
+            if (this.player.gear && this.player.gear.updateHeldItem) {
+                this.player.gear.updateHeldItem();
+            }
         }
     }
 
@@ -263,6 +270,16 @@ export class PlayerUI {
         this.hotbarWrapper = document.getElementById('hotbar-wrapper');
         this.buildHotbarWrapper = document.getElementById('build-hotbar-wrapper');
         this.buildSlots = document.querySelectorAll('#build-hotbar .build-slot');
+
+        this.abilitySlots = {
+            r: document.getElementById('slot-r'),
+            x: document.getElementById('slot-x'),
+            c: document.getElementById('slot-c'),
+            p: document.getElementById('slot-p'),
+            lmb: document.getElementById('slot-lmb')
+        };
+
+        this.updateHotbar();
 
         this.plantingModal = document.getElementById('planting-modal');
         this.plantingSeedList = document.getElementById('planting-seed-list');
@@ -653,13 +670,17 @@ export class PlayerUI {
         if (this.abilitySlots && this.abilitySlots.r) {
             const rSlot = this.abilitySlots.r;
             let iconImg = rSlot.querySelector('.hotbar-icon');
-            if (this.player.selectedSkill) {
+            const selectedSkill = this.player.selectedSkill || (this.player.actions && this.player.actions.selectedSkill);
+            
+            if (selectedSkill) {
                 if (!iconImg) {
                     iconImg = document.createElement('img');
                     iconImg.className = 'hotbar-icon';
                     rSlot.appendChild(iconImg);
                 }
-                iconImg.src = this.player.selectedSkill.icon;
+                if (iconImg.src !== selectedSkill.icon) {
+                    iconImg.src = selectedSkill.icon;
+                }
             } else if (iconImg) {
                 iconImg.remove();
             }

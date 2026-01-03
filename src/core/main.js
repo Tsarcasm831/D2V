@@ -211,12 +211,10 @@ async function startLoadingSequence(characterData, roomCode) {
         resetBtn.className = 'btn';
         resetBtn.textContent = 'RESET CHARACTER';
         resetBtn.style.position = 'absolute';
-        resetBtn.style.bottom = '60px';
-        resetBtn.style.left = '20px';
-        resetBtn.style.width = '160px';
+        resetBtn.style.bottom = '50px';
+        resetBtn.style.right = '20px';
+        resetBtn.style.zIndex = '1000';
         resetBtn.style.padding = '8px';
-        resetBtn.style.fontSize = '12px';
-        resetBtn.style.zIndex = '1';
         document.body.appendChild(resetBtn);
     }
     resetBtn.style.display = 'block';
