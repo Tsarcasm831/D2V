@@ -66,6 +66,48 @@ export class Player {
         this.stats = new PlayerStats(this);
         this.gear = new PlayerGear(this);
         this.actions = new PlayerActions(this);
+        this.actions.update = (delta) => {
+            if (this.actions.updateParticles) {
+                this.actions.updateParticles(delta);
+            }
+            if (this.actions.isSummoning) {
+                this.actions.summoningTime -= delta;
+                
+                if (this.actions.summoningCircle) {
+                    // Animation: Rotate and Scale Pulse
+                    this.actions.summoningCircle.rotation.z += delta * 2; // Spin the circle
+                    
+                    const totalTime = 3.0;
+                    const elapsed = totalTime - this.actions.summoningTime;
+                    
+                    // Scale up from 0 to 6 over first 0.5s, then pulse slightly
+                    let targetScale = 6;
+                    if (elapsed < 0.5) {
+                        targetScale = (elapsed / 0.5) * 6;
+                    } else {
+                        targetScale = 6 + Math.sin(elapsed * 5) * 0.2;
+                    }
+                    // Apply uniform scale to avoid stretching
+                    this.actions.summoningCircle.scale.set(targetScale, targetScale, targetScale);
+
+                    // Fade out logic
+                    const fadeTime = 0.5;
+                    if (this.actions.summoningTime < fadeTime) {
+                        this.actions.summoningCircle.material.opacity = this.actions.summoningTime / fadeTime;
+                    } else {
+                        this.actions.summoningCircle.material.opacity = 1;
+                    }
+                }
+
+                if (this.actions.summoningTime <= 0) {
+                    this.actions.isSummoning = false;
+                    this.actions.summoningTime = 0;
+                    if (this.actions.summoningCircle) {
+                        this.actions.summoningCircle.visible = false;
+                    }
+                }
+            }
+        };
 
         this.gear.init(this.parts, characterData);
         
@@ -205,7 +247,9 @@ export class Player {
     }
 
     summon() {
-        if (this.actions) this.actions.summon();
+        if (this.actions) {
+            this.actions.summon();
+        }
     }
 
     toggleCombat() {
@@ -450,6 +494,9 @@ export class Player {
     }
 
     update(delta, input, camera) {
+        if (this.actions && this.actions.update) {
+            this.actions.update(delta);
+        }
         if (this.isDead && !input.isDead) { // Check for respawn toggle if input supports it
              // Simple death state management
         }

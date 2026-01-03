@@ -13,6 +13,7 @@ export class PlayerActions {
         this.isSummoning = false;
         this.summoningTime = 0;
         this.summoningCircle = null;
+        this.particles = [];
         
         this.selectedSkill = { id: 'fireball', name: 'Fireball', icon: 'assets/vfx/fireball.png', cost: 20 };
         this.mountedHorse = null;
@@ -49,17 +50,19 @@ export class PlayerActions {
         this.player.ui.updateHud();
 
         if (!this.summoningCircle) {
-            const geo = new THREE.PlaneGeometry(6, 6);
+            const geo = new THREE.PlaneGeometry(1, 1);
             const tex = new THREE.TextureLoader().load('assets/vfx/summoning_circle.png');
             const mat = new THREE.MeshBasicMaterial({ 
                 map: tex, 
                 transparent: true, 
                 blending: THREE.AdditiveBlending,
                 side: THREE.DoubleSide,
-                opacity: 0
+                opacity: 0,
+                depthWrite: false
             });
             this.summoningCircle = new THREE.Mesh(geo, mat);
             this.summoningCircle.rotation.x = -Math.PI / 2;
+            this.summoningCircle.scale.set(6, 6, 6);
             this.summoningCircle.matrixAutoUpdate = true;
             this.player.scene.add(this.summoningCircle);
         }
@@ -70,9 +73,11 @@ export class PlayerActions {
         this.summoningCircle.position.x = worldPos.x;
         this.summoningCircle.position.z = worldPos.z;
         const groundHeight = this.player.worldManager.getTerrainHeight(worldPos.x, worldPos.z);
-        this.summoningCircle.position.y = groundHeight + 0.1;
+        this.summoningCircle.position.y = groundHeight + 0.15;
         this.summoningCircle.material.opacity = 1;
-        this.summoningCircle.scale.set(1, 1, 1);
+        this.summoningCircle.visible = true;
+        this.summoningCircle.scale.set(0.001, 0.001, 0.001);
+        this.summoningCircle.rotation.z = 0; // Reset rotation for new animation
 
         import('../../utils/audio_manager.js').then(({ audioManager }) => {
             audioManager.play('whoosh', 0.8, 0.5);
@@ -81,6 +86,9 @@ export class PlayerActions {
         });
 
         this.player.animator.playInteract();
+
+        // Create particles
+        this.spawnSummoningParticles(worldPos);
 
         // Spawn friendly Owl
         const owlPos = worldPos.clone();
@@ -98,8 +106,102 @@ export class PlayerActions {
         }
     }
 
+    spawnSummoningParticles(pos) {
+        if (!this.particles) this.particles = [];
+        
+        // 1. Dust clouds around the base
+        for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2;
+            const radius = 3;
+            const pPos = pos.clone();
+            pPos.x += Math.cos(angle) * radius;
+            pPos.z += Math.sin(angle) * radius;
+            pPos.y += 0.2;
+
+            const geo = new THREE.SphereGeometry(0.5, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: 0xcccccc, 
+                transparent: true, 
+                opacity: 0.4,
+                depthWrite: false
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pPos);
+            this.player.scene.add(mesh);
+            
+            this.particles.push({
+                mesh: mesh,
+                velocity: new THREE.Vector3(Math.cos(angle) * 0.5, 1.5 + Math.random(), Math.sin(angle) * 0.5),
+                life: 1.5 + Math.random() * 1.0,
+                maxLife: 2.5,
+                type: 'dust'
+            });
+        }
+
+        // 2. Rising sparks/energy
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 3;
+            const pPos = pos.clone();
+            pPos.x += Math.cos(angle) * radius;
+            pPos.z += Math.sin(angle) * radius;
+            pPos.y += 0.1;
+
+            const geo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff, 
+                transparent: true, 
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pPos);
+            this.player.scene.add(mesh);
+
+            this.particles.push({
+                mesh: mesh,
+                velocity: new THREE.Vector3((Math.random() - 0.5) * 0.2, 2.0 + Math.random() * 2, (Math.random() - 0.5) * 0.2),
+                life: 1.0 + Math.random() * 1.5,
+                maxLife: 2.5,
+                type: 'spark'
+            });
+        }
+    }
+
+    updateParticles(delta) {
+        if (!this.particles) return;
+        
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.life -= delta;
+            
+            if (p.life <= 0) {
+                this.player.scene.remove(p.mesh);
+                this.particles.splice(i, 1);
+                continue;
+            }
+
+            // Move
+            p.mesh.position.addScaledVector(p.velocity, delta);
+            
+            // Slow down
+            p.velocity.multiplyScalar(0.98);
+
+            // Visual changes
+            const lifeRatio = p.life / p.maxLife;
+            if (p.type === 'dust') {
+                p.mesh.scale.setScalar(1.0 + (1.0 - lifeRatio) * 2.0);
+                p.mesh.material.opacity = lifeRatio * 0.4;
+            } else {
+                p.mesh.material.opacity = lifeRatio * 0.8;
+                p.mesh.rotation.x += delta * 5;
+                p.mesh.rotation.y += delta * 5;
+            }
+        }
+    }
+
     castSkill() {
-        if (this.player.isDead || !this.selectedSkill) return;
         if (this.player.stats.chakra < this.selectedSkill.cost) {
             if (this.player.ui) this.player.ui.showStatus("Not enough Chakra!", true);
             return;
