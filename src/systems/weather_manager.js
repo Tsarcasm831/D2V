@@ -17,7 +17,7 @@ export class WeatherManager {
         this.currentState = WEATHER_TYPES.CLEAR;
         this.targetState = WEATHER_TYPES.CLEAR;
         this.transitionProgress = 1.0; // 0 to 1
-        this.transitionSpeed = 0.2; // 1/5 seconds for full transition
+        this.transitionSpeed = 0.5; // Faster transition (2 seconds for full transition)
         
         this.stateTimer = 0;
         this.stateDuration = 60; // seconds
@@ -155,14 +155,14 @@ export class WeatherManager {
     }
 
     updateState(delta) {
+        if (this.transitionProgress < 1.0) {
+            this.transitionProgress = Math.min(1.0, this.transitionProgress + delta * this.transitionSpeed);
+        }
+
         this.stateTimer -= delta;
         
         if (this.stateTimer <= 0) {
             this.pickNextState();
-        }
-
-        if (this.transitionProgress < 1.0) {
-            this.transitionProgress = Math.min(1.0, this.transitionProgress + delta * this.transitionSpeed);
         }
     }
 
@@ -182,8 +182,8 @@ export class WeatherManager {
         if (nextState !== this.currentState) {
             this.targetState = nextState;
             this.transitionProgress = 0;
-            this.currentState = nextState; // For now immediate state change for logic, lerping for visuals
-            console.log(`Weather changing to: ${nextState}`);
+            // Removed immediate currentState update to allow getWeatherIntensity to lerp
+            console.log(`Weather transitioning to: ${nextState}`);
         }
 
         this.stateDuration = 30 + Math.random() * 90; // 30-120 seconds
@@ -191,6 +191,11 @@ export class WeatherManager {
     }
 
     updateEffects(delta) {
+        // Update currentState only when transition is complete
+        if (this.transitionProgress >= 1.0 && this.currentState !== this.targetState) {
+            this.currentState = this.targetState;
+        }
+
         const playerPos = this.game.player.mesh.position;
         
         // Rain Particle logic
@@ -301,7 +306,9 @@ export class WeatherManager {
             [WEATHER_TYPES.SNOWSTORM]: 1.0
         };
         
-        // For simplicity return current state intensity, could lerp with targetState if needed
-        return intensities[this.currentState] || 0;
+        const currentIntensity = intensities[this.currentState] || 0;
+        const targetIntensity = intensities[this.targetState] || 0;
+
+        return THREE.MathUtils.lerp(currentIntensity, targetIntensity, this.transitionProgress);
     }
 }

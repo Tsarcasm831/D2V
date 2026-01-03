@@ -163,7 +163,10 @@ export class EnvironmentManager {
             
             // Apply weather intensity for smooth transition
             const finalTarget = baseDensity + (targetDensity - baseDensity) * weatherIntensity;
-            this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, finalTarget, 0.05); // Increased lerp for better responsiveness
+            
+            // If weather is clear or intensity is 0, ensure we hit baseDensity exactly
+            const lerpSpeed = (weatherIntensity < 0.01) ? 0.3 : 0.15;
+            this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, finalTarget, lerpSpeed);
         }
     }
 }
