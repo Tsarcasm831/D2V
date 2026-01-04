@@ -104,7 +104,7 @@ export class PlayerAnimator {
             if (!isDragged) dragVel.multiplyScalar(recoveryAlpha);
 
             const dragSpeed = dragVel.length() * 60;
-            const invQuat = this._tempQuat.copy(parts.mesh.quaternion).invert();
+            const invQuat = this._tempQuat.copy(this.parts.mesh.quaternion).invert();
             const localDrag = dragVel.applyQuaternion(invQuat);
             const localDown = this._tempVec2.copy(this._localDown).applyQuaternion(invQuat);
             
@@ -121,10 +121,10 @@ export class PlayerAnimator {
                 if (draggedPartName === 'head') {
                     targetHipY = 0.5;
                     targetHipRotX += 0.8; 
-                } else if (draggedPartName.includes('Arm')) {
+                } else if (draggedPartName && draggedPartName.includes('Arm')) {
                     targetHipRotZ += (draggedPartName === 'rightArm' ? 1.2 : -1.2);
                     targetHipY = 0.7;
-                } else if (draggedPartName.includes('Leg')) {
+                } else if (draggedPartName && draggedPartName.includes('Leg')) {
                     targetHipRotX = Math.PI - 0.5;
                     targetHipY = 1.4;
                 }
@@ -178,8 +178,7 @@ export class PlayerAnimator {
             const buckleProgress = Math.min(t / buckleEnd, 1.0);
             const fallProgress = Math.min(Math.max(0, (t - buckleEnd) / (fallEnd - buckleEnd)), 1.0);
             const impactProgress = Math.min(Math.max(0, (t - impactStart) / (impactEnd - impactStart)), 1.0);
-            const settleProgress = Math.min(Math.max(0, (t - settleStart) / 1.0), 1.0);
-
+            
             const finalHipY = dv.fallDir === 1 ? 0.22 : 0.28;
             const collapseY = lerp(1.0, 0.7, buckleProgress);
             const fallingY = lerp(collapseY, finalHipY, fallProgress);
@@ -290,7 +289,7 @@ export class PlayerAnimator {
             parts.head.rotation.x = lerp(parts.head.rotation.x, p * 0.5, damp * 3);
             parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -p * 1.2, damp * 2);
 
-        } else if (isPickingUp || this.isPickingUp) {
+        } else if (this.isPickingUp) {
             // --- PICK UP ANIMATION ---
             const duration = 1.2;
             const progress = (this.pickUpTime || 0) / duration;
@@ -452,7 +451,6 @@ export class PlayerAnimator {
             parts.head.rotation.x = lerp(parts.head.rotation.x, 0.12, damp);
             parts.head.rotation.y = lerp(parts.head.rotation.y, 0, damp);
             parts.head.rotation.z = lerp(parts.head.rotation.z, 0, damp);
-
         }
     }
 

@@ -4,7 +4,20 @@
 <div id="main-menu" class="menu-screen">
     <div class="menu-logo">FROZEN STEPPES</div>
     <div id="start-game-btn" class="btn">ENTER WORLD</div>
+    <div id="fullworld-btn" class="btn">FULLWORLD</div>
     <div id="options-btn" class="btn">OPTIONS</div>
+</div>
+
+<div id="fullworld-screen" class="menu-screen" style="display: none; background: rgba(5, 10, 20, 0.95); z-index: 150;">
+    <div class="menu-logo" style="font-size: 32px; margin-bottom: 20px;">WORLD MAP</div>
+    <div id="fullworld-container" style="width: 90%; height: 80%; background: #0a1120; border: 2px solid var(--border); border-radius: 12px; position: relative; overflow: hidden; cursor: grab; display: flex;">
+        <canvas id="fullworld-canvas" style="width: 100%; height: 100%;"></canvas>
+        <div id="land-info" style="position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 1px solid var(--primary); display: none; pointer-events: none; max-width: 300px;">
+            <div id="land-name" style="font-size: 20px; font-weight: bold; color: var(--primary); margin-bottom: 5px;"></div>
+            <div id="land-desc" style="font-size: 14px; color: #ccc; font-style: italic;"></div>
+        </div>
+    </div>
+    <div id="fullworld-back" class="btn" style="margin-top: 20px;">BACK</div>
 </div>
 
 <div id="options-menu" class="menu-screen" style="display: none;">

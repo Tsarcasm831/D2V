@@ -324,8 +324,8 @@ setInterval(() => {
         const playersData = {};
         room.players.forEach((p, id) => {
             // Basic timeout cleanup if needed
-            // Increased to 30 seconds to account for long initial loading/map caching
-            if (now - p.lastSeen > 30000) {
+            // Increased to 90 seconds to account for long initial loading/map caching
+            if (now - p.lastSeen > 90000) {
                 console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) timed out (last seen ${now - p.lastSeen}ms ago)`);
                 // Use the same delayed cleanup logic as socket close
                 setTimeout(() => {

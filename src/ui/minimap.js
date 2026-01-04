@@ -18,12 +18,13 @@ export class Minimap {
         
         this.scale = 1.2; // pixels per unit
         this.lastUpdate = 0;
-        this.updateInterval = 1000 / 30; // 30 FPS target for minimap
+        this.updateInterval = 1000 / 15; // 15 FPS target for minimap (Reduced from 30)
         
-        // Ensure constants are available in constructor scope if needed
-        this.worldLimit = WORLD_SHARD_LIMIT;
-        this.worldSize = this.worldLimit * 2;
-        this.noiseCacheArray = new Float32Array(this.worldSize * this.worldSize).fill(-1.0);
+        // Reusable objects for drawing to minimize GC
+        this._tempBatches = {
+            res: {},
+            ent: {}
+        };
     }
 
     getBiomeNoise(x, z) {

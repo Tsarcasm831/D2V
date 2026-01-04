@@ -297,13 +297,6 @@ export class CharacterCreator {
                 if (this.gearFns[fnName]) this.gearFns[fnName](parts);
             }
         });
-
-        this.currentPreviewMesh = mesh;
-        this.currentPreviewMesh.position.y = 0;
-        this.currentPreviewMesh.rotation.y = this.previewRotation;
-        this.previewScene.add(this.currentPreviewMesh);
-
-        this.animator = new PlayerAnimator(parts);
     }
 
     show() {

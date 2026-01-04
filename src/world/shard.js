@@ -40,6 +40,7 @@ export class Shard {
         this._lastUpdateNPC = 0;
 
         this.ponds = []; // Store pond data for exclusion
+        this.worldPonds = []; // Track ponds added to WorldManager for cleanup
         this.townData = worldManager ? worldManager.townManager.getTownAtShard(gridX, gridZ) : null;
         this.setupEnvironment();
     }
@@ -154,7 +155,7 @@ export class Shard {
         const grassTex = wm ? wm.getTexture('assets/textures/grass_texture.png') : new THREE.TextureLoader().load('assets/textures/grass_texture.png');
         const snowTex = wm ? wm.getTexture('assets/textures/snow_texture.png') : new THREE.TextureLoader().load('assets/textures/snow_texture.png');
 
-        const segments = 60; // Match SHARD_SIZE for 1 unit per grid cell
+        const segments = 20; // Optimization: Reduced from 60 to 20 for performance
         
         // --- Pond flattened terrain logic ---
         // We move pond generation UP before the terrain mesh is built
@@ -176,13 +177,13 @@ export class Shard {
             }
 
             if (canSpawnPond && this.worldManager) {
-                const nearbyRes = this.worldManager.getNearbyResources();
-                for (const res of nearbyRes) {
-                    if (res.type === 'pond' && res.group) {
-                        if (res.group.position.distanceTo(pPos) < 50.0) {
-                            canSpawnPond = false;
-                            break;
-                        }
+                // Efficiently check only world manager's pond list
+                for (const p of this.worldManager.ponds) {
+                    const dx = px - p.x;
+                    const dz = pz - p.z;
+                    if (dx * dx + dz * dz < 2500) { // 50m squared
+                        canSpawnPond = false;
+                        break;
                     }
                 }
             }
@@ -216,17 +217,17 @@ export class Shard {
         const normalAttr = groundGeo.getAttribute('normal');
         
         // Progressive height and normal calculation to reduce noise calls
+        // Throttled height calculation: only call noise once per grid point
         const gridRes = segments + 1;
         const heights = new Float32Array(gridRes * gridRes);
+        const texelSize = SHARD_SIZE / segments;
         
         for (let i = 0; i < gridRes; i++) {
+            const vy = (0.5 - i / segments) * SHARD_SIZE;
+            const worldZ = -vy + this.offsetZ; 
             for (let j = 0; j < gridRes; j++) {
-                // PlaneGeometry vertices: i=0 is top (local Y=30), i=segments is bottom (local Y=-30)
-                // Rotated -PI/2 on X: Y=30 becomes World Z=-30, Y=-30 becomes World Z=30
                 const vx = (j / segments - 0.5) * SHARD_SIZE;
-                const vy = (0.5 - i / segments) * SHARD_SIZE;
                 const worldX = vx + this.offsetX;
-                const worldZ = -vy + this.offsetZ; 
                 heights[i * gridRes + j] = this.getTerrainHeight(worldX, worldZ);
             }
         }
@@ -240,14 +241,12 @@ export class Shard {
             for (let j = 0; j < gridRes; j++) {
                 const idx = i * gridRes + j;
                 
-                // Approximate normals using neighbor heights
-                const hL = j > 0 ? heights[idx - 1] : this.getTerrainHeight(this.offsetX + (j-1)/segments*SHARD_SIZE - SHARD_SIZE/2, this.offsetZ - ((0.5 - i/segments)*SHARD_SIZE));
-                const hR = j < segments ? heights[idx + 1] : this.getTerrainHeight(this.offsetX + (j+1)/segments*SHARD_SIZE - SHARD_SIZE/2, this.offsetZ - ((0.5 - i/segments)*SHARD_SIZE));
-                const hD = i > 0 ? heights[idx - gridRes] : this.getTerrainHeight(this.offsetX + (j/segments - 0.5)*SHARD_SIZE, this.offsetZ - ((0.5 - (i-1)/segments)*SHARD_SIZE));
-                const hU = i < segments ? heights[idx + gridRes] : this.getTerrainHeight(this.offsetX + (j/segments - 0.5)*SHARD_SIZE, this.offsetZ - ((0.5 - (i+1)/segments)*SHARD_SIZE));
+                // Faster normal estimation using pre-calculated height grid
+                const hL = j > 0 ? heights[idx - 1] : heights[idx];
+                const hR = j < segments ? heights[idx + 1] : heights[idx];
+                const hD = i > 0 ? heights[idx - gridRes] : heights[idx];
+                const hU = i < segments ? heights[idx + gridRes] : heights[idx];
 
-                const texelSize = SHARD_SIZE / segments;
-                // Normal in local space (Plane is XY, height is Z): (-df/dx, -df/dy, 1)
                 const nx = (hL - hR) / (2 * texelSize);
                 const ny = (hU - hD) / (2 * texelSize); 
                 tempNormal.set(nx, ny, 1.0).normalize();
@@ -512,34 +511,31 @@ export class Shard {
         
         const dummy = new THREE.Object3D();
         let validGrassCount = 0;
+        const grassRadiusSq = SHARD_SIZE * SHARD_SIZE * 0.25;
+        
         for (let i = 0; i < grassCount; i++) {
             const x = (rng() - 0.5) * SHARD_SIZE + this.offsetX;
             const z = (rng() - 0.5) * SHARD_SIZE + this.offsetZ;
 
+            // Fast pond exclusion
             let inPond = false;
-            const sdx = x - (-10), sdz = z - (-5);
-            if (sdx * sdx + sdz * sdz < 22) inPond = true;
-            
-            if (!inPond) {
-                for (const pond of this.ponds) {
-                    const dx = x - pond.pos.x;
-                    const dz = z - pond.pos.z;
-                    if (dx * dx + dz * dz < (pond.radius + 1.2) ** 2) {
-                        inPond = true;
-                        break;
-                    }
+            for (const pond of this.ponds) {
+                const dx = x - pond.pos.x;
+                const dz = z - pond.pos.z;
+                if (dx * dx + dz * dz < (pond.radius + 1.2) ** 2) {
+                    inPond = true;
+                    break;
                 }
             }
             if (inPond) continue;
 
+            // Simplified height lookup for grass (could use height grid interpolation, but direct is safer for now)
             const y = this.getTerrainHeight(x, z);
             
             dummy.position.set(x, y, z);
             dummy.rotation.set(0, rng() * Math.PI, 0);
-            // Randomly lean the grass slightly at rest
             dummy.rotation.x = (rng() - 0.5) * 0.2;
             dummy.rotation.z = (rng() - 0.5) * 0.2;
-            
             dummy.scale.setScalar(0.7 + rng() * 0.6);
             dummy.updateMatrix();
             this.grassMesh.setMatrixAt(validGrassCount++, dummy.matrix);
@@ -551,10 +547,14 @@ export class Shard {
         // Dedicated dense forest generation
         let treesSpawned = 0;
         let treeAttempts = 0;
-        while (treesSpawned < treeCount && treeAttempts < 20) {
+        const maxTreeAttempts = treeCount * 2;
+        
+        while (treesSpawned < treeCount && treeAttempts < maxTreeAttempts) {
             treeAttempts++;
-            let x = (rng() - 0.5) * SHARD_SIZE * 0.95 + this.offsetX;
-            let z = (rng() - 0.5) * SHARD_SIZE * 0.95 + this.offsetZ;
+            const rx = (rng() - 0.5);
+            const rz = (rng() - 0.5);
+            const x = rx * SHARD_SIZE * 0.95 + this.offsetX;
+            const z = rz * SHARD_SIZE * 0.95 + this.offsetZ;
 
             // Avoid starter tent in shard (0,0)
             if (this.gridX === 0 && this.gridZ === 0) {
@@ -562,35 +562,35 @@ export class Shard {
                 if (dx * dx + dz * dz < 25) continue;
             }
 
-            let y = this.getTerrainHeight(x, z);
-            
-            const newPos = new THREE.Vector3(x, y, z);
-            
-            // Pond exclusion for trees
+            // Pond exclusion for trees using squared distances
             let inPond = false;
-            const sdx = x - (-10), sdz = z - (-5);
-            if (sdx * sdx + sdz * sdz < 25) inPond = true;
-            if (!inPond) {
-                for (const pond of this.ponds) {
-                    if (newPos.distanceToSquared(pond.pos) < (pond.radius + 1.5) ** 2) {
-                        inPond = true; break;
-                    }
+            for (const pond of this.ponds) {
+                const dx = x - pond.pos.x;
+                const dz = z - pond.pos.z;
+                if (dx * dx + dz * dz < (pond.radius + 1.5) ** 2) {
+                    inPond = true; 
+                    break;
                 }
             }
+            if (inPond) continue;
+
+            const tooClose = this.resources.some(r => {
+                if (!r.group) return false;
+                const dx = x - r.group.position.x;
+                const dz = z - r.group.position.z;
+                return (dx * dx + dz * dz) < 25;
+            });
             
-            const tooClose = this.resources.some(r => r.group && r.group.position.distanceToSquared(newPos) < 25);
-            
-            if (!tooClose && !inPond) {
+            if (!tooClose) {
+                const y = this.getTerrainHeight(x, z);
+                const newPos = new THREE.Vector3(x, y, z);
+                
                 let variant;
-                if (h < 0.3) { // Swamp and Dirt Plains: mostly Oak
-                    variant = 3 + Math.floor(rng() * 3);
-                } else if (h < 0.45) { // Forest: Mixed Oak and Pine
-                    variant = Math.floor(rng() * 6);
-                } else { // Steppes and Peaks: Pine only
-                    variant = Math.floor(rng() * 3);
-                }
+                if (h < 0.3) variant = 3 + Math.floor(rng() * 3);
+                else if (h < 0.45) variant = Math.floor(rng() * 6);
+                else variant = Math.floor(rng() * 3);
+                
                 const tree = new Tree(this.scene, this, newPos, variant);
-                // LOD for trees
                 if (tree.group) {
                     tree.group.matrixAutoUpdate = false;
                     tree.group.updateMatrix();
@@ -853,65 +853,68 @@ export class Shard {
         const playerPos = player.mesh.position;
 
         // Throttled and distance-based updates
-        this.npcs.forEach(n => {
+        for (let i = 0, len = this.npcs.length; i < len; i++) {
+            const n = this.npcs[i];
             const npcPos = (n.group || n.mesh).position;
             const distSq = npcPos.distanceToSquared(playerPos);
             
-            if (distSq < 1600) { // Within 40m: Normal update
+            if (distSq < 900) { // Within 30m: Normal update
                 n.update(delta, player);
                 if (n.group || n.mesh) (n.group || n.mesh).visible = true;
                 if (n.animator) n.animator.isEnabled = true;
-            } else if (distSq < 6400) { // Within 80m: 15Hz update
+            } else if (distSq < 2500) { // Within 50m: 10Hz update
                 n._updateTimer = (n._updateTimer || 0) + delta;
-                if (n._updateTimer >= 0.066) {
+                if (n._updateTimer >= 0.1) {
                     n.update(n._updateTimer, player);
                     n._updateTimer = 0;
                 }
                 if (n.group || n.mesh) (n.group || n.mesh).visible = true;
                 if (n.animator) n.animator.isEnabled = false; 
-            } else { // Far: 5Hz update + Hide mesh
+            } else { // Far: 2Hz update + Hide mesh
                 n._updateTimer = (n._updateTimer || 0) + delta;
-                if (n._updateTimer >= 0.2) {
+                if (n._updateTimer >= 0.5) {
                     n.update(n._updateTimer, player);
                     n._updateTimer = 0;
                 }
                 if (n.group || n.mesh) (n.group || n.mesh).visible = false;
                 if (n.animator) n.animator.isEnabled = false;
             }
-        });
+        }
 
-        this.fauna.forEach(f => {
+        for (let i = 0, len = this.fauna.length; i < len; i++) {
+            const f = this.fauna[i];
             const fPos = (f.group || f.mesh).position;
             const distSq = fPos.distanceToSquared(playerPos);
 
-            if (distSq < 1600) { // Within 40m
+            if (distSq < 900) { // Within 30m
                 f.update(delta, player);
                 if (f.group || f.mesh) (f.group || f.mesh).visible = true;
-            } else if (distSq < 6400) { // Within 80m
+            } else if (distSq < 2500) { // Within 50m
                 f._updateTimer = (f._updateTimer || 0) + delta;
-                if (f._updateTimer >= 0.066) {
+                if (f._updateTimer >= 0.1) {
                     f.update(f._updateTimer, player);
                     f._updateTimer = 0;
                 }
                 if (f.group || f.mesh) (f.group || f.mesh).visible = true;
-            } else { // Beyond 80m
+            } else { // Beyond 50m: 2Hz update
                 f._updateTimer = (f._updateTimer || 0) + delta;
-                if (f._updateTimer >= 0.2) {
+                if (f._updateTimer >= 0.5) {
                     f.update(f._updateTimer, player);
                     f._updateTimer = 0;
                 }
                 if (f.group || f.mesh) (f.group || f.mesh).visible = false;
             }
-        });
+        }
 
-        this.resources.forEach(r => {
+        for (let i = 0, len = this.resources.length; i < len; i++) {
+            const r = this.resources[i];
             if (r.update) {
                 const rPos = (r.group || r.mesh).position;
                 if (rPos.distanceToSquared(playerPos) < 10000) {
                     r.update(delta);
                 }
             }
-        });
+        }
         
         if (this.shardGrid) {
             this.shardGrid.visible = isGridVisible;
@@ -933,6 +936,12 @@ export class Shard {
     }
 
     destroy() {
+        // Clean up ponds from WorldManager to prevent performance degradation
+        if (this.worldManager && this.worldPonds.length > 0) {
+            this.worldManager.ponds = this.worldManager.ponds.filter(p => !this.worldPonds.includes(p));
+            this.worldManager.clearHeightCache();
+        }
+
         this.objects.traverse(child => {
             if (child.isMesh || child.isLineSegments) {
                 if (child.geometry) child.geometry.dispose();

@@ -26,8 +26,12 @@ export class Bear {
         this.moveSpeed = 2.5 * SCALE_FACTOR;
         this.chaseSpeed = 7 * SCALE_FACTOR;
         
-        this.maxHealth = 5 + Math.floor(this.level / 5);
+        this.maxHealth = 15 + Math.floor(this.level / 2);
         this.health = this.maxHealth;
+
+        this.attackRange = 3 * SCALE_FACTOR;
+        this.detectRange = 15 * SCALE_FACTOR;
+        this.warningRange = 25 * SCALE_FACTOR;
 
         // AI Collision avoidance state
         this.isColliding = false;
@@ -408,24 +412,21 @@ export class Bear {
     }
 
     updateAI(player) {
+        const canAggro = player && !player.isInvulnerable && !player.isCombatMode;
         const distToPlayer = player ? this.group.position.distanceTo(player.mesh.position) : 999;
-        const warningRange = 12 * SCALE_FACTOR;
-        const detectRange = 8 * SCALE_FACTOR;
-        const attackRange = 3.5 * SCALE_FACTOR;
-        const canAggro = player && !player.isInvulnerable;
 
-        if (canAggro && distToPlayer < attackRange && this.state !== 'attack') {
+        if (canAggro && distToPlayer < this.attackRange && this.state !== 'attack') {
             this.state = 'attack';
             this.timer = 1.2;
             this.hasDealtDamage = false;
-        } else if (canAggro && distToPlayer < detectRange && this.state !== 'attack') {
+        } else if (canAggro && distToPlayer < this.detectRange && this.state !== 'attack') {
             if (this.state !== 'chase') {
                 import('../utils/audio_manager.js').then(({ audioManager }) => {
                     audioManager.play('bear_growl', 0.5);
                 });
             }
             this.state = 'chase';
-        } else if (canAggro && distToPlayer < warningRange && this.state === 'idle') {
+        } else if (canAggro && distToPlayer < this.warningRange && this.state === 'idle') {
             this.state = 'aggressive';
             this.timer = 2.0;
         } else if (!canAggro && (this.state === 'chase' || this.state === 'aggressive' || this.state === 'attack')) {

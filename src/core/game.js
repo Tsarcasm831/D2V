@@ -167,6 +167,22 @@ export class Game {
         // Initial world generation sweep
         this.worldManager.update(this.player, 0);
         
+        // Force load initial building spawn area shards
+        const startPos = new THREE.Vector3(-20, 0, 15);
+        const spacing = 10;
+        const buildingCount = 13; // Based on buildingTypes.length in spawnAllBuildings
+        
+        for (let i = 0; i < buildingCount; i++) {
+            const xPos = startPos.x + (i * spacing);
+            const zPos = startPos.z;
+            const sx = Math.floor((xPos + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((zPos + SHARD_SIZE / 2) / SHARD_SIZE);
+            const key = `${sx},${sz}`;
+            if (!this.worldManager.activeShards.has(key)) {
+                this.worldManager.shardQueue.push({ x: sx, z: sz, key });
+            }
+        }
+
         // Force load Yureigakure shards
         const bowlCenter = { x: 7509.5, z: -6949.1 };
         const sx = Math.floor((bowlCenter.x + SHARD_SIZE / 2) / SHARD_SIZE);
@@ -280,6 +296,14 @@ export class Game {
     }
 
 
+    triggerCombat(enemies) {
+        if (this.combatScene && !this.combatScene.isActive) {
+            this.combatScene.enemies = enemies;
+            this.combatScene.start(this.player.mesh.position.x, this.player.mesh.position.z);
+            if (this.inputManager) this.inputManager.enabled = false;
+        }
+    }
+
     setupLights() {
         const ambient = new THREE.AmbientLight(0x4040ff, 0.4);
         this.scene.add(ambient);
@@ -370,20 +394,41 @@ export class Game {
     }
 
     updateUnitTooltip() {
-        const now = performance.now();
-        if (now - this.lastTooltipUpdate < 100) return; // Update at 10Hz
-        this.lastTooltipUpdate = now;
+        // Remove internal throttle since it is controlled by the main loop now
+        // const now = performance.now();
+        // if (now - this.lastTooltipUpdate < 100) return; 
+        // this.lastTooltipUpdate = now;
 
         const tooltip = document.getElementById('unit-tooltip');
         if (!tooltip) return;
 
+        // Optimization: Only check units near the player (e.g. 60 units radius)
+        // This avoids raycasting against every entity in the loaded world
+        if (!this.player || !this.player.mesh) return;
+        
+        const checkRadius = 60;
+        const npcs = this.worldManager.getNearbyNPCs(this.player.mesh.position, checkRadius);
+        const fauna = this.worldManager.getNearbyFauna(this.player.mesh.position, checkRadius);
+        
+        // Filter out dead/invalid units
+        const units = [];
+        for (let i = 0; i < npcs.length; i++) {
+            if (!npcs[i].isDead && npcs[i].level !== undefined) units.push(npcs[i]);
+        }
+        for (let i = 0; i < fauna.length; i++) {
+            if (!fauna[i].isDead && fauna[i].level !== undefined) units.push(fauna[i]);
+        }
+        
+        if (units.length === 0) {
+            tooltip.style.display = 'none';
+            return;
+        }
+
         this.raycaster.setFromCamera(this.inputManager.mouse, this.camera);
         
-        const npcs = this.worldManager.getNearbyNPCs();
-        const fauna = this.worldManager.getNearbyFauna();
-        const units = [...npcs, ...fauna].filter(u => !u.isDead && u.level !== undefined);
-        
         const hitObjects = units.map(u => u.group || u.mesh);
+        // Use recursive false if possible, but groups usually require true. 
+        // If hierarchies are simple, we might optimize this. Keeping true for correctness for now.
         const intersects = this.raycaster.intersectObjects(hitObjects, true);
 
         if (intersects.length > 0) {
@@ -408,7 +453,8 @@ export class Game {
                 tooltip.style.left = `${x + 20}px`;
                 tooltip.style.top = `${y - 20}px`;
 
-                document.getElementById('tt-name').textContent = hitUnit.type.toUpperCase();
+                const unitName = hitUnit.type || hitUnit.constructor.name || 'Unknown';
+                document.getElementById('tt-name').textContent = unitName.toUpperCase();
                 document.getElementById('tt-level').textContent = `LV. ${hitUnit.level}`;
                 
                 const statusEl = document.getElementById('tt-status');
@@ -470,8 +516,8 @@ export class Game {
         const delta = Math.min(this.clock.getDelta(), 0.1);
         const now = performance.now();
 
+        // 1. Core Logic (Run every frame)
         this.inputManager.updateMouseWorldPos(this.worldManager.terrainMeshes);
-
         this.timeManager.update(delta);
         this.weatherManager.update(delta);
         
@@ -492,47 +538,47 @@ export class Game {
             }
         }
 
-        if (this.multiplayer) this.multiplayer.update(performance.now(), delta);
+        if (this.multiplayer) this.multiplayer.update(now, delta);
         
-        // Throttle secondary systems to ~20 FPS
-        this._secondaryUpdateTimer = (this._secondaryUpdateTimer || 0) + delta;
-        if (this._secondaryUpdateTimer >= 0.05) {
+        // 2. Secondary Logic (Distributed across frames for smoothness)
+        this._frameCount = (this._frameCount || 0) + 1;
+        const staggerFrame = this._frameCount % 4;
+
+        if (staggerFrame === 0) {
             this.minimap.update();
             this.shardMap.update();
-            this.gridLabels.update(this.player.mesh.position, this.grid.visible);
+        } else if (staggerFrame === 1) {
+            this.gridLabels.update(this.player.mesh.position, (this.grid && this.grid.visible));
             this.environmentManager.update(this.player.mesh.position);
+        } else if (staggerFrame === 2) {
             this.updateUnitTooltip();
+        } else if (staggerFrame === 3) {
             this.buildManager.update();
-            this._secondaryUpdateTimer = 0;
         }
 
+        // 3. Camera and Rendering
         const isMounted = this.player.actions && this.player.actions.mountedHorse;
         const targetPos = this._tempVec1.copy(this.player.mesh.position);
         targetPos.y += isMounted ? 2.2 : 1.2;
 
         if (this.cameraMode === 'fpv') {
-            // FPV Camera Logic
-            const headOffset = 1.6; // Eye level
+            const headOffset = 1.6;
             targetPos.y = this.player.mesh.position.y + headOffset;
-            
             this.camera.position.copy(targetPos);
             
-            // Apply FPV rotation
-            const quaternion = new THREE.Quaternion();
             const euler = new THREE.Euler(this.fpvRotation.pitch, this.fpvRotation.yaw, 0, 'YXZ');
             this.camera.quaternion.setFromEuler(euler);
             
-            // Basic collision/pushback for FPV
-            const rayDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-            this.raycaster.set(this.camera.position, rayDirection);
-            
-            // Push camera back if it's too close to terrain or objects
-            const terrainHeight = this.worldManager.getTerrainHeight(this.camera.position.x, this.camera.position.z);
-            if (this.camera.position.y < terrainHeight + 0.5) {
-                this.camera.position.y = terrainHeight + 0.5;
+            // Throttle terrain height check for camera pushback
+            this._cameraPushbackTimer = (this._cameraPushbackTimer || 0) + delta;
+            if (this._cameraPushbackTimer > 0.1) {
+                const terrainHeight = this.worldManager.getTerrainHeight(this.camera.position.x, this.camera.position.z);
+                if (this.camera.position.y < terrainHeight + 0.5) {
+                    this.camera.position.y = terrainHeight + 0.5;
+                }
+                this._cameraPushbackTimer = 0;
             }
         } else {
-            // TopDown/Third-Person Logic
             const offset = this._tempVec2.set(
                 this.cameraRotation.distance * Math.sin(this.cameraRotation.theta) * Math.cos(this.cameraRotation.phi),
                 this.cameraRotation.distance * Math.sin(this.cameraRotation.phi),
@@ -551,6 +597,7 @@ export class Game {
 
         this.renderer.render(this.scene, this.camera);
 
+        // 4. FPS Counter
         if (this.fpsCounter && this.fpsCounter.style.display !== 'none') {
             this.frames++;
             if (now - this.lastFPSUpdate > 1000) {

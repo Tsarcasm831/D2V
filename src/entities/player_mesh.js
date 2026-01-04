@@ -392,8 +392,9 @@ export function createPlayerMesh(customConfig = {}) {
     const mouthGroup = new THREE.Group();
     mouthGroup.position.set(0, -0.105, 0.19);
     faceGroup.add(mouthGroup);
-    parts.mouth = mouthGroup;
+    parts.mouthGroup = mouthGroup;
 
+    // Upper Lip Path
     const upperCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-0.035, -0.002, 0),
         new THREE.Vector3(-0.015, 0.008, 0.005),
@@ -401,13 +402,15 @@ export function createPlayerMesh(customConfig = {}) {
         new THREE.Vector3(0.015, 0.008, 0.005),
         new THREE.Vector3(0.035, -0.002, 0)
     ]);
+    
     const upperLipGeo = new THREE.TubeGeometry(upperCurve, 20, 0.006, 8, false);
     const upperLip = new THREE.Mesh(upperLipGeo, lipMat);
-    upperLip.scale.set(1, 1, 0.5);
-    upperLip.rotation.x = -0.2;
+    upperLip.scale.set(1, 1, 0.5); 
+    upperLip.rotation.x = -0.2; 
     upperLip.castShadow = true;
     mouthGroup.add(upperLip);
 
+    // Lower Lip Path
     const lowerCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-0.035, 0, 0),
         new THREE.Vector3(-0.015, -0.008, 0.005),
@@ -415,9 +418,10 @@ export function createPlayerMesh(customConfig = {}) {
         new THREE.Vector3(0.015, -0.008, 0.005),
         new THREE.Vector3(0.035, 0, 0)
     ]);
+    
     const lowerLipGeo = new THREE.TubeGeometry(lowerCurve, 20, 0.007, 8, false);
     const lowerLip = new THREE.Mesh(lowerLipGeo, lipMat);
-    lowerLip.scale.set(1, 1, 0.5);
+    lowerLip.scale.set(1, 1, 0.5); 
     lowerLip.position.y = -0.005;
     lowerLip.castShadow = true;
     mouthGroup.add(lowerLip);

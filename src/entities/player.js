@@ -499,13 +499,15 @@ export class Player {
         if (this.actions && this.actions.update) {
             this.actions.update(delta);
         }
-        if (this.isDead && !input.isDead) { // Check for respawn toggle if input supports it
-             // Simple death state management
-        }
         
         this.updateConfig();
 
-        // Handle Death Toggle (from bak logic)
+        // Handle Triggers from player.ts.new logic
+        if (input.interact) this.animator.playInteract();
+        if (input.action) this.animator.playPunch(); // Mapping 'action' to punch for now
+        // if (input.attack2) this.animator.playAxeSwing(); // Not mapped in current input
+
+        // Handle Death Toggle
         if (input.isDead && !this.wasDeadKeyPressed) {
             this.isDead = !this.isDead;
             if (this.isDead) {
@@ -518,7 +520,6 @@ export class Player {
                 };
             } else {
                 this.recoverTimer = 0.5;
-                // Reset limb positions would be handled by animator/physics next update
             }
         }
         this.wasDeadKeyPressed = !!input.isDead;
@@ -530,7 +531,6 @@ export class Player {
         if (this.recoverTimer > 0) this.recoverTimer -= delta;
 
         if (this.isDead && this.deathTime > 0) {
-            // Update visuals only for death animation
             if (this.animator) {
                  this.animator.animate(delta, false, false, false, true, false, 'none', 0, 0, false, 0, this.recoverTimer, false, '', new THREE.Vector3(), this.deathTime, this.deathVariation, false);
             }
@@ -543,7 +543,7 @@ export class Player {
             const obstacleMeshes = nearbyObstacles.map(res => res.group).filter(g => g);
             this.playerPhysics.update(delta, input, camera, obstacleMeshes);
             
-            // Face the cursor/camera logic (existing)
+            // Face the cursor/camera logic
             if (this.worldManager && this.worldManager.game && this.worldManager.game.cameraMode === 'fpv') {
                 const cameraDir = new THREE.Vector3();
                 camera.getWorldDirection(cameraDir);
@@ -561,23 +561,16 @@ export class Player {
             }
         }
 
-        // Sync local animation states
-        if (this.isPickingUp) {
-            this.pickUpTime += delta;
-            if (this.pickUpTime > 1.2) {
-                this.isPickingUp = false;
-                this.pickUpTime = 0;
-            }
-        }
-
         // Update animator
         if (this.animator && this.playerPhysics) {
             const isMoving = Math.abs(this.playerPhysics.velocity.x) > 0.1 || Math.abs(this.playerPhysics.velocity.z) > 0.1;
             const isRunning = input.run;
             const isJumping = !this.playerPhysics.isGrounded;
             
-            let jumpPhase = 'air';
-            if (this.playerPhysics.velocity.y > 0) jumpPhase = 'anticipation';
+            let jumpPhase = 'none';
+            if (isJumping) {
+                jumpPhase = this.playerPhysics.velocity.y > 0 ? 'anticipation' : 'airborne';
+            }
             
             this.animator.animate(
                 delta,
@@ -587,7 +580,7 @@ export class Player {
                 this.isDead,
                 isJumping,
                 jumpPhase,
-                0, // jumpTimer (could be tracked if needed)
+                0, // jumpTimer
                 this.playerPhysics.velocity.y,
                 this.isLedgeGrabbing,
                 this.ledgeGrabTime,
@@ -600,14 +593,6 @@ export class Player {
                 false // isMovingBackwards
             );
         }
-
-        // Handle Attack/Action
-        const isInventoryOpen = this.inventoryUI && this.inventoryUI.container && window.getComputedStyle(this.inventoryUI.container).display !== 'none';
-        
-        if (input.action && !this.prevActionPressed && !isInventoryOpen) {
-            this.animator.playPunch();
-        }
-        this.prevActionPressed = input.action;
 
         if (this.ui) this.ui.updateHud();
     }

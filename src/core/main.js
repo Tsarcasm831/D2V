@@ -2,6 +2,9 @@ import { AssetLoader } from './asset_loader.js';
 import { Game } from './game.js';
 import { CharacterCreator } from '../ui/character_creator.js';
 import { UILoader } from '../ui/ui_loader.js';
+import { FullWorld } from '../ui/fullworld.js';
+
+let fullWorld = null;
 
 async function init() {
     const uiLoader = new UILoader();
@@ -72,18 +75,22 @@ function initMenuSnow() {
 }
 
 async function startLoadingSequence(characterData, roomCode) {
+    // Show loading screen immediately
+    const loadingScreenElem = document.getElementById('loading-screen');
+    if (loadingScreenElem) {
+        loadingScreenElem.style.display = 'flex';
+        loadingScreenElem.style.opacity = '1';
+    }
+
+    // Defer game creation to let the UI update
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
     const game = new Game(characterData, roomCode);
     const loader = new AssetLoader();
     const fill = document.getElementById('loading-bar-fill');
     const whimsicalFill = document.getElementById('whimsical-bar-fill');
     const whimsicalStatus = document.getElementById('whimsical-status');
     const tipElement = document.getElementById('loading-tip');
-    const loadingScreenElem = document.getElementById('loading-screen');
-
-    if (loadingScreenElem) {
-        loadingScreenElem.style.display = 'flex';
-        loadingScreenElem.style.opacity = '1';
-    }
     
     const tips = [
         "Oak trees thrive in the plains and swamps.",
@@ -230,6 +237,7 @@ async function startLoadingSequence(characterData, roomCode) {
 function showMainMenu() {
     const mainMenu = document.getElementById('main-menu');
     const startBtn = document.getElementById('start-game-btn');
+    const fullworldBtn = document.getElementById('fullworld-btn');
     const optionsBtn = document.getElementById('options-btn');
     
     if (mainMenu) mainMenu.style.display = 'flex';
@@ -238,6 +246,14 @@ function showMainMenu() {
         startBtn.onclick = () => {
             if (mainMenu) mainMenu.style.display = 'none';
             showServerSelection();
+        };
+    }
+
+    if (fullworldBtn) {
+        fullworldBtn.onclick = () => {
+            if (mainMenu) mainMenu.style.display = 'none';
+            if (!fullWorld) fullWorld = new FullWorld();
+            fullWorld.show();
         };
     }
     
@@ -385,18 +401,21 @@ async function showServerSelection() {
                         console.log(`Server item clicked: ${roomCode}`);
                         if (serverSelection) serverSelection.style.display = 'none';
                         
-                        const savedChar = localStorage.getItem('character_config');
-                        if (savedChar) {
-                            console.log('Loading existing character...');
-                            startLoadingSequence(JSON.parse(savedChar), roomCode);
-                        } else {
-                            console.log('Opening character creator...');
-                            const creator = new CharacterCreator((charData) => {
-                                console.log('Character created, starting loading sequence...');
-                                startLoadingSequence(charData, roomCode);
-                            });
-                            creator.show();
-                        }
+                        // Defer start of loading sequence to avoid blocking click handler
+                        setTimeout(() => {
+                            const savedChar = localStorage.getItem('character_config');
+                            if (savedChar) {
+                                console.log('Loading existing character...');
+                                startLoadingSequence(JSON.parse(savedChar), roomCode);
+                            } else {
+                                console.log('Opening character creator...');
+                                const creator = new CharacterCreator((charData) => {
+                                    console.log('Character created, starting loading sequence...');
+                                    startLoadingSequence(charData, roomCode);
+                                });
+                                creator.show();
+                            }
+                        }, 10);
                     });
                 } else {
                     item.style.opacity = '0.5';
@@ -418,4 +437,5 @@ function startGame(characterData, roomCode = 'Alpha') {
     // Moved initialization inside startLoadingSequence
 }
 
+window.showMainMenu = showMainMenu;
 init();

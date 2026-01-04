@@ -26,3 +26,35 @@
         <canvas id="shard-map-canvas"></canvas>
     </div>
 </div>
+
+<div id="combat-modal" class="modal-overlay" style="display: none;">
+    <div class="combat-container">
+        <div class="combat-header">
+            <h2 id="combat-title">COMBAT</h2>
+            <div id="turn-indicator">PLAYER TURN</div>
+        </div>
+        
+        <div class="combat-main">
+            <div id="combat-view">
+                <!-- Three.js renderer will be appended here or we use a separate scene -->
+                <canvas id="combat-canvas"></canvas>
+            </div>
+            
+            <div class="combat-sidebar">
+                <div class="unit-list" id="combat-units">
+                    <!-- Units will be listed here -->
+                </div>
+                <div class="combat-log" id="combat-log">
+                    <div class="log-entry">Combat started!</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="combat-actions">
+            <button id="btn-move" class="combat-btn">MOVE</button>
+            <button id="btn-attack" class="combat-btn">ATTACK</button>
+            <button id="btn-skill" class="combat-btn">SKILL</button>
+            <button id="btn-end-turn" class="combat-btn highlight">END TURN</button>
+        </div>
+    </div>
+</div>

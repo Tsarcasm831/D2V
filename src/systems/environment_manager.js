@@ -54,13 +54,20 @@ export class EnvironmentManager {
 
     update(playerPos) {
         if (this.sky) {
-            // Keep the sky centered on the player
-            this.sky.position.copy(playerPos);
+            // Keep the sky centered on the player (only if moved significantly)
+            if (!this._lastSkyPos || this._lastSkyPos.distanceToSquared(playerPos) > 1) {
+                this.sky.position.copy(playerPos);
+                this._lastSkyPos = (this._lastSkyPos || new THREE.Vector3()).copy(playerPos);
+            }
         }
         
-        // Throttle day/night cycle updates to ~10 FPS to save performance
-        this._envUpdateTimer = (this._envUpdateTimer || 0) + this.game.clock.getDelta();
-        if (this._envUpdateTimer >= 0.1) {
+        // Use game delta for consistency
+        const delta = this.game.clock ? this.game.clock.getDelta() : 0.016;
+        
+        // Throttle day/night cycle updates to ~2 FPS (0.5s) instead of 10 FPS
+        // These are mostly visual transitions, they don't need high frequency
+        this._envUpdateTimer = (this._envUpdateTimer || 0) + delta;
+        if (this._envUpdateTimer >= 0.5) {
             this.updateDayNightCycle();
             this._envUpdateTimer = 0;
         }

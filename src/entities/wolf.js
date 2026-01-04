@@ -33,6 +33,9 @@ export class Wolf {
         this.maxHealth = 3 + Math.floor(this.level / 10);
         this.health = this.maxHealth;
 
+        this.attackRange = 2 * SCALE_FACTOR;
+        this.detectRange = 12 * SCALE_FACTOR;
+
         // Performance: reuse objects
         this._tempVec1 = new THREE.Vector3();
         this._tempVec2 = new THREE.Vector3();
@@ -420,19 +423,17 @@ export class Wolf {
     }
 
     updateAI(player) {
+        const canAggro = player && !player.isInvulnerable && !player.isCombatMode;
         const distToPlayer = player ? this.group.position.distanceTo(player.mesh.position) : 999;
-        const detectRange = 15 * SCALE_FACTOR;
-        const attackRange = 3 * SCALE_FACTOR;
-        const canAggro = player && !player.isInvulnerable;
 
-        if (canAggro && distToPlayer < attackRange && this.state !== 'lunge') {
+        if (canAggro && distToPlayer < this.attackRange && this.state !== 'lunge') {
             this.state = 'lunge';
             this.timer = 0.8;
             this.hasDealtDamage = false;
-        } else if (canAggro && distToPlayer < detectRange && this.state !== 'lunge') {
+        } else if (canAggro && distToPlayer < this.detectRange && this.state !== 'lunge') {
             this.state = 'chase';
         } else if (this.state === 'chase' || (!canAggro && this.state === 'lunge')) {
-            if (!canAggro || distToPlayer >= detectRange) {
+            if (!canAggro || distToPlayer >= this.detectRange) {
                 this.state = 'idle';
                 this.timer = 1.0;
             }

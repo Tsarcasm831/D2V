@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import nipplejs from 'nipplejs';
+import { SHARD_SIZE } from '../world/world_bounds.js';
 
 export class InputManager {
     constructor(game) {
@@ -306,14 +307,42 @@ export class InputManager {
 
         this.raycaster.setFromCamera(this.mouse, this.game.camera);
         
-        // Filter out null/undefined meshes
-        const validMeshes = terrainMeshes.filter(m => m);
+        // Optimization: Find approximate ground intersection first to narrow down shards
+        let targetShards = [];
+        const wm = this.game.worldManager;
+        
+        if (this.raycaster.ray.intersectPlane(this._groundPlane, this._mouseIntersection)) {
+            const hitX = this._mouseIntersection.x;
+            const hitZ = this._mouseIntersection.z;
+            
+            const sx = Math.floor((hitX + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((hitZ + SHARD_SIZE / 2) / SHARD_SIZE);
+            
+            // Check 3x3 grid around the hit point to account for perspective/angles
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    const key = `${sx + dx},${sz + dz}`;
+                    const shard = wm.activeShards.get(key);
+                    if (shard && shard.groundMesh) {
+                        targetShards.push(shard.groundMesh);
+                    }
+                }
+            }
+        }
+
+        // Fallback to all meshes if no ground intersection (e.g. looking parallel)
+        // or if the optimized search yielded nothing (e.g. off-map)
+        const validMeshes = targetShards.length > 0 ? targetShards : terrainMeshes.filter(m => m);
         const intersects = this.raycaster.intersectObjects(validMeshes);
         
         if (intersects.length > 0) {
             this.input.mouseWorldPos = intersects[0].point.clone();
         } else {
-            if (this.raycaster.ray.intersectPlane(this._groundPlane, this._mouseIntersection)) {
+            // Use the plane intersection as fallback
+            if (this.input.mouseWorldPos === null && targetShards.length > 0) {
+                 // If we had potential shards but missed them (e.g. holes), use plane
+                 this.input.mouseWorldPos = this._mouseIntersection.clone();
+            } else if (this.raycaster.ray.intersectPlane(this._groundPlane, this._mouseIntersection)) {
                 this.input.mouseWorldPos = this._mouseIntersection.clone();
             } else {
                 this.input.mouseWorldPos = null;

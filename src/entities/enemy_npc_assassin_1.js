@@ -19,6 +19,7 @@ export class AssassinNPC {
 
         const { mesh, parts } = createPlayerMesh();
         this.group = mesh;
+        this.mesh = mesh; // Alias for CombatScene compatibility
         this.parts = parts;
         this.group.position.copy(pos);
         this.scene.add(this.group);
@@ -249,7 +250,13 @@ export class AssassinNPC {
     }
 
     updateAI(player) {
-        if (!player || !player.mesh) return;
+        if (!player || !player.mesh || player.isCombatMode) {
+            if (this.state === 'chase' || this.state === 'attack') {
+                this.state = 'idle';
+                this.timer = 1.0;
+            }
+            return;
+        }
         const distSq = this.group.position.distanceToSquared(player.mesh.position);
         const aggroDistSq = (15 * SCALE_FACTOR) ** 2;
         const attackDistSq = (2 * SCALE_FACTOR) ** 2;
@@ -307,6 +314,7 @@ export class AssassinNPC {
             // Trigger combat after animation delay
             setTimeout(() => {
                 if (window.gameInstance && !window.gameInstance.combatScene?.isActive) {
+                    // Pass the assassin object itself, which has the mesh property needed by CombatScene
                     window.gameInstance.triggerCombat([this]);
                 }
             }, 600); // Wait for swing to "connect"

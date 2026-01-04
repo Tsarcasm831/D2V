@@ -152,8 +152,12 @@ export class WorldManager {
             if (dist <= 2) {
                 shard.update(delta, player, this.isGridVisible);
             } else if (dist <= 4) {
-                // Far shards only update time-based things or animations occasionally
-                if (Math.random() < 0.2) shard.update(delta * 5, player, this.isGridVisible);
+                // Far shards update much less frequently (approx every 0.5s)
+                shard._farUpdateTimer = (shard._farUpdateTimer || 0) + delta;
+                if (shard._farUpdateTimer >= 0.5) {
+                    shard.update(shard._farUpdateTimer, player, this.isGridVisible);
+                    shard._farUpdateTimer = 0;
+                }
             }
         });
 
@@ -180,6 +184,7 @@ export class WorldManager {
     _updateEntityCaches() {
         if (!this._needsCacheUpdate) return;
         
+        // Clear instead of re-allocating to reduce GC pressure
         this._cachedNPCs.length = 0;
         this._cachedFauna.length = 0;
         this._cachedResources.length = 0;
@@ -190,38 +195,42 @@ export class WorldManager {
         this.stats.faunaCount = 0;
         this.stats.hostileCount = 0;
         
-        for (const [key, shard] of this.activeShards.entries()) {
+        // Use for...of instead of entries() or forEach for performance
+        for (const shard of this.activeShards.values()) {
             const nLen = shard.npcs.length;
             if (nLen > 0) {
-                this._cachedNPCs.push(...shard.npcs);
-                this.stats.npcCount += nLen;
                 for (let i = 0; i < nLen; i++) {
                     const n = shard.npcs[i];
+                    this._cachedNPCs.push(n);
                     if (n.isEnemy && !n.isDead) this.stats.hostileCount++;
                 }
+                this.stats.npcCount += nLen;
             }
             
             const fLen = shard.fauna.length;
             if (fLen > 0) {
-                this._cachedFauna.push(...shard.fauna);
-                this.stats.faunaCount += fLen;
                 for (let i = 0; i < fLen; i++) {
                     const f = shard.fauna[i];
+                    this._cachedFauna.push(f);
                     if (f.isEnemy && !f.isDead) this.stats.hostileCount++;
                 }
+                this.stats.faunaCount += fLen;
             }
             
             const rLen = shard.resources.length;
             if (rLen > 0) {
-                this._cachedResources.push(...shard.resources);
                 for (let i = 0; i < rLen; i++) {
-                    if (!shard.resources[i].isDead) this.stats.resourceCount++;
+                    const r = shard.resources[i];
+                    this._cachedResources.push(r);
+                    if (!r.isDead) this.stats.resourceCount++;
                 }
             }
             
             const iLen = shard.items.length;
             if (iLen > 0) {
-                this._cachedItems.push(...shard.items);
+                for (let i = 0; i < iLen; i++) {
+                    this._cachedItems.push(shard.items[i]);
+                }
             }
         }
         
@@ -356,9 +365,13 @@ export class WorldManager {
 
     getBiomeNoise(x, z) {
         // Quick lookup for cache to avoid BigInt and complex keys if possible
-        const keyX = (x * 10 + 300000) | 0;
-        const keyZ = (z * 10 + 300000) | 0;
-        const numKey = (keyX << 16) ^ keyZ; // Simpler hash key
+        const keyX = Math.round(x * 10);
+        const keyZ = Math.round(z * 10);
+        
+        // Optimization: Use numeric key to avoid string allocation
+        // Map keys from +/- 500,000 range to unique safe integer
+        const offset = 500000;
+        const numKey = (keyX + offset) * 1000000 + (keyZ + offset);
         
         if (this.biomeNoiseCache.has(numKey)) return this.biomeNoiseCache.get(numKey);
         
@@ -506,18 +519,25 @@ export class WorldManager {
     }
 
     _getBaseTerrainHeight(x, z) {
-        // High-performance numeric cache key
-        const cx = (x * 10) | 0;
-        const cz = (z * 10) | 0;
-        const numKey = (cx << 16) ^ cz;
+        // High-performance numeric cache key using Float32 rounding
+        // Round to 0.1 precision to balance quality vs cache hits
+        const rx = Math.round(x * 10);
+        const rz = Math.round(z * 10);
         
-        if (this.heightCache.has(numKey)) return this.heightCache.get(numKey);
+        // Optimization: Use numeric key to avoid string allocation
+        // Map rx, rz from +/- 500,000 range to unique safe integer
+        // (rx + offset) * multiplier + (rz + offset)
+        const offset = 500000;
+        const numKey = (rx + offset) * 1000000 + (rz + offset);
+        
+        const cached = this.heightCache.get(numKey);
+        if (cached !== undefined) return cached;
 
         const h = this.getBiomeNoise(x, z);
         let height = 0;
         
         if (h < 0.15) {
-            const t = h * 6.666; // / 0.15
+            const t = h * 6.666;
             height = -1.0 + (t * t * (3 - 2 * t)) * 0.75;
         } else if (h < 0.3) {
             const t = (h - 0.15) * 6.666;
@@ -530,13 +550,17 @@ export class WorldManager {
             const steps = ((t * 3) | 0) * 0.333;
             height = 3.0 + steps * 5.0 + (t - steps) * 2.0;
         } else {
-            const peakH = (h - 0.6) * 2.5; // / 0.4
+            const peakH = (h - 0.6) * 2.5;
             height = 8.0 + (peakH * peakH * Math.sqrt(peakH)) * 40.0;
         }
 
         const finalHeight = height + (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.15;
         
-        if (this.heightCache.size > 5000) this.heightCache.clear();
+        if (this.heightCache.size > 2000) {
+            // Faster than clearing the whole map
+            const keys = this.heightCache.keys();
+            for (let i = 0; i < 500; i++) this.heightCache.delete(keys.next().value);
+        }
         this.heightCache.set(numKey, finalHeight);
         
         return finalHeight;
