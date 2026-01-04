@@ -66,6 +66,11 @@ export class ShardMap {
         this.cachingProgress = 0;
         this.onCachingComplete = null;
 
+        // Force cache update if worldManager has worldMask
+        if (this.worldManager?.worldMask) {
+            this.clearCache();
+        }
+
         this.setupListeners();
     }
 
@@ -122,6 +127,15 @@ export class ShardMap {
         this.container.style.display = this.visible ? 'flex' : 'none';
         if (this.visible) {
             this.needsResize = true;
+            // Force immediate resize to get correct canvas dimensions
+            const rect = this.canvas.parentElement.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+            }
+            if (this.worldManager?.worldMask?.poly) {
+                this.autoCenterOnLand();
+            }
             if (this.player.game?.minimap) this.player.game.minimap.container.style.display = 'none';
         } else {
             if (this.player.game?.minimap?.visible) this.player.game.minimap.container.style.display = 'block';
@@ -133,17 +147,17 @@ export class ShardMap {
             return this.worldManager.getBiomeNoise(x, z);
         }
         // Fallback noise logic (matching WorldManager.js exactly)
-        const scale = 0.005; // Reduced from 0.02 for much larger biomes
+        const scale = 0.005; 
         const nx = x * scale, nz = z * scale;
         
-        // Layered noise (octaves) with more variance
-        const v1 = Math.sin(nx) + Math.sin(nz);
-        const v2 = Math.sin(nx * 2.1 + nz * 0.5) * 0.5;
-        const v3 = Math.cos(nx * 0.7 - nz * 1.3) * 0.25;
-        const v4 = Math.sin(Math.sqrt(nx*nx + nz*nz) * 0.5) * 0.5;
-        const v5 = Math.sin(nx * 4.0) * Math.cos(nz * 4.0) * 0.125; // Extra detail layer
+        // Seeded noise logic matching WorldManager
+        const seed = this.worldManager?.worldMask ? (this.worldManager.worldMask.seed % 10000) : 0;
         
-        const combined = (v1 + v2 + v3 + v4 + v5 + 2.125) / 4.25;
+        const v1 = Math.sin(nx + seed) + Math.sin(nz + seed);
+        const v2 = Math.sin((nx * 2.1 + nz * 0.5) + seed) * 0.5;
+        const v3 = Math.cos((nx * 0.7 - nz * 1.3) + seed) * 0.25;
+        
+        const combined = (v1 + v2 + v3 + 1.75) / 3.5;
         return THREE.MathUtils.clamp(combined, 0, 1);
     }
 
@@ -216,6 +230,168 @@ export class ShardMap {
         this.needsImageDataUpdate = true;
     }
 
+    autoCenterOnLand() {
+        if (!this.worldManager?.worldMask?.poly) return;
+        const poly = this.worldManager.worldMask.poly;
+        let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        poly.forEach(p => {
+            minX = Math.min(minX, p.x);
+            maxX = Math.max(maxX, p.x);
+            minZ = Math.min(minZ, p.z);
+            maxZ = Math.max(maxZ, p.z);
+        });
+        
+        const landWidth = maxX - minX;
+        const landHeight = maxZ - minZ;
+        const padding = 1.2;
+        
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const scaleX = rect.width / (landWidth * padding);
+        const scaleY = rect.height / (landHeight * padding);
+        
+        // At scale = 0.5 (constructor default), we want this zoom
+        this.zoom = 1.0;
+    }
+
+    render() {
+        if (!this.visible || !this.player?.mesh) return;
+
+        const ctx = this.ctx;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const px = this.player.mesh.position.x;
+        const pz = this.player.mesh.position.z;
+        const effectiveScale = this.scale * this.zoom;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+
+        if (this.worldManager?.worldMask?.poly) {
+            const poly = this.worldManager.worldMask.poly;
+            const worldBounds = this.worldManager.worldMask.worldBounds;
+            
+            // 1. Draw the land background/biomes
+            ctx.save();
+            ctx.beginPath();
+            const first = poly[0];
+            ctx.moveTo((first.x - px) * effectiveScale, (first.z - pz) * effectiveScale);
+            for (let i = 1; i < poly.length; i++) {
+                ctx.lineTo((poly[i].x - px) * effectiveScale, (poly[i].z - pz) * effectiveScale);
+            }
+            ctx.closePath();
+            ctx.clip();
+
+            // Draw terrain textures/biomes covering the entire world bounds
+            const sSize = SHARD_SIZE * effectiveScale;
+            
+            // Calculate start and end shards based on the actual world mask bounds
+            const startX = Math.floor(worldBounds.minX / SHARD_SIZE) - 1;
+            const endX = Math.ceil(worldBounds.maxX / SHARD_SIZE) + 1;
+            const startZ = Math.floor(worldBounds.minZ / SHARD_SIZE) - 1;
+            const endZ = Math.ceil(worldBounds.maxZ / SHARD_SIZE) + 1;
+
+            for (let x = startX; x <= endX; x++) {
+                for (let z = startZ; z <= endZ; z++) {
+                    const h = this.getTerrainNoise(x * SHARD_SIZE, z * SHARD_SIZE);
+                    ctx.fillStyle = this.getTerrainColor(h);
+                    const sx = (x * SHARD_SIZE - px) * effectiveScale - sSize / 2;
+                    const sz = (z * SHARD_SIZE - pz) * effectiveScale - sSize / 2;
+                    // Draw slightly larger to avoid gaps
+                    ctx.fillRect(sx, sz, sSize + 0.5, sSize + 0.5); 
+                }
+            }
+            ctx.restore();
+
+            // 2. Draw the land border (White outline)
+            ctx.beginPath();
+            ctx.moveTo((first.x - px) * effectiveScale, (first.z - pz) * effectiveScale);
+            for (let i = 1; i < poly.length; i++) {
+                ctx.lineTo((poly[i].x - px) * effectiveScale, (poly[i].z - pz) * effectiveScale);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, 2 * this.zoom);
+            ctx.stroke();
+
+            // 3. Draw grid overlay if zoomed in
+            if (this.zoom > 0.3) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo((first.x - px) * effectiveScale, (first.z - pz) * effectiveScale);
+                for (let i = 1; i < poly.length; i++) {
+                    ctx.lineTo((poly[i].x - px) * effectiveScale, (poly[i].z - pz) * effectiveScale);
+                }
+                ctx.closePath();
+                ctx.clip();
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.lineWidth = 1;
+                const step = SHARD_SIZE * effectiveScale;
+                for (let x = startX; x <= endX; x++) {
+                    const sx = (x * SHARD_SIZE - px) * effectiveScale - sSize / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, -height);
+                    ctx.lineTo(sx, height);
+                    ctx.stroke();
+                }
+                for (let z = startZ; z <= endZ; z++) {
+                    const sz = (z * SHARD_SIZE - pz) * effectiveScale - sSize / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-width, sz);
+                    ctx.lineTo(width, sz);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        this.drawEntities(ctx, px, pz, effectiveScale, width, height);
+        this.drawPlayerIndicator(ctx);
+        
+        if (this.worldManager?.worldMask?.cities) {
+            this.worldManager.worldMask.cities.forEach(city => {
+                const cx = (city.worldX - px) * effectiveScale;
+                const cz = (city.worldZ - pz) * effectiveScale;
+                
+                ctx.save();
+                const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+                const glowSize = 8 + pulse * 4;
+                const gradient = ctx.createRadialGradient(cx, cz, 0, cx, cz, glowSize);
+                gradient.addColorStop(0, 'rgba(170, 0, 255, 0.6)');
+                gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(cx, cz, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#aa00ff';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(cx, cz, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Cinzel';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = 'black';
+                ctx.fillText(city.name.toUpperCase(), cx, cz - 10);
+                ctx.restore();
+            });
+        }
+
+        ctx.restore();
+
+        this.drawCompass(ctx, width, height);
+        this.drawScale(ctx, width, height, effectiveScale);
+    }
+
     update() {
         if (!this.visible || !this.player?.mesh) return;
 
@@ -224,6 +400,16 @@ export class ShardMap {
         const pz = this.player.mesh.position.z;
         const curShardX = Math.floor((px + SHARD_SIZE / 2) / SHARD_SIZE);
         const curShardZ = Math.floor((pz + SHARD_SIZE / 2) / SHARD_SIZE);
+
+        if (this.worldManager?.worldMask?.landId !== this._lastLandId) {
+            this._lastLandId = this.worldManager?.worldMask?.landId;
+            this.visitedShards.clear();
+            this.discoveryBounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+            this.needsResize = true;
+            if (this.worldManager?.worldMask?.poly) {
+                this.autoCenterOnLand();
+            }
+        }
 
         const hasMoved = Math.abs(px - this.lastRenderX) > 0.5 || Math.abs(pz - this.lastRenderZ) > 0.5;
         const hasZoomed = Math.abs(this.zoom - this.lastRenderZoom) > 0.01;
@@ -237,10 +423,12 @@ export class ShardMap {
 
         if (this.needsResize) {
             const rect = this.canvas.parentElement.getBoundingClientRect();
-            this.canvas.width = rect.width;
-            this.canvas.height = rect.height;
-            this.scale = Math.min(this.canvas.width, this.canvas.height) / (SHARD_SIZE * 5.5);
-            this.needsResize = false;
+            if (rect.width > 0 && rect.height > 0) {
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                // Base scale remains 0.5 as per constructor
+                this.needsResize = false;
+            }
         }
 
         if (now - this.lastUiUpdateTime > 100) {
@@ -248,161 +436,7 @@ export class ShardMap {
             this.lastUiUpdateTime = now;
         }
 
-        const ctx = this.ctx;
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-        const effectiveScale = this.scale * this.zoom;
-
-        ctx.clearRect(0, 0, width, height);
-        ctx.save();
-        ctx.translate(width / 2, height / 2);
-
-        const visibleW = Math.ceil(width / (SHARD_SIZE * effectiveScale)) + 2;
-        const visibleH = Math.ceil(height / (SHARD_SIZE * effectiveScale)) + 2;
-        const startX = Math.max(-this.worldLimit, curShardX - Math.ceil(visibleW / 2));
-        const endX = Math.min(this.worldLimit - 1, curShardX + Math.ceil(visibleW / 2));
-        const startZ = Math.max(-this.worldLimit, curShardZ - Math.ceil(visibleH / 2));
-        const endZ = Math.min(this.worldLimit - 1, curShardZ + Math.ceil(visibleH / 2));
-
-        if (this.zoom < 0.8) {
-            // Cache mode
-            const sX = (startX + this.worldLimit) * this.cacheScale;
-            const sZ = (startZ + this.worldLimit) * this.cacheScale;
-            const sW = (endX - startX + 1) * this.cacheScale;
-            const sH = (endZ - startZ + 1) * this.cacheScale;
-
-            const dX = (startX * SHARD_SIZE - px) * effectiveScale - (SHARD_SIZE * effectiveScale) / 2;
-            const dZ = (startZ * SHARD_SIZE - pz) * effectiveScale - (SHARD_SIZE * effectiveScale) / 2;
-            const dW = (endX - startX + 1) * SHARD_SIZE * effectiveScale;
-            const dH = (endZ - startZ + 1) * SHARD_SIZE * effectiveScale;
-
-            if (this.needsImageDataUpdate) {
-                this.offscreenCtx.putImageData(this.terrainImageData, 0, 0);
-                this.needsImageDataUpdate = false;
-            }
-            ctx.drawImage(this.offscreenCanvas, sX, sZ, sW, sH, dX, dZ, dW, dH);
-        } else {
-            // Detailed mode
-            const sSize = SHARD_SIZE * effectiveScale;
-            const batches = { [this.biomeColors[0]]: [], [this.biomeColors[1]]: [], [this.biomeColors[2]]: [], [this.biomeColors[3]]: [], [this.biomeColors[4]]: [] };
-            const glintsX = [], glintsZ = [];
-
-            for (let x = startX; x <= endX; x++) {
-                for (let z = startZ; z <= endZ; z++) {
-                    // Skip detailed rendering for masked shards
-                    if (this.worldManager && this.worldManager.worldMask && !this.worldManager.worldMask.containsShard(x, z)) continue;
-
-                    const sx = (x * SHARD_SIZE - px) * effectiveScale - sSize / 2;
-                    const sz = (z * SHARD_SIZE - pz) * effectiveScale - sSize / 2;
-                    const h = this.getTerrainNoise(x * SHARD_SIZE, z * SHARD_SIZE);
-                    batches[this.getTerrainColor(h)].push(sx, sz);
-
-                    if (this.zoom > 0.5) {
-                        const gn = Math.abs(Math.sin(x * 3.1 + z * 7.9));
-                        if (gn > 0.92) {
-                            glintsX.push(sx + sSize / 2 + (gn - 0.95) * sSize);
-                            glintsZ.push(sz + sSize / 2 + (gn - 0.98) * sSize);
-                        }
-                    }
-                }
-            }
-
-            if (this.terrainPattern) {
-                ctx.fillStyle = this.terrainPattern;
-                const pScale = 0.5 * this.zoom;
-                ctx.save();
-                ctx.scale(pScale, pScale);
-                const invP = 1 / pScale;
-                ctx.fillRect((startX * SHARD_SIZE - px) * effectiveScale * invP - (sSize * 0.5 * invP), (startZ * SHARD_SIZE - pz) * effectiveScale * invP - (sSize * 0.5 * invP), (endX - startX + 1) * SHARD_SIZE * effectiveScale * invP, (endZ - startZ + 1) * SHARD_SIZE * effectiveScale * invP);
-                ctx.restore();
-            }
-
-            for (const color in batches) {
-                const b = batches[color]; if (b.length === 0) continue;
-                ctx.fillStyle = color; ctx.beginPath();
-                for (let i = 0; i < b.length; i += 2) ctx.rect(b[i], b[i+1], sSize, sSize);
-                ctx.fill();
-            }
-
-            if (glintsX.length > 0) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.beginPath();
-                for (let i = 0; i < glintsX.length; i++) ctx.rect(glintsX[i], glintsZ[i], 2, 2);
-                ctx.fill();
-            }
-        }
-
-        // Grid & Entities
-        if (this.zoom > 0.1) {
-            const sSize = SHARD_SIZE * effectiveScale;
-            ctx.fillStyle = 'rgba(0, 170, 255, 0.15)';
-            ctx.fillRect((curShardX * SHARD_SIZE - px) * effectiveScale - sSize/2, (curShardZ * SHARD_SIZE - pz) * effectiveScale - sSize/2, sSize, sSize);
-            
-            ctx.strokeStyle = 'rgba(0, 170, 255, 0.4)';
-            ctx.lineWidth = Math.max(1, 2 * this.zoom);
-            ctx.beginPath();
-            for (let x = startX; x <= endX; x++) {
-                const sx = (x * SHARD_SIZE - px) * effectiveScale - sSize / 2;
-                ctx.moveTo(sx, (startZ * SHARD_SIZE - pz) * effectiveScale - sSize/2);
-                ctx.lineTo(sx, (endZ * SHARD_SIZE - pz) * effectiveScale + sSize/2);
-            }
-            for (let z = startZ; z <= endZ; z++) {
-                const sz = (z * SHARD_SIZE - pz) * effectiveScale - sSize / 2;
-                ctx.moveTo((startX * SHARD_SIZE - px) * effectiveScale - sSize/2, sz);
-                ctx.lineTo((endX * SHARD_SIZE - px) * effectiveScale + sSize/2, sz);
-            }
-            ctx.stroke();
-        }
-
-        if (this.zoom > 0.05) this.drawEntities(ctx, px, pz, effectiveScale, width, height);
-        this.drawPlayerIndicator(ctx);
-        
-        // Draw Yurei marker (visible at all times)
-        if (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.cities) {
-            const yurei = this.worldManager.worldMask.cities.find(c => c.id === 'City-1');
-            if (yurei) {
-                const yx = (yurei.worldX - px) * effectiveScale;
-                const yz = (yurei.worldZ - pz) * effectiveScale;
-                
-                // Draw a special glowing marker for Yurei
-                ctx.save();
-                
-                // Glow effect
-                const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
-                const glowSize = 10 + pulse * 5;
-                const gradient = ctx.createRadialGradient(yx, yz, 0, yx, yz, glowSize);
-                gradient.addColorStop(0, 'rgba(170, 0, 255, 0.8)');
-                gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(yx, yz, glowSize, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Center dot
-                ctx.fillStyle = '#aa00ff';
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(yx, yz, 5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                // Label
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = 'black';
-                ctx.fillText('YUREI', yx, yz - 12);
-                
-                ctx.restore();
-            }
-        }
-
-        ctx.restore();
-
-        this.drawCompass(ctx, width, height);
-        this.drawScale(ctx, width, height, effectiveScale);
+        this.render();
     }
 
     updateUI(px, pz, curShardX, curShardZ) {
@@ -454,11 +488,13 @@ export class ShardMap {
             if (Math.abs(rx) > width/2 + 20 || Math.abs(rz) > height/2 + 20) return;
 
             let color, dotSize;
-            if (res.type === 'tree') { color = '#2d5a27'; dotSize = 1.5 * this.zoom; }
-            else if (res.type === 'berry_bush') { color = '#e91e63'; dotSize = 2 * this.zoom; }
-            else if (res.type === 'gold') { color = '#ffd700'; dotSize = 3 * this.zoom; }
-            else if (res.type === 'silver') { color = '#bdc3c7'; dotSize = 2.5 * this.zoom; }
-            else { color = '#757575'; dotSize = 2 * this.zoom; }
+            if (res.type === 'tree') { color = '#2d5a27'; dotSize = 0.8 * this.zoom; }
+            else if (res.type === 'berry_bush') { color = '#e91e63'; dotSize = 1 * this.zoom; }
+            else if (res.type === 'gold') { color = '#ffd700'; dotSize = 1.5 * this.zoom; }
+            else if (res.type === 'silver') { color = '#bdc3c7'; dotSize = 1.2 * this.zoom; }
+            else { color = '#757575'; dotSize = 1 * this.zoom; }
+            
+            dotSize = Math.max(1, Math.min(dotSize, 3)); // Clamp dot size
             
             const batchKey = `${color}_${dotSize}`;
             if (!batches[batchKey]) batches[batchKey] = { color, dotSize, points: [] };
@@ -473,7 +509,9 @@ export class ShardMap {
             const nz = (pos.z - pz) * effectiveScale;
             if (Math.abs(nx) > width/2 + 20 || Math.abs(nz) > height/2 + 20) return;
 
-            const dotSize = 3 * this.zoom;
+            let dotSize = 1.5 * this.zoom;
+            dotSize = Math.max(1.5, Math.min(dotSize, 4));
+            
             let color;
             if (npc.type === 'humanoid') color = '#9c27b0';
             else color = npc.isEnemy ? '#f44336' : '#2196f3';

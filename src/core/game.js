@@ -19,6 +19,8 @@ import { FireballProjectile } from '../systems/fireball_projectile.js';
 
 import { CombatScene } from '../systems/combat_scene.js';
 
+import { OptionsUI } from '../ui/options_ui.js';
+
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
         this.roomCode = roomCode;
@@ -67,6 +69,7 @@ export class Game {
         this.shardMap = new ShardMap(this.player, this.worldManager);
         this.gridLabels = new GridLabelManager(this.scene);
         this.multiplayer = new NodeMPManager(this);
+        this.optionsUI = new OptionsUI(this);
         window.gameInstance = this;
         this.multiplayer.initialize(characterData, this.roomCode);
 

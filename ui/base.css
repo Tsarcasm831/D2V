@@ -386,8 +386,196 @@ input[type="checkbox"]:hover {
     background: var(--primary);
 }
 
-.combat-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
+/* Admin Modal Styles */
+.admin-modal {
+    background: rgba(5, 10, 20, 0.95) !important;
+    border: 1px solid rgba(0, 170, 255, 0.3) !important;
+    max-width: 600px !important;
+    height: auto !important;
+    max-height: 85vh !important;
+}
+
+.admin-header {
+    background: linear-gradient(180deg, rgba(0, 170, 255, 0.1) 0%, rgba(0, 170, 255, 0.02) 100%) !important;
+    border-bottom: 1px solid rgba(0, 170, 255, 0.2) !important;
+    padding: 15px 25px !important;
+}
+
+.admin-body {
+    padding: 25px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.admin-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.admin-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.section-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: rgba(0, 170, 255, 0.6);
+    font-weight: bold;
+    border-bottom: 1px solid rgba(0, 170, 255, 0.1);
+    padding-bottom: 5px;
+}
+
+.admin-controls-row {
+    display: flex;
+    gap: 10px;
+}
+
+.admin-controls-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.group-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+}
+
+.group-value {
+    font-family: monospace;
+    color: var(--primary);
+    font-size: 14px;
+}
+
+.admin-btn {
+    flex: 1;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.admin-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin-btn.primary {
+    background: rgba(0, 170, 255, 0.15);
+    border-color: rgba(0, 170, 255, 0.3);
+    color: #00aaff;
+}
+
+.admin-btn.primary:hover {
+    background: rgba(0, 170, 255, 0.3);
+    border-color: #00aaff;
+}
+
+.admin-btn.danger {
+    background: rgba(255, 68, 68, 0.1);
+    border-color: rgba(255, 68, 68, 0.3);
+    color: #ff4444;
+}
+
+.admin-btn.danger:hover {
+    background: rgba(255, 68, 68, 0.2);
+    border-color: #ff4444;
+}
+
+.admin-slider {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    appearance: none;
+    outline: none;
+}
+
+.admin-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.2);
+    margin-top: 4px;
+}
+
+.teleport-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-wrapper label {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.admin-input {
+    width: 70px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.admin-hint {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 5px 0 0 0;
+    line-height: 1.4;
+}
+
+.close-button {
+    cursor: pointer;
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.3);
+    transition: color 0.2s;
+}
+
+.close-button:hover {
+    color: white;
 }
 

@@ -35,6 +35,15 @@ export class InputManager {
         window.addEventListener('keydown', (e) => {
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
+            // Block input if Land Map is open
+            const shardMap = document.getElementById('shard-map-container');
+            if (shardMap && window.getComputedStyle(shardMap).display !== 'none') {
+                if (e.key.toLowerCase() === 'm') {
+                    this.game.shardMap.toggle();
+                }
+                return;
+            }
+
             // Lock input if NPC interaction or other blocking UI is open
             if (this.game.player.conversation && this.game.player.conversation.isOpen()) {
                 if (e.key === 'Escape') {
@@ -90,8 +99,11 @@ export class InputManager {
                 this.game.grid.visible = !this.game.grid.visible;
                 this.game.worldManager.setGridVisibility(this.game.grid.visible);
             }
-            if (key === 'm') this.game.minimap.toggle();
-            if (key === 'n') this.game.shardMap.toggle();
+            if (key === ']') this.game.minimap.toggle();
+            if (key === '`') {
+                if (this.game.optionsUI) this.game.optionsUI.toggle();
+            }
+            if (key === 'm') this.game.shardMap.toggle();
             if (key === 'tab') {
                 e.preventDefault();
                 this.game.player.ui.toggleInventory();
@@ -181,6 +193,12 @@ export class InputManager {
         });
 
         window.addEventListener('mousedown', (e) => {
+            // Block game clicks if Land Map is open
+            const shardMap = document.getElementById('shard-map-container');
+            if (shardMap && window.getComputedStyle(shardMap).display !== 'none') {
+                return;
+            }
+
             // Block game clicks if inventory is open
             const inventoryWrapper = document.getElementById('inventory-overlay-wrapper');
             const isInventoryOpen = inventoryWrapper && window.getComputedStyle(inventoryWrapper).display !== 'none';

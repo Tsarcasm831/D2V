@@ -209,28 +209,6 @@ async function startLoadingSequence(characterData, roomCode) {
     game.initAfterLoading();
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.opacity = '1';
-    
-    // Reset character button logic
-    let resetBtn = document.getElementById('reset-character-btn');
-    if (!resetBtn) {
-        resetBtn = document.createElement('div');
-        resetBtn.id = 'reset-character-btn';
-        resetBtn.className = 'btn';
-        resetBtn.textContent = 'RESET CHARACTER';
-        resetBtn.style.position = 'absolute';
-        resetBtn.style.bottom = '50px';
-        resetBtn.style.right = '20px';
-        resetBtn.style.zIndex = '1000';
-        resetBtn.style.padding = '8px';
-        document.body.appendChild(resetBtn);
-    }
-    resetBtn.style.display = 'block';
-    resetBtn.onclick = () => {
-        if (confirm("Recreate your character? This will reload the page.")) {
-            localStorage.removeItem('character_config');
-            window.location.reload();
-        }
-    };
 }
 
 

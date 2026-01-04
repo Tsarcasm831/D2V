@@ -9,7 +9,11 @@ export class Minimap {
         this.biomeDisplay = document.getElementById('minimap-biome-display');
         this.canvas = document.getElementById('minimap-canvas');
         this.ctx = this.canvas.getContext('2d');
-        this.visible = false;
+        this.visible = true;
+        
+        // Ensure DOM matches state
+        if (this.container) this.container.style.display = 'block';
+        if (this.biomeDisplay) this.biomeDisplay.style.display = 'block';
         
         // Internal resolution
         this.size = 320; 
