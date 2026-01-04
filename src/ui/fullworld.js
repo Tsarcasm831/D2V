@@ -74,9 +74,11 @@ export class FullWorld {
                 this.rawModules.push(land);
                 // In world coordinates, X is often East/West and Z is North/South.
                 // Our JSON points are [X, Z]. In 2D canvas, we'll map X to X and Z to Y.
+                // Match WorldMask worldScale (1500)
+                const worldScale = 1500;
                 const mappedLand = {
                     ...land,
-                    points: land.points.map(p => [p[0] * 100, p[1] * 100])
+                    points: land.points.map(p => [(p[0] - 5.5) * worldScale, (p[1] - 5.5) * worldScale])
                 };
                 this.lands.push(mappedLand);
             }
@@ -223,14 +225,26 @@ export class FullWorld {
             const loadingScreen = document.getElementById('loading-screen');
             if (loadingScreen) loadingScreen.style.display = 'flex';
 
-            // Find the original land data (without the map scaling)
-            const rawLand = this.rawModules.find(m => m.id === selectedLand.id);
+            // Find the original land module to import it
+            const landId = selectedLand.id;
             
             // Use a small delay to let the loading screen show
-            setTimeout(() => {
-                window.gameInstance.worldManager.loadLand(rawLand || selectedLand);
-                this.hide();
-                if (loadingScreen) loadingScreen.style.display = 'none';
+            setTimeout(async () => {
+                try {
+                    // Dynamically import the land module
+                    const module = await import(`../world/lands/${landId}.js`);
+                    const landKey = Object.keys(module)[0];
+                    const landData = module[landKey];
+                    
+                    if (landData) {
+                        await window.gameInstance.worldManager.loadLand(landData);
+                        this.hide();
+                    }
+                } catch (error) {
+                    console.error(`Failed to load land ${landId}:`, error);
+                } finally {
+                    if (loadingScreen) loadingScreen.style.display = 'none';
+                }
             }, 100);
         }
     }
@@ -251,7 +265,6 @@ export class FullWorld {
 
     hide() {
         this.container.style.display = 'none';
-        if (window.showMainMenu) window.showMainMenu();
     }
 
     draw() {

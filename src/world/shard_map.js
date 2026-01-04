@@ -329,7 +329,6 @@ export class ShardMap {
                 
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.lineWidth = 1;
-                const step = SHARD_SIZE * effectiveScale;
                 for (let x = startX; x <= endX; x++) {
                     const sx = (x * SHARD_SIZE - px) * effectiveScale - sSize / 2;
                     ctx.beginPath();
@@ -349,48 +348,48 @@ export class ShardMap {
         }
 
         this.drawEntities(ctx, px, pz, effectiveScale, width, height);
-this.drawPlayerIndicator(ctx);
+        this.drawPlayerIndicator(ctx);
         
-if (this.worldManager?.worldMask?.cities) {
-this.worldManager.worldMask.cities.forEach(city => {
-const cx = (city.worldX - px) * effectiveScale;
-const cz = (city.worldZ - pz) * effectiveScale;
+        if (this.worldManager?.worldMask?.cities) {
+            this.worldManager.worldMask.cities.forEach(city => {
+                const cx = (city.worldX - px) * effectiveScale;
+                const cz = (city.worldZ - pz) * effectiveScale;
                 
-ctx.save();
-const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
-const glowSize = 8 + pulse * 4;
-const gradient = ctx.createRadialGradient(cx, cz, 0, cx, cz, glowSize);
-gradient.addColorStop(0, 'rgba(170, 0, 255, 0.6)');
-gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
+                ctx.save();
+                const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+                const glowSize = 8 + pulse * 4;
+                const gradient = ctx.createRadialGradient(cx, cz, 0, cx, cz, glowSize);
+                gradient.addColorStop(0, 'rgba(170, 0, 255, 0.6)');
+                gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
                 
-ctx.fillStyle = gradient;
-ctx.beginPath();
-ctx.arc(cx, cz, glowSize, 0, Math.PI * 2);
-ctx.fill();
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(cx, cz, glowSize, 0, Math.PI * 2);
+                ctx.fill();
                 
-ctx.fillStyle = '#aa00ff';
-ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 1.5;
-ctx.beginPath();
-ctx.arc(cx, cz, 4, 0, Math.PI * 2);
-ctx.fill();
-ctx.stroke();
+                ctx.fillStyle = '#aa00ff';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(cx, cz, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
                 
-ctx.fillStyle = '#ffffff';
-ctx.font = 'bold 10px Cinzel';
-ctx.textAlign = 'center';
-ctx.shadowBlur = 4;
-ctx.shadowColor = 'black';
-ctx.fillText(city.name.toUpperCase(), cx, cz - 10);
-ctx.restore();
-});
-}
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Cinzel';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = 'black';
+                ctx.fillText(city.name.toUpperCase(), cx, cz - 10);
+                ctx.restore();
+            });
+        }
 
-ctx.restore();
+        ctx.restore();
 
-this.drawCompass(ctx, width, height);
-this.drawScale(ctx, width, height, effectiveScale);
-}
+        this.drawCompass(ctx, width, height);
+        this.drawScale(ctx, width, height, effectiveScale);
+    }
 
 update() {
 if (!this.visible || !this.player?.mesh) return;
