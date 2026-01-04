@@ -173,6 +173,7 @@ export class Minimap {
         }
 
         // Draw NPCs and Fauna - Batched by color
+        const trackingLimit = 50; // meters
         const entities = [
             ...this.worldManager.getNearbyNPCs(this.player.mesh.position, mapRadius),
             ...this.worldManager.getNearbyFauna(this.player.mesh.position, mapRadius)
@@ -185,8 +186,11 @@ export class Minimap {
             const nx = (pos.x - px) * this.scale + center;
             const nz = (pos.z - pz) * this.scale + center;
             
-            const distSq = (nx - center)**2 + (nz - center)**2;
-            if (distSq < (center * 1.2)**2) {
+            const dx = pos.x - px;
+            const dz = pos.z - pz;
+            const realDistSq = dx*dx + dz*dz;
+
+            if (realDistSq < trackingLimit * trackingLimit) {
                 let color;
                 if (entity.type === 'humanoid') color = '#9c27b0';
                 else color = entity.isEnemy ? '#f44336' : '#2196f3';

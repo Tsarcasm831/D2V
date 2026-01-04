@@ -349,174 +349,185 @@ export class ShardMap {
         }
 
         this.drawEntities(ctx, px, pz, effectiveScale, width, height);
-        this.drawPlayerIndicator(ctx);
+this.drawPlayerIndicator(ctx);
         
-        if (this.worldManager?.worldMask?.cities) {
-            this.worldManager.worldMask.cities.forEach(city => {
-                const cx = (city.worldX - px) * effectiveScale;
-                const cz = (city.worldZ - pz) * effectiveScale;
+if (this.worldManager?.worldMask?.cities) {
+this.worldManager.worldMask.cities.forEach(city => {
+const cx = (city.worldX - px) * effectiveScale;
+const cz = (city.worldZ - pz) * effectiveScale;
                 
-                ctx.save();
-                const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
-                const glowSize = 8 + pulse * 4;
-                const gradient = ctx.createRadialGradient(cx, cz, 0, cx, cz, glowSize);
-                gradient.addColorStop(0, 'rgba(170, 0, 255, 0.6)');
-                gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
+ctx.save();
+const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+const glowSize = 8 + pulse * 4;
+const gradient = ctx.createRadialGradient(cx, cz, 0, cx, cz, glowSize);
+gradient.addColorStop(0, 'rgba(170, 0, 255, 0.6)');
+gradient.addColorStop(1, 'rgba(170, 0, 255, 0)');
                 
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(cx, cz, glowSize, 0, Math.PI * 2);
-                ctx.fill();
+ctx.fillStyle = gradient;
+ctx.beginPath();
+ctx.arc(cx, cz, glowSize, 0, Math.PI * 2);
+ctx.fill();
                 
-                ctx.fillStyle = '#aa00ff';
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.arc(cx, cz, 4, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+ctx.fillStyle = '#aa00ff';
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 1.5;
+ctx.beginPath();
+ctx.arc(cx, cz, 4, 0, Math.PI * 2);
+ctx.fill();
+ctx.stroke();
                 
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 10px Cinzel';
-                ctx.textAlign = 'center';
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = 'black';
-                ctx.fillText(city.name.toUpperCase(), cx, cz - 10);
-                ctx.restore();
-            });
-        }
+ctx.fillStyle = '#ffffff';
+ctx.font = 'bold 10px Cinzel';
+ctx.textAlign = 'center';
+ctx.shadowBlur = 4;
+ctx.shadowColor = 'black';
+ctx.fillText(city.name.toUpperCase(), cx, cz - 10);
+ctx.restore();
+});
+}
 
-        ctx.restore();
+ctx.restore();
 
-        this.drawCompass(ctx, width, height);
-        this.drawScale(ctx, width, height, effectiveScale);
-    }
+this.drawCompass(ctx, width, height);
+this.drawScale(ctx, width, height, effectiveScale);
+}
 
-    update() {
-        if (!this.visible || !this.player?.mesh) return;
+update() {
+if (!this.visible || !this.player?.mesh) return;
 
-        const now = performance.now();
-        const px = this.player.mesh.position.x;
-        const pz = this.player.mesh.position.z;
-        const curShardX = Math.floor((px + SHARD_SIZE / 2) / SHARD_SIZE);
-        const curShardZ = Math.floor((pz + SHARD_SIZE / 2) / SHARD_SIZE);
+const now = performance.now();
+const px = this.player.mesh.position.x;
+const pz = this.player.mesh.position.z;
+const curShardX = Math.floor((px + SHARD_SIZE / 2) / SHARD_SIZE);
+const curShardZ = Math.floor((pz + SHARD_SIZE / 2) / SHARD_SIZE);
 
-        if (this.worldManager?.worldMask?.landId !== this._lastLandId) {
-            this._lastLandId = this.worldManager?.worldMask?.landId;
-            this.visitedShards.clear();
-            this.discoveryBounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
-            this.needsResize = true;
-            if (this.worldManager?.worldMask?.poly) {
-                this.autoCenterOnLand();
-            }
-        }
+if (this.worldManager?.worldMask?.landId !== this._lastLandId) {
+this._lastLandId = this.worldManager?.worldMask?.landId;
+this.visitedShards.clear();
+this.discoveryBounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+this.needsResize = true;
+if (this.worldManager?.worldMask?.poly) {
+this.autoCenterOnLand();
+}
+}
 
-        const hasMoved = Math.abs(px - this.lastRenderX) > 0.5 || Math.abs(pz - this.lastRenderZ) > 0.5;
-        const hasZoomed = Math.abs(this.zoom - this.lastRenderZoom) > 0.01;
+const hasMoved = Math.abs(px - this.lastRenderX) > 0.5 || Math.abs(pz - this.lastRenderZ) > 0.5;
+const hasZoomed = Math.abs(this.zoom - this.lastRenderZoom) > 0.01;
 
-        if (!hasMoved && !hasZoomed && !this.needsResize && (now - this.lastUpdateTime < this.updateInterval)) return;
+if (!hasMoved && !hasZoomed && !this.needsResize && (now - this.lastUpdateTime < this.updateInterval)) return;
 
-        this.lastUpdateTime = now;
-        this.lastRenderX = px;
-        this.lastRenderZ = pz;
-        this.lastRenderZoom = this.zoom;
+this.lastUpdateTime = now;
+this.lastRenderX = px;
+this.lastRenderZ = pz;
+this.lastRenderZoom = this.zoom;
 
-        if (this.needsResize) {
-            const rect = this.canvas.parentElement.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-                this.canvas.width = rect.width;
-                this.canvas.height = rect.height;
-                // Base scale remains 0.5 as per constructor
-                this.needsResize = false;
-            }
-        }
+if (this.needsResize) {
+const rect = this.canvas.parentElement.getBoundingClientRect();
+if (rect.width > 0 && rect.height > 0) {
+this.canvas.width = rect.width;
+this.canvas.height = rect.height;
+// Base scale remains 0.5 as per constructor
+this.needsResize = false;
+}
+}
 
-        if (now - this.lastUiUpdateTime > 100) {
-            this.updateUI(px, pz, curShardX, curShardZ);
-            this.lastUiUpdateTime = now;
-        }
+if (now - this.lastUiUpdateTime > 100) {
+this.updateUI(px, pz, curShardX, curShardZ);
+this.lastUiUpdateTime = now;
+}
 
-        this.render();
-    }
+this.render();
+}
 
-    updateUI(px, pz, curShardX, curShardZ) {
-        if (this.coordEl) this.coordEl.textContent = `Pos: ${Math.round(px)}, ${Math.round(pz)}`;
-        if (this.shardEl) this.shardEl.textContent = `Shard: ${curShardX}, ${curShardZ}`;
+updateUI(px, pz, curShardX, curShardZ) {
+if (this.coordEl) this.coordEl.textContent = `Pos: ${Math.round(px)}, ${Math.round(pz)}`;
+if (this.shardEl) this.shardEl.textContent = `Shard: ${curShardX}, ${curShardZ}`;
 
-        const key = `${curShardX},${curShardZ}`;
-        if (!this.visitedShards.has(key)) {
-            this.visitedShards.add(key);
-            this.discoveryBounds.minX = Math.min(this.discoveryBounds.minX, curShardX);
-            this.discoveryBounds.maxX = Math.max(this.discoveryBounds.maxX, curShardX);
-            this.discoveryBounds.minZ = Math.min(this.discoveryBounds.minZ, curShardZ);
-            this.discoveryBounds.maxZ = Math.max(this.discoveryBounds.maxZ, curShardZ);
-            this.renderShardToCache(curShardX, curShardZ);
-        }
+const key = `${curShardX},${curShardZ}`;
+if (!this.visitedShards.has(key)) {
+this.visitedShards.add(key);
+this.discoveryBounds.minX = Math.min(this.discoveryBounds.minX, curShardX);
+this.discoveryBounds.maxX = Math.max(this.discoveryBounds.maxX, curShardX);
+this.discoveryBounds.minZ = Math.min(this.discoveryBounds.minZ, curShardZ);
+this.discoveryBounds.maxZ = Math.max(this.discoveryBounds.maxZ, curShardZ);
+this.renderShardToCache(curShardX, curShardZ);
+}
 
-        this.peakDistance = Math.max(this.peakDistance, Math.sqrt(px * px + pz * pz));
-        const stats = this.worldManager.stats;
+this.peakDistance = Math.max(this.peakDistance, Math.sqrt(px * px + pz * pz));
+const stats = this.worldManager.stats;
         
-        const updateText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-        updateText('stats-biome', this.getBiomeName(this.getTerrainNoise(curShardX * SHARD_SIZE, curShardZ * SHARD_SIZE)));
-        updateText('stats-shards-visited', this.visitedShards.size);
-        updateText('stats-active-shards', this.worldManager.activeShards.size);
-        updateText('stats-peak-dist', `${Math.round(this.peakDistance)}m`);
-        updateText('stats-total-area', `${(this.visitedShards.size * SHARD_SIZE * SHARD_SIZE).toLocaleString()} m²`);
-        updateText('stats-discovery-bounds', `[${this.discoveryBounds.minX},${this.discoveryBounds.minZ}] → [${this.discoveryBounds.maxX},${this.discoveryBounds.maxZ}]`);
-        updateText('stats-res-count', stats.resourceCount);
-        updateText('stats-npc-count', stats.npcCount);
-        updateText('stats-fauna-count', stats.faunaCount);
-        updateText('stats-hostile-count', stats.hostileCount);
+const updateText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+updateText('stats-biome', this.getBiomeName(this.getTerrainNoise(curShardX * SHARD_SIZE, curShardZ * SHARD_SIZE)));
+updateText('stats-shards-visited', this.visitedShards.size);
+updateText('stats-active-shards', this.worldManager.activeShards.size);
+updateText('stats-peak-dist', `${Math.round(this.peakDistance)}m`);
+updateText('stats-total-area', `${(this.visitedShards.size * SHARD_SIZE * SHARD_SIZE).toLocaleString()} m²`);
+updateText('stats-discovery-bounds', `[${this.discoveryBounds.minX},${this.discoveryBounds.minZ}] → [${this.discoveryBounds.maxX},${this.discoveryBounds.maxZ}]`);
+updateText('stats-res-count', stats.resourceCount);
+updateText('stats-npc-count', stats.npcCount);
+updateText('stats-fauna-count', stats.faunaCount);
+updateText('stats-hostile-count', stats.hostileCount);
 
-        const fill = document.getElementById('stats-discovery-fill');
-        if (fill) fill.style.width = `${Math.max(2, Math.min(100, (this.visitedShards.size / 1000) * 100))}%`;
-    }
+    const fill = document.getElementById('stats-discovery-fill');
+    if (fill) fill.style.width = `${Math.max(2, Math.min(100, (this.visitedShards.size / 1000) * 100))}%`;
+}
 
-    drawEntities(ctx, px, pz, effectiveScale, width, height) {
-        const mapRadius = (Math.max(width, height) / effectiveScale) * 0.6;
-        const resources = this.worldManager.getNearbyResources(this.player.mesh.position, mapRadius);
-        const npcs = this.worldManager.getNearbyNPCs(this.player.mesh.position, mapRadius);
-        const fauna = this.worldManager.getNearbyFauna(this.player.mesh.position, mapRadius);
+drawEntities(ctx, px, pz, effectiveScale, width, height) {
+    const mapRadius = (Math.max(width, height) / effectiveScale) * 0.6;
+        
+    // Hostile/NPC/Animal tracking limit (e.g., 50 meters)
+    const trackingLimit = 50; 
+    const trackingLimitPx = trackingLimit * effectiveScale;
 
-        // Batch by type/color
-        const batches = {};
+    const resources = this.worldManager.getNearbyResources(this.player.mesh.position, mapRadius);
+    const npcs = this.worldManager.getNearbyNPCs(this.player.mesh.position, mapRadius);
+    const fauna = this.worldManager.getNearbyFauna(this.player.mesh.position, mapRadius);
 
-        resources.forEach(res => {
-            if (res.isDead) return;
-            const rx = (res.group.position.x - px) * effectiveScale;
-            const rz = (res.group.position.z - pz) * effectiveScale;
-            if (Math.abs(rx) > width/2 + 20 || Math.abs(rz) > height/2 + 20) return;
+    // Batch by type/color
+    const batches = {};
 
-            let color, dotSize;
-            if (res.type === 'tree') { color = '#2d5a27'; dotSize = 0.8 * this.zoom; }
-            else if (res.type === 'berry_bush') { color = '#e91e63'; dotSize = 1 * this.zoom; }
-            else if (res.type === 'gold') { color = '#ffd700'; dotSize = 1.5 * this.zoom; }
-            else if (res.type === 'silver') { color = '#bdc3c7'; dotSize = 1.2 * this.zoom; }
-            else { color = '#757575'; dotSize = 1 * this.zoom; }
+    resources.forEach(res => {
+        if (res.isDead) return;
+        const rx = (res.group.position.x - px) * effectiveScale;
+        const rz = (res.group.position.z - pz) * effectiveScale;
             
-            dotSize = Math.max(1, Math.min(dotSize, 3)); // Clamp dot size
-            
-            const batchKey = `${color}_${dotSize}`;
-            if (!batches[batchKey]) batches[batchKey] = { color, dotSize, points: [] };
-            batches[batchKey].points.push(rx, rz);
-        });
+        // Bounds check for rectangular map
+        if (Math.abs(rx) > width/2 + 20 || Math.abs(rz) > height/2 + 20) return;
 
-        const allEntities = [...npcs, ...fauna];
-        allEntities.forEach(npc => {
-            if (npc.isDead) return;
-            const pos = npc.group ? npc.group.position : npc.mesh.position;
-            const nx = (pos.x - px) * effectiveScale;
-            const nz = (pos.z - pz) * effectiveScale;
-            if (Math.abs(nx) > width/2 + 20 || Math.abs(nz) > height/2 + 20) return;
+        let color, dotSize;
+        if (res.type === 'tree') { color = '#2d5a27'; dotSize = 0.8 * this.zoom; }
+        else if (res.type === 'berry_bush') { color = '#e91e63'; dotSize = 1 * this.zoom; }
+        else if (res.type === 'gold') { color = '#ffd700'; dotSize = 1.5 * this.zoom; }
+        else if (res.type === 'silver') { color = '#bdc3c7'; dotSize = 1.2 * this.zoom; }
+        else { color = '#757575'; dotSize = 1 * this.zoom; }
+            
+        dotSize = Math.max(1, Math.min(dotSize, 3)); // Clamp dot size
+            
+        const batchKey = `${color}_${dotSize}`;
+        if (!batches[batchKey]) batches[batchKey] = { color, dotSize, points: [] };
+        batches[batchKey].points.push(rx, rz);
+    });
 
-            let dotSize = 1.5 * this.zoom;
-            dotSize = Math.max(1.5, Math.min(dotSize, 4));
+    const allEntities = [...npcs, ...fauna];
+    allEntities.forEach(npc => {
+        if (npc.isDead) return;
+        const pos = npc.group ? npc.group.position : npc.mesh.position;
+        const nx = (pos.x - px) * effectiveScale;
+        const nz = (pos.z - pz) * effectiveScale;
             
-            let color;
-            if (npc.type === 'humanoid') color = '#9c27b0';
-            else color = npc.isEnemy ? '#f44336' : '#2196f3';
+        // Distance tracking limit for NPCs/Fauna/Hostiles
+        const distSq = nx * nx + nz * nz;
+        if (distSq > trackingLimitPx * trackingLimitPx) return;
+        if (Math.abs(nx) > width/2 + 20 || Math.abs(nz) > height/2 + 20) return;
+
+        let dotSize = 1.5 * this.zoom;
+        dotSize = Math.max(1.5, Math.min(dotSize, 4));
             
-            const batchKey = `npc_${color}_${dotSize}`;
+        let color;
+        if (npc.type === 'humanoid') color = '#9c27b0';
+        else color = npc.isEnemy ? '#f44336' : '#2196f3';
+            
+        const batchKey = `npc_${color}_${dotSize}`;
             if (!batches[batchKey]) batches[batchKey] = { color, dotSize, points: [], isNpc: true, isEnemy: npc.isEnemy };
             batches[batchKey].points.push(nx, nz);
         });
