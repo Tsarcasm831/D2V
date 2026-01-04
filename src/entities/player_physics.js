@@ -229,7 +229,7 @@ export class PlayerPhysics {
             const res = resources[i];
             if (res.isDead || !res.group) continue;
 
-            // Specialized shape-based collision resolution (Walls, Doorways)
+            // Specialized shape-based collision resolution (Buildings, Walls, Doorways)
             if (res.resolveCollision) {
                 const collision = res.resolveCollision(this.position, playerRadius);
                 if (collision) {

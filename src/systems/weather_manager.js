@@ -17,7 +17,7 @@ export class WeatherManager {
         this.currentState = WEATHER_TYPES.CLEAR;
         this.targetState = WEATHER_TYPES.CLEAR;
         this.transitionProgress = 1.0; // 0 to 1
-        this.transitionSpeed = 0.5; // Faster transition (2 seconds for full transition)
+        this.transitionSpeed = 2.0; // Much faster transition (0.5 seconds for full transition)
         
         this.stateTimer = 0;
         this.stateDuration = 60; // seconds
@@ -114,44 +114,45 @@ export class WeatherManager {
         const dx = playerPos.x - PLATEAU_X;
         const dz = playerPos.z - PLATEAU_Z;
         
-        // Calculate shard coordinates for the player and the plateau center
-        const playerShardX = Math.floor((playerPos.x + 30) / 60);
-        const playerShardZ = Math.floor((playerPos.z + 30) / 60);
-        const centerShardX = Math.floor((PLATEAU_X + 30) / 60);
-        const centerShardZ = Math.floor((PLATEAU_Z + 30) / 60);
-
         const bowlRadiusSq = 5184.0; // 72^2
-
-        // If within 150 units of the village center (covering the shard and mountains)
         const regionRadiusSq = 22500.0; // 150^2
         const distSq = dx * dx + dz * dz;
 
         if (distSq < regionRadiusSq) {
             if (distSq < bowlRadiusSq) {
                 // Inside the bowl: Force Clear
-                if (this.currentState !== WEATHER_TYPES.CLEAR) {
+                if (this.targetState !== WEATHER_TYPES.CLEAR) {
                     this.setWeather(WEATHER_TYPES.CLEAR);
+                    // Instant transition for bowl
+                    this.currentState = WEATHER_TYPES.CLEAR;
+                    this.transitionProgress = 1.0;
                 }
             } else {
                 // In the mountains surrounding the bowl: Force Snowstorm
-                if (this.currentState !== WEATHER_TYPES.SNOWSTORM) {
+                if (this.targetState !== WEATHER_TYPES.SNOWSTORM) {
                     this.setWeather(WEATHER_TYPES.SNOWSTORM);
                 }
             }
-        } else {
-            // Outside the Yurei shard:
-            // 1. If we were forcing snowstorm, let the random weather take back over
-            // 2. Allow random snowstorms at high elevations
-            const currentHeight = this.game.worldManager.getTerrainHeight(playerPos.x, playerPos.z);
-            if (currentHeight > 45.0) {
-                // High elevation: allow snowstorm as a random event if it was picked
-                // (Nothing to force here, let updateState/pickNextState handle it)
-            } else if (this.currentState === WEATHER_TYPES.SNOWSTORM) {
-                // Transition out of snowstorm if we left the high altitude or Yurei shard
-                // and it wasn't a naturally occurring storm
-                this.pickNextState();
-            }
+            return; // Exit early as we are in a forced weather zone
         }
+
+        // Outside the Yurei shard:
+        const currentHeight = this.game.worldManager.getTerrainHeight(playerPos.x, playerPos.z);
+        if (currentHeight <= 45.0 && this.targetState === WEATHER_TYPES.SNOWSTORM) {
+            // Transition out of snowstorm if we left high altitude and it's currently targeted
+            this.pickNextState();
+        }
+    }
+
+    isPlayerInBowl() {
+        if (!this.game.player) return false;
+        const playerPos = this.game.player.mesh.position;
+        const PLATEAU_X = 7509.5;
+        const PLATEAU_Z = -6949.1;
+        const dx = playerPos.x - PLATEAU_X;
+        const dz = playerPos.z - PLATEAU_Z;
+        const bowlRadiusSq = 5184.0; // 72^2
+        return (dx * dx + dz * dz) < bowlRadiusSq;
     }
 
     updateState(delta) {
@@ -179,14 +180,18 @@ export class WeatherManager {
             random -= weight;
         }
 
-        if (nextState !== this.currentState) {
+        // Avoid picking the same state if possible, unless it's the only one or we are CLEAR
+        if (nextState === this.targetState && Math.random() > 0.3) {
+            return this.pickNextState();
+        }
+
+        if (nextState !== this.targetState) {
             this.targetState = nextState;
             this.transitionProgress = 0;
-            // Removed immediate currentState update to allow getWeatherIntensity to lerp
             console.log(`Weather transitioning to: ${nextState}`);
         }
 
-        this.stateDuration = 30 + Math.random() * 90; // 30-120 seconds
+        this.stateDuration = 60 + Math.random() * 180; // 60-240 seconds (increased)
         this.stateTimer = this.stateDuration;
     }
 
@@ -287,9 +292,10 @@ export class WeatherManager {
     setWeather(type) {
         if (WEATHER_TYPES[type.toUpperCase()] || Object.values(WEATHER_TYPES).includes(type)) {
             const nextState = WEATHER_TYPES[type.toUpperCase()] || type;
+            if (this.targetState === nextState) return;
+            
             this.targetState = nextState;
             this.transitionProgress = 0;
-            this.currentState = nextState;
             this.stateTimer = 300; // Keep it for 5 minutes by default when manually set
             console.log(`Weather manually set to: ${nextState}`);
         }

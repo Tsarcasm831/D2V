@@ -176,6 +176,19 @@ export class Player {
         // Performance: reuse arrays/objects
         this._nearbyObstacles = [];
         this._tempVec = new THREE.Vector3();
+        
+        // Restore Personal Light Radius (Large, warm amber illumination)
+        // Using a PointLight with a large distance and soft falloff
+        this.playerLight = new THREE.PointLight(0xffcc88, 15, 12, 1.5); 
+        
+        // Strictly isolate light to Layer 1 (World Objects)
+        // Player mesh and its sub-parts remain on Layer 0
+        this.playerLight.layers.disableAll();
+        this.playerLight.layers.enable(1);
+        this.playerLight.castShadow = false; 
+        
+        // Add directly to scene to avoid mesh-relative issues
+        this.scene.add(this.playerLight);
 
         // Ensure initial held item state is correct
         this.gear.updateHeldItem();
@@ -183,6 +196,34 @@ export class Player {
         // Add Name Tag
         if (characterData.name) {
             this.addNameTag(characterData.name);
+        }
+    }
+
+    takeDamage(amount) {
+        if (this.isDead || (this.actions && this.actions.isInvulnerable)) return;
+
+        this.stats.health -= amount;
+        if (this.stats.health <= 0) {
+            this.stats.health = 0;
+            this.isDead = true;
+            this.deathTime = 0;
+            this.deathVariation = {
+                side: Math.random() > 0.5 ? 1 : -1,
+                twist: (Math.random() - 0.5) * 0.5,
+                fallDir: Math.random() > 0.5 ? 1 : -1,
+                stumbleDir: (Math.random() - 0.5) * 0.5
+            };
+        }
+
+        if (this.ui) this.ui.updateHud();
+        
+        // Visual feedback
+        if (this.mesh) {
+            const originalScale = this.mesh.scale.clone();
+            this.mesh.scale.multiplyScalar(0.95);
+            setTimeout(() => {
+                if (this.mesh) this.mesh.scale.copy(originalScale);
+            }, 100);
         }
     }
 
@@ -595,6 +636,37 @@ export class Player {
         }
 
         if (this.ui) this.ui.updateHud();
+
+        // Update personal light position to follow player (staying in scene root)
+        if (this.playerLight && this.mesh) {
+            this.playerLight.position.copy(this.mesh.position);
+            this.playerLight.position.y += 2.0; // Slightly above head level
+        }
+
+        // Ensure player mesh and all children are strictly on Layer 0
+        // and NOT on Layer 1 (where the light illuminates)
+        if (this.mesh) {
+            this.mesh.traverse(child => {
+                child.layers.set(0);
+                
+                // CRITICAL: Ensure no player parts receive light from Layer 1
+                // and ensure materials don't ignore layers.
+                if (child.isMesh) {
+                    child.receiveShadow = false;
+                    
+                    // Force material to not be affected by the personal light
+                    // MeshToonMaterial uses custom light calculations
+                    if (child.material) {
+                        // If it's an array of materials, handle each
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        materials.forEach(mat => {
+                            // This is a hint to the renderer to keep the material isolated
+                            mat.lightMapIntensity = 0;
+                        });
+                    }
+                }
+            });
+        }
     }
 }
 

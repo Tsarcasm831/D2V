@@ -64,10 +64,9 @@ export class EnvironmentManager {
         // Use game delta for consistency
         const delta = this.game.clock ? this.game.clock.getDelta() : 0.016;
         
-        // Throttle day/night cycle updates to ~2 FPS (0.5s) instead of 10 FPS
-        // These are mostly visual transitions, they don't need high frequency
+        // Throttling day/night cycle updates slightly, but fog transitions need to be responsive
         this._envUpdateTimer = (this._envUpdateTimer || 0) + delta;
-        if (this._envUpdateTimer >= 0.5) {
+        if (this._envUpdateTimer >= 0.1) {
             this.updateDayNightCycle();
             this._envUpdateTimer = 0;
         }
@@ -172,8 +171,14 @@ export class EnvironmentManager {
             const finalTarget = baseDensity + (targetDensity - baseDensity) * weatherIntensity;
             
             // If weather is clear or intensity is 0, ensure we hit baseDensity exactly
-            const lerpSpeed = (weatherIntensity < 0.01) ? 0.3 : 0.15;
-            this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, finalTarget, lerpSpeed);
+            const lerpSpeed = 0.5;
+            
+            // Instantly clear fog if in the Yurei bowl
+            if (this.game.weatherManager && this.game.weatherManager.isPlayerInBowl()) {
+                this.scene.fog.density = finalTarget;
+            } else {
+                this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, finalTarget, lerpSpeed);
+            }
         }
     }
 }

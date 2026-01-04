@@ -93,6 +93,31 @@ export class NodeMPManager {
             }
         };
 
+        this.socket.onDisconnected = (data) => {
+            console.warn("[NodeMPManager] onDisconnected callback triggered:", data);
+            if (data.reason === 'inactivity') {
+                console.warn("[NodeMPManager] Disconnected due to inactivity. Triggering immediate redirect...");
+                
+                // 1. Alert the user
+                alert("You have been disconnected due to inactivity.");
+                
+                // 2. Stop the game loop if possible to prevent "black screen" state
+                if (this.game) {
+                    this.game._stopped = true; // Flag for game.js animate loop
+                }
+                
+                // 3. Force a hard redirect to the root URL
+                try {
+                    const target = window.location.origin + window.location.pathname;
+                    console.log("[NodeMPManager] Hard redirecting to:", target);
+                    window.location.assign(target);
+                } catch (e) {
+                    console.error("[NodeMPManager] Redirect failed:", e);
+                    window.location.reload(true); // Force reload from server
+                }
+            }
+        };
+
         // Connect
         try {
             const username = characterData.name || localStorage.getItem('username') || 'Traveler';

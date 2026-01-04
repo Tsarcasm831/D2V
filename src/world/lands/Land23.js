@@ -97,6 +97,13 @@ export const Land23 = {
     [39.16961130318333, 13.039380065665757]
   ],
   "color": "#6b7280",
+  "config": {
+    "baseHeight": 5.0,
+    "noiseScale": 0.008,
+    "heightMultiplier": 2.5,
+    "primaryBiome": "Tundra",
+    "seed": 99999
+  },
   "cities": [
     {
       "id": "City-1",

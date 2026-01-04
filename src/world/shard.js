@@ -70,11 +70,15 @@ export class Shard {
     }
 
     setupEnvironment() {
-        const shardSeed = getShardSeed(this.gridX, this.gridZ, WORLD_SEED);
+        const landSeed = (this.worldManager && this.worldManager.worldMask) ? this.worldManager.worldMask.seed : WORLD_SEED;
+        const shardSeed = getShardSeed(this.gridX, this.gridZ, landSeed);
         const rng = getSeededRandom(shardSeed);
 
         // Determine ground texture and biome characteristics based on noise
         let h = this.getBiomeNoise(this.offsetX, this.offsetZ);
+        
+        // Land config overrides
+        const landConfig = (this.worldManager && this.worldManager.worldMask) ? this.worldManager.worldMask.config : {};
         
         // Fast distance check to avoid heavy math for distant shards
         const PLATEAU_X = 7509.5;
@@ -93,7 +97,9 @@ export class Shard {
         const absDz = Math.abs(dz_plateau);
         const inCanyon = absDx < (canyonHalfWidth + canyonTransitionWidth) && absDz < canyonHalfLength;
 
-        const onPlateau = distSq_plateau < plateauRadiusWithMarginSq || inCanyon;
+        // Only apply plateau logic if we are in Land23 (Land of Ghosts) or if specifically configured
+        const isLand23 = (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land23');
+        const onPlateau = isLand23 && (distSq_plateau < plateauRadiusWithMarginSq || inCanyon);
 
         // Force Snowy Plateau characteristics if near the center or in canyon
         if (onPlateau) {
@@ -369,6 +375,10 @@ export class Shard {
         ground.rotation.x = -Math.PI / 2;
         ground.position.set(this.offsetX, 0, this.offsetZ);
         ground.receiveShadow = true;
+        
+        // Ensure terrain is on Layer 1 so player light illuminates it
+        ground.layers.enable(1);
+        
         this.objects.add(ground);
 
         // Add a shard-specific grid that follows the terrain
@@ -778,38 +788,40 @@ export class Shard {
                 this.fauna.push(new Horse(this.scene, this, new THREE.Vector3(x, y, z)));
             }
 
-        // 10. Assassin (1 per shard, except near spawn or Yurei)
-            let ax = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
-            let az = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
-            
-            // Prevent spawning in the bowl area at (7509.5, -6949.1)
-            const dx_bowl = ax - 7509.5;
-            const dz_bowl = az - (-6949.1);
-            const bowlRadiusSq = 5184.0; 
-            
-            // Check for Yurei city location
-            let isNearYurei = false;
-            if (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.cities) {
-                const yurei = this.worldManager.worldMask.cities.find(c => c.id === 'City-1');
-                if (yurei) {
-                    const dy = ax - yurei.worldX;
-                    const dz = az - yurei.worldZ;
-                    if (dy * dy + dz * dz < 2500) isNearYurei = true; // 50m radius
+            // 10. Assassin (~2% chance per shard for ~20k total)
+            if (rng() < 0.02) {
+                let ax = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
+                let az = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
+                
+                // Prevent spawning in the bowl area at (7509.5, -6949.1)
+                const dx_bowl = ax - 7509.5;
+                const dz_bowl = az - (-6949.1);
+                const bowlRadiusSq = 5184.0; 
+                
+                // Check for Yurei city location
+                let isNearYurei = false;
+                if (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.cities) {
+                    const yurei = this.worldManager.worldMask.cities.find(c => c.id === 'City-1');
+                    if (yurei) {
+                        const dy = ax - yurei.worldX;
+                        const dz = az - yurei.worldZ;
+                        if (dy * dy + dz * dz < 2500) isNearYurei = true; // 50m radius
+                    }
                 }
+
+                if (dx_bowl * dx_bowl + dz_bowl * dz_bowl < bowlRadiusSq || isNearYurei) {
+                    // Shift spawn outside
+                    ax += (ax > this.offsetX ? 1 : -1) * 75;
+                    az += (az > this.offsetZ ? 1 : -1) * 75;
+                }
+
+                const ay = this.getTerrainHeight(ax, az);
+                this.npcs.push(new AssassinNPC(this.scene, this, new THREE.Vector3(ax, ay, az)));
             }
 
-            if (dx_bowl * dx_bowl + dz_bowl * dz_bowl < bowlRadiusSq || isNearYurei) {
-                // Shift spawn outside
-                ax += (ax > this.offsetX ? 1 : -1) * 75;
-                az += (az > this.offsetZ ? 1 : -1) * 75;
-            }
-
-            const ay = this.getTerrainHeight(ax, az);
-            this.npcs.push(new AssassinNPC(this.scene, this, new THREE.Vector3(ax, ay, az)));
-
-            // 8. Konoha Ninja Cell (Exactly 1 group of 4 per shard)
-            // If this shard contains Yurei, place them at the city location
+            // 8. Konoha Ninja Cell (~0.002% chance for ~80 total, or guaranteed at Yurei)
             let kx, kz, ky;
+            let shouldSpawnNinja = rng() < 0.00002;
             let placedAtYurei = false;
 
             if (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.cities) {
@@ -822,21 +834,24 @@ export class Shard {
                         kz = yurei.worldZ;
                         ky = this.getTerrainHeight(kx, kz);
                         placedAtYurei = true;
+                        shouldSpawnNinja = true; // Always spawn at Yurei
                     }
                 }
             }
 
-            if (!placedAtYurei) {
-                kx = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
-                kz = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
-                ky = this.getTerrainHeight(kx, kz);
-            }
-            
-            // Spawn a group of 4
-            for (let i = 0; i < 4; i++) {
-                const offset = (i - 1.5) * 2 * SCALE_FACTOR; // Spread them out slightly
-                const pos = new THREE.Vector3(kx + offset, ky, kz + offset);
-                this.npcs.push(new KonohaNinjaNPC(this.scene, this, pos));
+            if (shouldSpawnNinja) {
+                if (!placedAtYurei) {
+                    kx = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
+                    kz = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
+                    ky = this.getTerrainHeight(kx, kz);
+                }
+                
+                // Spawn a group of 4
+                for (let i = 0; i < 4; i++) {
+                    const offset = (i - 1.5) * 2 * SCALE_FACTOR; // Spread them out slightly
+                    const pos = new THREE.Vector3(kx + offset, ky, kz + offset);
+                    this.npcs.push(new KonohaNinjaNPC(this.scene, this, pos));
+                }
             }
         }
     }

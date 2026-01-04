@@ -33,6 +33,7 @@ export class Building {
         console.log(`Building: Added ${this.type} to scene ${this.scene.uuid} at`, this.group.position);
 
         this.setupMesh();
+        this.setupCollision();
 
         if (this.type === 'crop_plot') {
             this.isCropPlot = true;
@@ -42,6 +43,237 @@ export class Building {
             this.lastUpdate = Date.now();
             this.cropMesh = null;
         }
+    }
+
+    setupCollision() {
+        // Default circular radius
+        this.collisionRadius = this.radius;
+        this.collisionType = 'circle';
+
+        switch (this.type) {
+            case 'square_hut':
+                this.collisionType = 'box';
+                this.collisionWidth = 5.0 * SCALE_FACTOR;
+                this.collisionDepth = 5.0 * SCALE_FACTOR;
+                break;
+            case 'long_tavern':
+                this.collisionType = 'box';
+                this.collisionWidth = 15.0 * SCALE_FACTOR;
+                this.collisionDepth = 5.0 * SCALE_FACTOR;
+                break;
+            case 'stable':
+                this.collisionType = 'box';
+                this.collisionWidth = 10.0 * SCALE_FACTOR;
+                this.collisionDepth = 8.0 * SCALE_FACTOR;
+                break;
+            case 'blacksmith':
+                this.collisionType = 'box';
+                this.collisionWidth = 8.0 * SCALE_FACTOR;
+                this.collisionDepth = 8.0 * SCALE_FACTOR;
+                break;
+            case 'wall':
+                this.collisionType = 'box';
+                this.collisionWidth = 5.0 * SCALE_FACTOR;
+                this.collisionDepth = 0.5 * SCALE_FACTOR;
+                break;
+            case 'doorway':
+                this.collisionType = 'doorway';
+                this.collisionWidth = 5.0 * SCALE_FACTOR;
+                this.collisionDepth = 0.5 * SCALE_FACTOR;
+                this.openingWidth = 1.5 * SCALE_FACTOR;
+                break;
+            case 'pond':
+                this.collisionType = 'pond';
+                break;
+            case 'grail_silo':
+                this.collisionRadius = 2.5 * SCALE_FACTOR;
+                break;
+            case 'guard_tower':
+                this.collisionRadius = 2.5 * SCALE_FACTOR;
+                break;
+            case 'well':
+                this.collisionRadius = 1.2 * SCALE_FACTOR;
+                break;
+            case 'crop_plot':
+                this.collisionRadius = 1.0 * SCALE_FACTOR;
+                break;
+            case 'tent':
+                this.collisionRadius = 1.4 * SCALE_FACTOR;
+                break;
+            case 'firepit':
+                this.collisionRadius = 0.8 * SCALE_FACTOR;
+                break;
+        }
+    }
+
+    resolveCollision(entityPos, entityRadius) {
+        if (this.collisionType === 'box') {
+            return this.resolveBoxCollision(entityPos, entityRadius, this.collisionWidth, this.collisionDepth);
+        } else if (this.collisionType === 'doorway') {
+            return this.resolveDoorwayCollision(entityPos, entityRadius);
+        } else if (this.collisionType === 'circle' || this.collisionType === 'pond') {
+            const radius = this.getCollisionRadiusAtAngle(Math.atan2(entityPos.z - this.group.position.z, entityPos.x - this.group.position.x));
+            return this.resolveCircleCollision(entityPos, entityRadius, radius);
+        }
+        return null;
+    }
+
+    resolveBoxCollision(entityPos, entityRadius, width, depth) {
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const rot = this.group.rotation.y;
+        
+        // Rotate entity position into building's local space
+        const cos = Math.cos(-rot);
+        const sin = Math.sin(-rot);
+        const lx = dx * cos - dz * sin;
+        const lz = dx * sin + dz * cos;
+        
+        const hw = width / 2;
+        const hd = depth / 2;
+        
+        // Find closest point on box to entity
+        const cx = Math.max(-hw, Math.min(hw, lx));
+        const cz = Math.max(-hd, Math.min(hd, lz));
+        
+        const dfx = lx - cx;
+        const dfz = lz - cz;
+        const dSq = dfx * dfx + dfz * dfz;
+        
+        if (dSq < entityRadius * entityRadius) {
+            const dist = Math.sqrt(dSq);
+            let nx, nz, overlap;
+            
+            if (dist < 0.001) {
+                // Entity is inside the box, push out to nearest edge
+                const dR = hw - lx;
+                const dL = lx + hw;
+                const dT = hd - lz;
+                const dB = lz + hd;
+                const mD = Math.min(dR, dL, dT, dB);
+                overlap = entityRadius + mD;
+                if (mD === dR) { nx = 1; nz = 0; }
+                else if (mD === dL) { nx = -1; nz = 0; }
+                else if (mD === dT) { nx = 0; nz = 1; }
+                else { nx = 0; nz = -1; }
+            } else {
+                overlap = entityRadius - dist;
+                nx = dfx / dist;
+                nz = dfz / dist;
+            }
+            
+            // Rotate normal back to world space
+            const wNX = nx * Math.cos(rot) - nz * Math.sin(rot);
+            const wNZ = nx * Math.sin(rot) + nz * Math.cos(rot);
+            
+            entityPos.x += wNX * overlap;
+            entityPos.z += wNZ * overlap;
+            return { nx: wNX, nz: wNZ };
+        }
+        return null;
+    }
+
+    resolveDoorwayCollision(entityPos, entityRadius) {
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const rot = this.group.rotation.y;
+        const cos = Math.cos(-rot);
+        const sin = Math.sin(-rot);
+        const lx = dx * cos - dz * sin;
+        const lz = dx * sin + dz * cos;
+
+        const hw = this.collisionWidth / 2;
+        const hd = this.collisionDepth / 2;
+        const opW = this.openingWidth / 2;
+        
+        // Two side segments
+        const segW = (hw - opW);
+        const off = opW + segW / 2;
+
+        for (let side of [-1, 1]) {
+            const slx = lx - (side * off);
+            const cx = Math.max(-segW / 2, Math.min(segW / 2, slx));
+            const cz = Math.max(-hd, Math.min(hd, lz));
+            const dfx = slx - cx;
+            const dfz = lz - cz;
+            const dSq = dfx * dfx + dfz * dfz;
+
+            if (dSq < entityRadius * entityRadius) {
+                const dist = Math.sqrt(dSq);
+                const nx = dist < 0.001 ? side : dfx / dist;
+                const nz = dist < 0.001 ? 0 : dfz / dist;
+                const overlap = entityRadius - dist;
+                
+                const wNX = nx * Math.cos(rot) - nz * Math.sin(rot);
+                const wNZ = nx * Math.sin(rot) + nz * Math.cos(rot);
+                
+                entityPos.x += wNX * overlap;
+                entityPos.z += wNZ * overlap;
+                return { nx: wNX, nz: wNZ };
+            }
+        }
+        return null;
+    }
+
+    resolveCircleCollision(entityPos, entityRadius, resRadius) {
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const distSq = dx * dx + dz * dz;
+        const minDist = entityRadius + resRadius;
+
+        if (distSq < minDist * minDist) {
+            const dist = Math.sqrt(distSq);
+            if (dist < 0.01) return null;
+
+            const overlap = (minDist - dist);
+            const nx = dx / dist;
+            const nz = dz / dist;
+
+            entityPos.x += nx * overlap;
+            entityPos.z += nz * overlap;
+            return { nx, nz };
+        }
+        return null;
+    }
+
+    getCollisionRadiusAtAngle(angle) {
+        if (this.type === 'wall') {
+            const localAngle = angle - this.group.rotation.y;
+            const hw = 2.5 * SCALE_FACTOR; // Half-length of the wall segment
+            const hh = 0.3 * SCALE_FACTOR; // Half-thickness of the wall segment
+            const cos = Math.cos(localAngle);
+            const sin = Math.sin(localAngle);
+            // Box-to-circle collision radius approximation using polar coordinates
+            return 1 / Math.max(Math.abs(cos / hw), Math.abs(sin / hh));
+        }
+
+        if (this.type === 'pond' && this.radiusVariations) {
+            const pointsCount = 12;
+            let a = angle;
+            while (a < 0) a += Math.PI * 2;
+            while (a >= Math.PI * 2) a -= Math.PI * 2;
+            
+            const index = (a / (Math.PI * 2)) * pointsCount;
+            const i1 = Math.floor(index) % pointsCount;
+            const i2 = (i1 + 1) % pointsCount;
+            const t = index - Math.floor(index);
+            
+            const r = (this.radiusVariations[i1] * (1 - t) + this.radiusVariations[i2] * t);
+            return r * (this.group ? this.group.scale.x : 1.0);
+        }
+
+        if (this.type === 'doorway') {
+            // Logic: High radius at the sides (East/West relative to building rotation)
+            // Low radius at the front/back (North/South relative to building rotation)
+            // angle is world angle. localAngle = worldAngle - rotationY
+            const localAngle = angle - this.group.rotation.y;
+            // cos(localAngle) is 1 at 0 (East), -1 at PI (West).
+            // sin(localAngle) is 1 at PI/2 (North), -1 at 3PI/2 (South).
+            const isAtOpening = Math.abs(Math.sin(localAngle)) > 0.4;
+            return isAtOpening ? 0 : 1.6 * SCALE_FACTOR;
+        }
+
+        return this.radius;
     }
 
     update() {
@@ -159,6 +391,14 @@ export class Building {
 
     setupMesh() {
         const wm = this.shard.worldManager;
+        
+        // Helper to enable layer 1 on all meshes for lighting
+        const enableLightingLayer = (obj) => {
+            if (obj.isMesh || obj.isGroup) {
+                obj.layers.enable(1);
+            }
+        };
+
         if (this.type === 'tent') {
             const fabricMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ color: 0x5d4037, side: THREE.DoubleSide });
             const poleMat = wm ? wm.getSharedMaterial('standard', { color: 0x3e2723 }) : new THREE.MeshStandardMaterial({ color: 0x3e2723 });
@@ -189,12 +429,14 @@ export class Building {
             const tent = new THREE.Mesh(tentGeo, fabricMat);
             tent.castShadow = true;
             tent.receiveShadow = true;
+            tent.layers.enable(1);
             this.group.add(tent);
             
             // Dark interior shadow
             const innerMat = wm ? wm.getSharedMaterial('basic', { color: 0x0a0a0a, side: THREE.BackSide }) : new THREE.MeshBasicMaterial({ color: 0x0a0a0a, side: THREE.BackSide });
             const innerTent = new THREE.Mesh(tentGeo, innerMat);
             innerTent.scale.set(0.98, 0.98, 0.98);
+            innerTent.layers.enable(1);
             this.group.add(innerTent);
             
             // Front flap (slightly open)
@@ -202,22 +444,26 @@ export class Building {
             const flap = new THREE.Mesh(flapGeo, fabricMat);
             flap.position.set(-s/2.2, h/2.2, l/2 + 0.02);
             flap.rotation.y = 0.4;
+            flap.layers.enable(1);
             this.group.add(flap);
 
             // Support poles
             const poleGeo = wm ? wm.getSharedGeometry('cylinder', 0.04, 0.04, h) : new THREE.CylinderGeometry(0.04, 0.04, h);
             const poleF = new THREE.Mesh(poleGeo, poleMat);
             poleF.position.set(0, h/2, l/2);
+            poleF.layers.enable(1);
             this.group.add(poleF);
             
             const poleB = new THREE.Mesh(poleGeo, poleMat);
             poleB.position.set(0, h/2, -l/2);
+            poleB.layers.enable(1);
             this.group.add(poleB);
             
             // Sleeping mat inside
             const matGeo = wm ? wm.getSharedGeometry('box', 0.8, 0.05, 1.8) : new THREE.BoxGeometry(0.8, 0.05, 1.8);
             const matMesh = new THREE.Mesh(matGeo, wm ? wm.getSharedMaterial('standard', { color: 0x2e4053 }) : new THREE.MeshStandardMaterial({ color: 0x2e4053 }));
             matMesh.position.set(0.3, 0.02, 0);
+            matMesh.layers.enable(1);
             this.group.add(matMesh);
         } else if (this.type === 'wall') {
             const logMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
@@ -233,6 +479,7 @@ export class Building {
             const logMesh = new THREE.InstancedMesh(logGeo, logMat, logCount + 2); // logs + 2 vertical beams
             logMesh.castShadow = true;
             logMesh.receiveShadow = true;
+            logMesh.layers.enable(1);
             this.group.add(logMesh);
 
             const dummy = new THREE.Object3D();
@@ -260,6 +507,7 @@ export class Building {
             const ropeGeo = wm ? wm.getSharedGeometry('torus', logRad * 1.8, 0.04 * SCALE_FACTOR, 6, 12) : new THREE.TorusGeometry(logRad * 1.8, 0.04 * SCALE_FACTOR, 6, 12);
             const ropeMesh = new THREE.InstancedMesh(ropeGeo, ropeMat, 6);
             ropeMesh.castShadow = true;
+            ropeMesh.layers.enable(1);
             this.group.add(ropeMesh);
 
             let rIdx = 0;
@@ -300,6 +548,7 @@ export class Building {
             [fullLogMesh, shortLogMesh].forEach(m => {
                 m.castShadow = true;
                 m.receiveShadow = true;
+                m.layers.enable(1);
                 this.group.add(m);
             });
 
@@ -329,6 +578,7 @@ export class Building {
             const pillarGeo = wm ? wm.getSharedGeometry('cylinder', logRad * 1.1, logRad * 1.1, pillarHeight, 8) : new THREE.CylinderGeometry(logRad * 1.1, logRad * 1.1, pillarHeight, 8);
             const pillarMesh = new THREE.InstancedMesh(pillarGeo, logMat, 2);
             pillarMesh.castShadow = true;
+            pillarMesh.layers.enable(1);
             this.group.add(pillarMesh);
 
             for (let i = 0; i < 2; i++) {
@@ -344,6 +594,7 @@ export class Building {
             const ropeGeo = wm ? wm.getSharedGeometry('torus', logRad * 1.8, 0.04 * SCALE_FACTOR, 6, 12) : new THREE.TorusGeometry(logRad * 1.8, 0.04 * SCALE_FACTOR, 6, 12);
             const ropeMesh = new THREE.InstancedMesh(ropeGeo, ropeMat, 2);
             ropeMesh.castShadow = true;
+            ropeMesh.layers.enable(1);
             this.group.add(ropeMesh);
 
             for (let i = 0; i < 2; i++) {
@@ -366,6 +617,7 @@ export class Building {
             // Center the mesh vertically so half is above and half is below the position
             floor.position.y = 0; 
             floor.receiveShadow = true;
+            floor.layers.enable(1);
             this.group.add(floor);
             
             // Add some "plank" lines for visual detail
@@ -375,6 +627,7 @@ export class Building {
                 if (i === 0) continue;
                 const line = new THREE.Mesh(lineGeo, lineMat);
                 line.position.set(i * (floorSize / 5), floorThickness/2 + 0.01 * SCALE_FACTOR, 0);
+                line.layers.enable(1);
                 this.group.add(line);
             }
 
@@ -406,6 +659,7 @@ export class Building {
             const stoneGeo = new THREE.DodecahedronGeometry(0.2, 0);
             const stoneMesh = new THREE.InstancedMesh(stoneGeo, stoneMat, stoneCount);
             stoneMesh.castShadow = true;
+            stoneMesh.layers.enable(1);
             this.group.add(stoneMesh);
 
             const dummy = new THREE.Object3D();
@@ -423,6 +677,7 @@ export class Building {
             const logGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.6);
             const logMesh = new THREE.InstancedMesh(logGeo, logMat, 3);
             logMesh.castShadow = true;
+            logMesh.layers.enable(1);
             this.group.add(logMesh);
 
             for (let i = 0; i < 3; i++) {
@@ -438,6 +693,7 @@ export class Building {
             const fireGeo = new THREE.ConeGeometry(0.3, 0.6, 6);
             this.fireMesh = new THREE.Mesh(fireGeo, fireMat);
             this.fireMesh.position.y = 0.3;
+            this.fireMesh.layers.enable(1);
             this.group.add(this.fireMesh);
 
             // Light source
@@ -514,6 +770,7 @@ export class Building {
             water.rotation.x = Math.PI / 2;
             water.position.y = 0.08 * SCALE_FACTOR;
             water.receiveShadow = true;
+            water.layers.enable(1);
             this.group.add(water);
 
             // Small rim of stones and ice patches following the irregular shape
@@ -525,10 +782,10 @@ export class Building {
                 const i1 = Math.floor(index) % pointsCount;
                 const i2 = (i1 + 1) % pointsCount;
                 const t = index - Math.floor(index);
-                const rBase = radiusVariations[i1] * (1 - t) + radiusVariations[i2] * t;
                 
                 const det = getLocalDet(i + 100);
-                const dist = rBase + (det - 0.2) * 0.7 * SCALE_FACTOR;
+                const dist = radiusVariations[i1] * (1 - t) + radiusVariations[i2] * t;
+                
                 const isStone = det > 0.35;
                 
                 const mesh = new THREE.Mesh(
@@ -833,76 +1090,6 @@ export class Building {
         }
     }
 
-    resolveCollision(entityPos, entityRadius) {
-        if (this.type === 'wall' || this.type === 'doorway') {
-            const dx = entityPos.x - this.group.position.x;
-            const dz = entityPos.z - this.group.position.z;
-            const rot = this.group.rotation.y;
-            const cos = Math.cos(-rot);
-            const sin = Math.sin(-rot);
-            const lx = dx * cos - dz * sin;
-            const lz = dx * sin + dz * cos;
-            
-            const hw = 2.5 * SCALE_FACTOR;
-            const hh = 0.25 * SCALE_FACTOR;
-            
-            if (this.type === 'wall') {
-                const cx = Math.max(-hw, Math.min(hw, lx));
-                const cz = Math.max(-hh, Math.min(hh, lz));
-                const dfx = lx - cx;
-                const dfz = lz - cz;
-                const dSq = dfx * dfx + dfz * dfz;
-                
-                if (dSq < entityRadius * entityRadius) {
-                    const dist = Math.sqrt(dSq);
-                    let nx, nz, overlap;
-                    if (dist < 0.001) {
-                        const dR = hw - lx; const dL = lx + hw; const dT = hh - lz; const dB = lz + hh;
-                        const mD = Math.min(dR, dL, dT, dB);
-                        overlap = entityRadius + mD;
-                        if (mD === dR) { nx = 1; nz = 0; }
-                        else if (mD === dL) { nx = -1; nz = 0; }
-                        else if (mD === dT) { nx = 0; nz = 1; }
-                        else { nx = 0; nz = -1; }
-                    } else {
-                        overlap = entityRadius - dist;
-                        nx = dfx / dist; nz = dfz / dist;
-                    }
-                    const wNX = nx * Math.cos(rot) - nz * Math.sin(rot);
-                    const wNZ = nx * Math.sin(rot) + nz * Math.cos(rot);
-                    entityPos.x += wNX * overlap;
-                    entityPos.z += wNZ * overlap;
-                    return { nx: wNX, nz: wNZ };
-                }
-            } else {
-                // Doorway: Two smaller hitboxes on either side
-                const opW = 0.75 * SCALE_FACTOR;
-                const segW = (hw - opW) / 2;
-                const off = opW + segW;
-                for (let side of [-1, 1]) {
-                    const slx = lx - (side * off);
-                    const cx = Math.max(-segW, Math.min(segW, slx));
-                    const cz = Math.max(-hh, Math.min(hh, lz));
-                    const dfx = slx - cx;
-                    const dfz = lz - cz;
-                    const dSq = dfx * dfx + dfz * dfz;
-                    if (dSq < entityRadius * entityRadius) {
-                        const dist = Math.sqrt(dSq);
-                        const nx = dist < 0.001 ? side : dfx / dist;
-                        const nz = dist < 0.001 ? 0 : dfz / dist;
-                        const overlap = entityRadius - dist;
-                        const wNX = nx * Math.cos(rot) - nz * Math.sin(rot);
-                        const wNZ = nx * Math.sin(rot) + nz * Math.cos(rot);
-                        entityPos.x += wNX * overlap;
-                        entityPos.z += wNZ * overlap;
-                        return { nx: wNX, nz: wNZ };
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
     getCollisionRadiusAtAngle(angle) {
         if (this.type === 'wall') {
             const localAngle = angle - this.group.rotation.y;
@@ -930,12 +1117,7 @@ export class Building {
         }
 
         if (this.type === 'doorway') {
-            // Logic: High radius at the sides (East/West relative to building rotation)
-            // Low radius at the front/back (North/South relative to building rotation)
-            // angle is world angle. localAngle = worldAngle - rotationY
             const localAngle = angle - this.group.rotation.y;
-            // cos(localAngle) is 1 at 0 (East), -1 at PI (West).
-            // sin(localAngle) is 1 at PI/2 (North), -1 at 3PI/2 (South).
             const isAtOpening = Math.abs(Math.sin(localAngle)) > 0.4;
             return isAtOpening ? 0 : 1.6 * SCALE_FACTOR;
         }

@@ -327,6 +327,15 @@ setInterval(() => {
             // Increased to 90 seconds to account for long initial loading/map caching
             if (now - p.lastSeen > 90000) {
                 console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) timed out (last seen ${now - p.lastSeen}ms ago)`);
+                
+                // Inform the player they are being disconnected for inactivity
+                if (p.ws.readyState === 1) {
+                    p.ws.send(JSON.stringify({
+                        type: 'disconnected',
+                        reason: 'inactivity'
+                    }));
+                }
+
                 // Use the same delayed cleanup logic as socket close
                 setTimeout(() => {
                     const currentRoom = rooms.get(roomCode);

@@ -187,6 +187,15 @@ export class Deer {
         for (let i = 0; i < resources.length; i++) {
             const res = resources[i];
             if (res.isDead || !res.group) continue;
+
+            // Specialized shape-based collision resolution (Buildings, Walls, Doorways)
+            if (res.resolveCollision) {
+                const collision = res.resolveCollision(myPos, myRadius);
+                if (collision) {
+                    continue;
+                }
+            }
+
             const resPos = res.group.position;
             const dx = myPos.x - resPos.x;
             const dz = myPos.z - resPos.z;
@@ -195,7 +204,7 @@ export class Deer {
             if (distSq > 100) continue;
 
             let resRadius = (res.radius || (res.type === 'tree' ? 0.5 : 1.2)) * SCALE_FACTOR;
-            if (res.type === 'pond' && res.getCollisionRadiusAtAngle) {
+            if (res.getCollisionRadiusAtAngle) {
                 resRadius = res.getCollisionRadiusAtAngle(Math.atan2(dz, dx));
             }
 

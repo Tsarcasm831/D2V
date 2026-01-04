@@ -10,7 +10,9 @@ export class TownManager {
     }
 
     initialize(seed = WORLD_SEED) {
-        if (this.initialized) return;
+        // Reset state for new land
+        this.towns.clear();
+        this.shardToTown.clear();
         
         const rng = getSeededRandom(seed);
         this.generateTownLocations(rng);

@@ -39,6 +39,7 @@ export class BerryBush {
                 (Math.random() - 0.5) * 0.4 * SCALE_FACTOR
             );
             part.castShadow = true;
+            part.layers.enable(1);
             this.group.add(part);
             
             // Add berries to each part
@@ -54,6 +55,7 @@ export class BerryBush {
                     part.position.y + Math.random() * size * 0.5,
                     part.position.z + Math.sin(angle) * dist
                 );
+                berry.layers.enable(1);
                 this.berryGroup.add(berry);
             }
         }

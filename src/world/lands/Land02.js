@@ -106,6 +106,20 @@ export const Land02 = {
   ],
   "color": "#00a3d7",
   "texture": "steam",
+  "config": {
+    "baseHeight": 3.0,
+    "noiseScale": 0.006,
+    "heightMultiplier": 1.5,
+    "primaryBiome": "Steppes",
+    "seed": 22222,
+    "biomes": {
+      "0.2": "Boiling Swamps",
+      "0.4": "Sulfur Plains",
+      "0.6": "Steam Gardens",
+      "0.8": "Mist Ridge",
+      "1.0": "Geyser Peaks"
+    }
+  },
   "seeds": [
     // --- Central Yugakure Region ---
     { "id": "L02-1", "name": "Yugakure Ruins", "center": [53.5, 22.0], "role": "capital" },

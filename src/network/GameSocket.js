@@ -71,6 +71,10 @@ export class GameSocket {
             case 'snapshot':
                 if (this.onSnapshot) this.onSnapshot(data);
                 break;
+            case 'disconnected':
+                console.warn("[GameSocket] Disconnected by server:", data.reason);
+                if (this.onDisconnected) this.onDisconnected(data);
+                break;
             case 'event':
                 if (this.onEvent) this.onEvent(data);
                 break;

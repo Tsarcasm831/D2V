@@ -10,7 +10,7 @@ export class WorldManager {
         const PLATEAU_X = 7509.5;
         const PLATEAU_Z = -6949.1;
         this.levelCenter = new THREE.Vector3(PLATEAU_X, 0, PLATEAU_Z);
-        this.worldMask = new WorldMask();
+        this.worldMask = null;
         this.townManager = new TownManager(this);
         this.activeShards = new Map(); // key: "x,z", value: Shard instance
         this.terrainMeshes = []; // NEW: Array of terrain meshes for raycasting
@@ -58,6 +58,70 @@ export class WorldManager {
         
         this.loadData();
         this.townManager.initialize(WORLD_SEED);
+    }
+
+    async loadLand(landData) {
+        if (!landData) return;
+        
+        // Save current position for the land we are leaving
+        if (this.worldMask && window.gameInstance && window.gameInstance.player) {
+            const pos = window.gameInstance.player.mesh.position;
+            window.gameInstance.landPositions[this.worldMask.landId] = {
+                x: pos.x,
+                y: pos.y,
+                z: pos.z
+            };
+        }
+
+        console.log(`WorldManager: Loading land ${landData.name || landData.id}`);
+
+        // 1. Clear existing shards
+        for (const shard of this.activeShards.values()) {
+            if (shard.groundMesh) {
+                const idx = this.terrainMeshes.indexOf(shard.groundMesh);
+                if (idx !== -1) this.terrainMeshes.splice(idx, 1);
+            }
+            shard.destroy();
+        }
+        this.activeShards.clear();
+        this.shardQueue = [];
+        this.lastShardCoord = { x: null, z: null };
+
+        // 2. Reset caches
+        this.heightCache.clear();
+        this.biomeNoiseCache.clear();
+        this.ponds = [];
+        this._needsCacheUpdate = true;
+
+        // 3. Update WorldMask
+        this.worldMask = new WorldMask(landData);
+
+        // 4. Update TownManager seed
+        this.townManager.initialize(this.worldMask.seed);
+
+        // 5. Teleport player to saved position, city, or default
+        if (window.gameInstance && window.gameInstance.player) {
+            const savedPos = window.gameInstance.landPositions[landData.id];
+            let spawnX = 0;
+            let spawnZ = 0;
+            
+            if (savedPos) {
+                spawnX = savedPos.x;
+                spawnZ = savedPos.z;
+            } else if (this.worldMask.cities && this.worldMask.cities.length > 0) {
+                spawnX = this.worldMask.cities[0].worldX;
+                spawnZ = this.worldMask.cities[0].worldZ;
+            }
+            
+            window.gameInstance.player.teleport(spawnX, spawnZ);
+        }
+
+        // 6. Notify game of land change
+        if (window.gameInstance && window.gameInstance.onLandLoaded) {
+            window.gameInstance.onLandLoaded(landData.id);
+        }
+
+        console.log(`WorldManager: Land ${landData.id} loaded.`);
     }
 
     async loadData() {
@@ -363,7 +427,7 @@ export class WorldManager {
         }
     }
 
-    getBiomeNoise(x, z) {
+    getBiomeNoise(x, z, scaleOverride = null) {
         // Quick lookup for cache to avoid BigInt and complex keys if possible
         const keyX = Math.round(x * 10);
         const keyZ = Math.round(z * 10);
@@ -376,14 +440,17 @@ export class WorldManager {
         if (this.biomeNoiseCache.has(numKey)) return this.biomeNoiseCache.get(numKey);
         
         // Shared noise logic for all systems
-        const scale = 0.005; 
+        const scale = scaleOverride !== null ? scaleOverride : 0.005; 
         const ox = x * scale;
         const oz = z * scale;
         
+        // Seeded noise logic
+        const seed = this.worldMask ? (this.worldMask.seed % 10000) : 0;
+        
         // Simplified noise for performance (3 octaves instead of 5)
-        const v1 = Math.sin(ox) + Math.sin(oz);
-        const v2 = Math.sin(ox * 2.1 + oz * 0.5) * 0.5;
-        const v3 = Math.cos(ox * 0.7 - oz * 1.3) * 0.25;
+        const v1 = Math.sin(ox + seed) + Math.sin(oz + seed);
+        const v2 = Math.sin((ox * 2.1 + oz * 0.5) + seed) * 0.5;
+        const v3 = Math.cos((ox * 0.7 - oz * 1.3) + seed) * 0.25;
         
         const combined = (v1 + v2 + v3 + 1.75) / 3.5;
         const result = combined < 0 ? 0 : (combined > 1 ? 1 : combined);
@@ -533,7 +600,13 @@ export class WorldManager {
         const cached = this.heightCache.get(numKey);
         if (cached !== undefined) return cached;
 
-        const h = this.getBiomeNoise(x, z);
+        // Use land config if available
+        const config = this.worldMask ? this.worldMask.config : {};
+        const baseH_config = config.baseHeight !== undefined ? config.baseHeight : 0;
+        const multiplier = config.heightMultiplier !== undefined ? config.heightMultiplier : 1.0;
+        const noiseScale = config.noiseScale !== undefined ? config.noiseScale : 0.005;
+
+        const h = this.getBiomeNoise(x, z, noiseScale);
         let height = 0;
         
         if (h < 0.15) {
@@ -554,7 +627,7 @@ export class WorldManager {
             height = 8.0 + (peakH * peakH * Math.sqrt(peakH)) * 40.0;
         }
 
-        const finalHeight = height + (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.15;
+        const finalHeight = (height * multiplier) + baseH_config + (Math.sin(x * 0.5) * Math.cos(z * 0.5)) * 0.15;
         
         if (this.heightCache.size > 2000) {
             // Faster than clearing the whole map

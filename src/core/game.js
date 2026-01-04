@@ -39,6 +39,11 @@ export class Game {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
+        
+        // Ensure camera sees both Layer 0 (default) and Layer 1 (world objects)
+        this.camera.layers.enable(0);
+        this.camera.layers.enable(1);
+        
         document.body.appendChild(this.renderer.domElement);
 
         this.setupLights();
@@ -82,11 +87,8 @@ export class Game {
 
         this.clock = new THREE.Clock();
         
-        // Initial spawn at Yurei
-        const PLATEAU_X = 7509.5;
-        const PLATEAU_Z = -6949.1;
-        this.player.playerPhysics.position.set(PLATEAU_X, 20, PLATEAU_Z);
-        if (this.player.mesh) this.player.mesh.position.copy(this.player.playerPhysics.position);
+        // Land persistence
+        this.landPositions = {}; // key: landId, value: {x, y, z}
         
         this.lastTooltipUpdate = 0;
         
@@ -163,44 +165,52 @@ export class Game {
         console.log("Bloom toggled:", enabled);
     }
 
-    initAfterLoading() {
+    async initAfterLoading() {
+        // Load default land (Land23 - Land of Ghosts) if none specified
+        // In a real scenario, we might check localStorage here
+        const { Land23 } = await import('../world/lands/Land23.js');
+        await this.worldManager.loadLand(Land23);
+
         // Initial world generation sweep
         this.worldManager.update(this.player, 0);
         
-        // Force load initial building spawn area shards
-        const startPos = new THREE.Vector3(-20, 0, 15);
-        const spacing = 10;
-        const buildingCount = 13; // Based on buildingTypes.length in spawnAllBuildings
-        
-        for (let i = 0; i < buildingCount; i++) {
-            const xPos = startPos.x + (i * spacing);
-            const zPos = startPos.z;
-            const sx = Math.floor((xPos + SHARD_SIZE / 2) / SHARD_SIZE);
-            const sz = Math.floor((zPos + SHARD_SIZE / 2) / SHARD_SIZE);
-            const key = `${sx},${sz}`;
-            if (!this.worldManager.activeShards.has(key)) {
-                this.worldManager.shardQueue.push({ x: sx, z: sz, key });
-            }
-        }
-
-        // Force load Yureigakure shards
-        const bowlCenter = { x: 7509.5, z: -6949.1 };
-        const sx = Math.floor((bowlCenter.x + SHARD_SIZE / 2) / SHARD_SIZE);
-        const sz = Math.floor((bowlCenter.z + SHARD_SIZE / 2) / SHARD_SIZE);
-        
-        // Queue Yureigakure and surrounding shards
-        for (let dx = -2; dx <= 2; dx++) {
-            for (let dz = -2; dz <= 2; dz++) {
-                const x = sx + dx;
-                const z = sz + dz;
-                const key = `${x},${z}`;
+        // Force load initial building spawn area shards if we are in Land01 (for demo/legacy support)
+        if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land01') {
+            const startPos = new THREE.Vector3(-20, 0, 15);
+            const spacing = 10;
+            const buildingCount = 13;
+            
+            for (let i = 0; i < buildingCount; i++) {
+                const xPos = startPos.x + (i * spacing);
+                const zPos = startPos.z;
+                const sx = Math.floor((xPos + SHARD_SIZE / 2) / SHARD_SIZE);
+                const sz = Math.floor((zPos + SHARD_SIZE / 2) / SHARD_SIZE);
+                const key = `${sx},${sz}`;
                 if (!this.worldManager.activeShards.has(key)) {
-                    this.worldManager.shardQueue.push({ x, z, key });
+                    this.worldManager.shardQueue.push({ x: sx, z: sz, key });
                 }
             }
         }
 
-        // Force process the shard queue to ensure initial and Yurei shards are loaded
+        // If we are in Land23, ensure Yureigakure shards are loaded
+        if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land23') {
+            const bowlCenter = { x: 7509.5, z: -6949.1 };
+            const sx = Math.floor((bowlCenter.x + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((bowlCenter.z + SHARD_SIZE / 2) / SHARD_SIZE);
+            
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dz = -2; dz <= 2; dz++) {
+                    const x = sx + dx;
+                    const z = sz + dz;
+                    const key = `${x},${z}`;
+                    if (!this.worldManager.activeShards.has(key)) {
+                        this.worldManager.shardQueue.push({ x, z, key });
+                    }
+                }
+            }
+        }
+
+        // Force process the shard queue
         while (this.worldManager.shardQueue.length > 0) {
             const { x, z, key } = this.worldManager.shardQueue.shift();
             if (!this.worldManager.activeShards.has(key)) {
@@ -214,13 +224,17 @@ export class Game {
         // Ensure player is at correct height after world is ready
         if (this.player && this.player.playerPhysics) {
             const floorY = this.worldManager.getTerrainHeight(this.player.playerPhysics.position.x, this.player.playerPhysics.position.z);
-            this.player.playerPhysics.position.y = floorY;
-            if (this.player.mesh) this.player.mesh.position.y = floorY;
+            this.player.playerPhysics.position.y = floorY + 1; // Slightly above ground
+            if (this.player.mesh) this.player.mesh.position.y = this.player.playerPhysics.position.y;
         }
         
-        // Spawn starter building
-        this.spawnStarterTent();
-        this.spawnAllBuildings();
+        // Spawn starter buildings based on land
+        if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land01') {
+            this.spawnStarterTent();
+            this.spawnAllBuildings();
+        } else if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land23') {
+            this.spawnYureigakureTown();
+        }
 
         // Start the loop
         this.animate();
@@ -306,9 +320,13 @@ export class Game {
 
     setupLights() {
         const ambient = new THREE.AmbientLight(0x4040ff, 0.4);
+        ambient.layers.enable(0);
+        ambient.layers.enable(1);
         this.scene.add(ambient);
 
         this.sun = new THREE.DirectionalLight(0xffffff, 1.0); // Reduced intensity slightly
+        this.sun.layers.enable(0);
+        this.sun.layers.enable(1);
         this.sun.position.set(30, 60, 30);
         this.sun.castShadow = true;
         
@@ -511,7 +529,50 @@ export class Game {
         }
     }
 
+    async onLandLoaded(landId) {
+        console.log(`Game: Land ${landId} loaded, updating spawns...`);
+        
+        // 1. Force load shards around player spawn for immediate building placement
+        if (this.player && this.player.mesh) {
+            const pos = this.player.mesh.position;
+            const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
+            
+            // Queue and force load surrounding shards
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dz = -2; dz <= 2; dz++) {
+                    const x = sx + dx;
+                    const z = sz + dz;
+                    const key = `${x},${z}`;
+                    if (this.worldManager.worldMask.containsShard(x, z) && !this.worldManager.activeShards.has(key)) {
+                        this.worldManager.shardQueue.push({ x, z, key });
+                    }
+                }
+            }
+
+            // Force process the queue
+            while (this.worldManager.shardQueue.length > 0) {
+                const { x, z, key } = this.worldManager.shardQueue.shift();
+                if (!this.worldManager.activeShards.has(key)) {
+                    const shard = new Shard(this.scene, x, z, this.worldManager);
+                    this.worldManager.activeShards.set(key, shard);
+                    if (shard.groundMesh) this.worldManager.terrainMeshes.push(shard.groundMesh);
+                }
+            }
+            this.worldManager.invalidateCache();
+        }
+        
+        // 2. Spawn buildings for the new land
+        if (landId === 'Land01') {
+            this.spawnStarterTent();
+            this.spawnAllBuildings();
+        } else if (landId === 'Land23') {
+            this.spawnYureigakureTown();
+        }
+    }
+
     animate() {
+        if (this._stopped) return; // Stop the loop if flag is set
         requestAnimationFrame(() => this.animate());
         const delta = Math.min(this.clock.getDelta(), 0.1);
         const now = performance.now();

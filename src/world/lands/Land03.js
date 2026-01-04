@@ -50,6 +50,20 @@ export const Land03 = {
   ],
   "color": "#94e3fe",
   "texture": "snow",
+  "config": {
+    "baseHeight": 6.0,
+    "noiseScale": 0.01,
+    "heightMultiplier": 3.0,
+    "primaryBiome": "Tundra",
+    "seed": 33333,
+    "biomes": {
+      "0.15": "Frozen Slush",
+      "0.3": "Slush Valley",
+      "0.45": "Snow Rabbit Fields",
+      "0.6": "Pine Ridge",
+      "1.0": "Blizzard Peaks"
+    }
+  },
   "seeds": [
     // --- Central Capital Region ---
     { "id": "L03-1", "name": "Shimogakure", "center": [52.5, 16.2], "role": "capital" },

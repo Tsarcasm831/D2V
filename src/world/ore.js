@@ -59,6 +59,7 @@ export class Ore {
         this.mesh = new THREE.InstancedMesh(geometry, material, this.shardCount);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
+        this.mesh.layers.enable(1);
 
         // --- DENSE CLUSTER GENERATION ---
         for (let i = 0; i < this.shardCount; i++) {

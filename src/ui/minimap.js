@@ -43,11 +43,20 @@ export class Minimap {
     }
 
     getBiomeName(h) {
-        if (h < 0.15) return 'Murky Swamp';
-        if (h < 0.3) return 'Dirt Plains';
-        if (h < 0.45) return 'Forest Edge';
-        if (h < 0.6) return 'Grassy Steppes';
-        return 'Frozen Peaks';
+        const config = (this.worldManager && this.worldManager.worldMask) ? this.worldManager.worldMask.config : {};
+        const biomes = config.biomes || {
+            0.15: 'Murky Swamp',
+            0.3: 'Dirt Plains',
+            0.45: 'Forest Edge',
+            0.6: 'Grassy Steppes',
+            1.0: 'Frozen Peaks'
+        };
+
+        const thresholds = Object.keys(biomes).map(Number).sort((a, b) => a - b);
+        for (const t of thresholds) {
+            if (h < t) return biomes[t];
+        }
+        return biomes[thresholds[thresholds.length - 1]] || 'Unknown Region';
     }
 
     toggle() {

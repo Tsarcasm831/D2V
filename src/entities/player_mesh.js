@@ -535,10 +535,15 @@ export function createPlayerMesh(customConfig = {}) {
     parts.leftForeArm.add(parts.leftHand);
 
     group.traverse(c => {
+        const isOutline = (c.isMesh && c.material === outlineMaterial);
         if (c.isMesh) {
-            const isOutline = (c.material === outlineMaterial);
             c.castShadow = !isOutline;
             c.receiveShadow = false;
+            
+            // Toon materials can sometimes ignore layer masks if lights are inside meshes
+            // or if the material settings are sensitive to local lights.
+            // We ensure it stays on Layer 0.
+            c.layers.set(0);
         }
     });
     return { mesh: group, parts };

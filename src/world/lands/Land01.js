@@ -153,6 +153,13 @@ export const Land01 = {
   ],
   "color": "#e32400",
   "texture": "trees",
+  "config": {
+    "baseHeight": 2.0,
+    "noiseScale": 0.005,
+    "heightMultiplier": 1.2,
+    "primaryBiome": "Forest",
+    "seed": 12345
+  },
   "seeds": [
     // --- Central Konoha Region (Densified) ---
     { "id": "L01-1", "name": "Konoha Central", "center": [42.38, 29.62], "role": "capital" },

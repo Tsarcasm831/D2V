@@ -66,10 +66,12 @@ export class FullWorld {
             Land15, Land16, Land17, Land18, Land19, Land20, Land21, Land22, Land23, Land24, Land25, Land26
         ];
 
+        this.rawModules = [];
         modules.forEach(m => {
             const landKey = Object.keys(m)[0];
             if (m[landKey]) {
                 const land = m[landKey];
+                this.rawModules.push(land);
                 // In world coordinates, X is often East/West and Z is North/South.
                 // Our JSON points are [X, Z]. In 2D canvas, we'll map X to X and Z to Y.
                 const mappedLand = {
@@ -122,6 +124,9 @@ export class FullWorld {
 
         this.canvas.addEventListener('mousedown', (e) => {
             this.isDragging = true;
+            this.dragStartX = e.clientX;
+            this.dragStartY = e.clientY;
+            this.hasMoved = false;
             this.lastMousePos = { x: e.clientX, y: e.clientY };
             this.canvas.style.cursor = 'grabbing';
         });
@@ -130,6 +135,11 @@ export class FullWorld {
             if (this.isDragging) {
                 const dx = (e.clientX - this.lastMousePos.x) / this.zoom;
                 const dy = (e.clientY - this.lastMousePos.y) / this.zoom;
+                
+                if (Math.abs(e.clientX - this.dragStartX) > 5 || Math.abs(e.clientY - this.dragStartY) > 5) {
+                    this.hasMoved = true;
+                }
+                
                 this.offset.x += dx;
                 this.offset.y += dy;
                 this.lastMousePos = { x: e.clientX, y: e.clientY };
@@ -139,7 +149,10 @@ export class FullWorld {
             }
         });
 
-        window.addEventListener('mouseup', () => {
+        window.addEventListener('mouseup', (e) => {
+            if (this.isDragging && !this.hasMoved) {
+                this.handleClick(e);
+            }
             this.isDragging = false;
             this.canvas.style.cursor = 'grab';
         });
@@ -188,6 +201,38 @@ export class FullWorld {
             if (intersect) inside = !inside;
         }
         return inside;
+    }
+
+    handleClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left - this.canvas.width / 2) / this.zoom - this.offset.x;
+        const mouseY = (e.clientY - rect.top - this.canvas.height / 2) / this.zoom - this.offset.y;
+
+        let selectedLand = null;
+        for (const land of this.lands) {
+            if (this.isPointInPolygon([mouseX, mouseY], land.points)) {
+                selectedLand = land;
+                break;
+            }
+        }
+
+        if (selectedLand && window.gameInstance && window.gameInstance.worldManager) {
+            console.log(`FullWorld: Traveling to ${selectedLand.name || selectedLand.id}`);
+            
+            // Show loading screen if it exists
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) loadingScreen.style.display = 'flex';
+
+            // Find the original land data (without the map scaling)
+            const rawLand = this.rawModules.find(m => m.id === selectedLand.id);
+            
+            // Use a small delay to let the loading screen show
+            setTimeout(() => {
+                window.gameInstance.worldManager.loadLand(rawLand || selectedLand);
+                this.hide();
+                if (loadingScreen) loadingScreen.style.display = 'none';
+            }, 100);
+        }
     }
 
     resize() {

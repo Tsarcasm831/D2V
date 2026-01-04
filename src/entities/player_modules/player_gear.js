@@ -50,6 +50,10 @@ export class PlayerGear {
 
         Object.values(this.heldItems).forEach(mesh => {
             mesh.visible = false;
+            // Ensure held items and all their children are on Layer 0
+            mesh.traverse(child => {
+                child.layers.set(0);
+            });
             this.rightHand.add(mesh);
         });
     }
@@ -119,7 +123,10 @@ export class PlayerGear {
                 if (part) {
                     part.visible = isShirtEquipped;
                     part.traverse(child => {
-                        if (child.isMesh) child.visible = isShirtEquipped;
+                        child.layers.set(0); // Ensure all parts are on Layer 0
+                        if (child.isMesh) {
+                            child.visible = isShirtEquipped;
+                        }
                     });
                 }
             });
@@ -170,6 +177,22 @@ export class PlayerGear {
                     if (gear[fnName]) {
                         this[meshProp] = gear[fnName](this.parts);
                         if (this[meshProp]) {
+                            // Ensure gear and all sub-parts are on Layer 0
+                            const gearObj = this[meshProp];
+                            if (gearObj.traverse) {
+                                gearObj.traverse(child => {
+                                    child.layers.set(0);
+                                });
+                            } else if (typeof gearObj === 'object') {
+                                Object.values(gearObj).forEach(part => {
+                                    if (part && part.traverse) {
+                                        part.traverse(child => {
+                                            child.layers.set(0);
+                                        });
+                                    }
+                                });
+                            }
+
                             // If it's the multi-part object, we need to tag one of them or handle it differently
                             // For simplicity, if it's an object, we'll tag all parts
                             if (this[meshProp].isGroup || this[meshProp].isMesh) {
@@ -238,7 +261,10 @@ export class PlayerGear {
                 if (part) {
                     part.visible = areShortsEquipped;
                     part.traverse(child => {
-                        if (child.isMesh) child.visible = areShortsEquipped;
+                        child.layers.set(0); // Force Layer 0
+                        if (child.isMesh) {
+                            child.visible = areShortsEquipped;
+                        }
                     });
                 }
             });

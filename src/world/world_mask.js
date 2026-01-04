@@ -1,14 +1,17 @@
-import { Land23 } from './lands/Land23.js';
 import { SHARD_SIZE } from './world_bounds.js';
 
 export class WorldMask {
-    constructor() {
-        // SVG points from Land23 are in some SVG coordinate space.
-        // We need to map them to world space.
-        // Based on Land23.js, points are roughly in range [38, 49] for X and [4, 21] for Y.
-        this.rawPoints = Land23.points;
+    constructor(landData) {
+        if (!landData) {
+            console.error("WorldMask: No landData provided");
+            return;
+        }
+        this.landId = landData.id;
+        this.rawPoints = landData.points;
+        this.config = landData.config || {};
         
-        // Calculate bounding box of SVG points
+        // Simple hash for seed if not provided
+        this.seed = this.config.seed || this._hashString(this.landId || "default");
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         for (const [x, y] of this.rawPoints) {
             if (x < minX) minX = x;
@@ -45,11 +48,21 @@ export class WorldMask {
         }
 
         // Map cities to world space
-        this.cities = (Land23.cities || []).map(city => ({
+        this.cities = (landData.cities || []).map(city => ({
             ...city,
             worldX: (city.x - this.svgCenter.x) * this.worldScale,
             worldZ: (city.y - this.svgCenter.z) * this.worldScale
         }));
+    }
+
+    _hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
     }
 
     containsXZ(x, z) {

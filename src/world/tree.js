@@ -34,10 +34,12 @@ export class Tree {
         this.stump = new THREE.Mesh(stumpGeo, trunkMat);
         this.stump.position.y = stumpHeight / 2;
         this.stump.castShadow = true;
+        this.stump.layers.enable(1);
         this.group.add(this.stump);
 
         // Foliage group contains everything that disappears when cut
         this.foliage = new THREE.Group();
+        this.foliage.layers.enable(1);
         this.group.add(this.foliage);
 
         const currentLeafMat = (this.variant === 2) ? leafMatDark : leafMat;
@@ -49,12 +51,14 @@ export class Tree {
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
             trunk.position.y = stumpHeight + trunkHeight / 2;
             trunk.castShadow = true;
+            trunk.layers.enable(1);
             this.foliage.add(trunk);
 
             const leavesGeo = wm ? wm.getSharedGeometry('cone', 1.5 * SCALE_FACTOR, 6 * SCALE_FACTOR, 8) : new THREE.ConeGeometry(1.5 * SCALE_FACTOR, 6 * SCALE_FACTOR, 8);
             const leaves = new THREE.Mesh(leavesGeo, leafMat);
             leaves.position.y = 5 * SCALE_FACTOR;
             leaves.castShadow = true;
+            leaves.layers.enable(1);
             this.foliage.add(leaves);
         } else if (this.variant === 1) {
             // Variant 1: Tiered Pine
@@ -63,6 +67,7 @@ export class Tree {
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
             trunk.position.y = stumpHeight + trunkHeight / 2;
             trunk.castShadow = true;
+            trunk.layers.enable(1);
             this.foliage.add(trunk);
 
             for (let i = 0; i < 3; i++) {
@@ -71,6 +76,7 @@ export class Tree {
                 const leaves = new THREE.Mesh(leavesGeo, leafMat);
                 leaves.position.y = (3.2 + i * 1.8) * SCALE_FACTOR;
                 leaves.castShadow = true;
+                leaves.layers.enable(1);
                 this.foliage.add(leaves);
             }
         } else if (this.variant === 3) {
@@ -80,6 +86,7 @@ export class Tree {
             const trunk = new THREE.Mesh(trunkGeo, oakTrunkMat);
             trunk.position.y = stumpHeight + trunkHeight / 2;
             trunk.castShadow = true;
+            trunk.layers.enable(1);
             this.foliage.add(trunk);
 
             const leavesGeo = wm ? wm.getSharedGeometry('sphere', 2.2 * SCALE_FACTOR, 8, 8) : new THREE.SphereGeometry(2.2 * SCALE_FACTOR, 8, 8);
@@ -87,6 +94,7 @@ export class Tree {
             leaves.position.y = trunkHeight + 1.5 * SCALE_FACTOR;
             leaves.scale.y = 0.8;
             leaves.castShadow = true;
+            leaves.layers.enable(1);
             this.foliage.add(leaves);
         } else if (this.variant === 4) {
             // Variant 4: Large Oak (Spread)
@@ -95,6 +103,7 @@ export class Tree {
             const trunk = new THREE.Mesh(trunkGeo, oakTrunkMat);
             trunk.position.y = stumpHeight + trunkHeight / 2;
             trunk.castShadow = true;
+            trunk.layers.enable(1);
             this.foliage.add(trunk);
 
             for (let i = 0; i < 4; i++) {
@@ -110,6 +119,7 @@ export class Tree {
                     Math.sin(angle) * dist
                 );
                 leafSphere.castShadow = true;
+                leafSphere.layers.enable(1);
                 this.foliage.add(leafSphere);
             }
             const topLeaf = new THREE.Mesh(
@@ -118,6 +128,7 @@ export class Tree {
             );
             topLeaf.position.y = trunkHeight + 2.5 * SCALE_FACTOR;
             topLeaf.castShadow = true;
+            topLeaf.layers.enable(1);
             this.foliage.add(topLeaf);
         } else if (this.variant === 5) {
             // Variant 5: Tall Oak (Columnar)
@@ -126,6 +137,7 @@ export class Tree {
             const trunk = new THREE.Mesh(trunkGeo, oakTrunkMat);
             trunk.position.y = stumpHeight + trunkHeight / 2;
             trunk.castShadow = true;
+            trunk.layers.enable(1);
             this.foliage.add(trunk);
 
             const leavesGeo = wm ? wm.getSharedGeometry('sphere', 1.8 * SCALE_FACTOR, 8, 8) : new THREE.SphereGeometry(1.8 * SCALE_FACTOR, 8, 8);
@@ -134,6 +146,7 @@ export class Tree {
                 leaves.position.y = trunkHeight + (i * 1.5) * SCALE_FACTOR;
                 leaves.scale.set(1.1 - i * 0.2, 0.9, 1.1 - i * 0.2);
                 leaves.castShadow = true;
+                leaves.layers.enable(1);
                 this.foliage.add(leaves);
             }
         } else {
@@ -143,12 +156,14 @@ export class Tree {
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
             trunk.position.y = stumpHeight + trunkHeight / 2;
             trunk.castShadow = true;
+            trunk.layers.enable(1);
             this.foliage.add(trunk);
 
             const leavesGeo = wm ? wm.getSharedGeometry('cone', 0.8 * SCALE_FACTOR, 9 * SCALE_FACTOR, 8) : new THREE.ConeGeometry(0.8 * SCALE_FACTOR, 9 * SCALE_FACTOR, 8);
             const leaves = new THREE.Mesh(leavesGeo, leafMatDark);
             leaves.position.y = 6.5 * SCALE_FACTOR;
             leaves.castShadow = true;
+            leaves.layers.enable(1);
             this.foliage.add(leaves);
         }
         
