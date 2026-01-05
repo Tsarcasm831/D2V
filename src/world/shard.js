@@ -78,7 +78,8 @@ export class Shard {
         let h = this.getBiomeNoise(this.offsetX, this.offsetZ);
         
         // Land config overrides
-        const landConfig = (this.worldManager && this.worldManager.worldMask) ? this.worldManager.worldMask.config : {};
+        const landId = (this.worldManager && this.worldManager.worldMask) ? this.worldManager.worldMask.landId : null;
+        const isLand15 = landId === 'Land15';
         
         // Fast distance check to avoid heavy math for distant shards
         const PLATEAU_X = 7509.5;
@@ -113,7 +114,14 @@ export class Shard {
         let pondChance = 0.3; // Reduced from 0.4
         let oreTypes = ['rock', 'iron', 'copper', 'sulfur', 'coal', 'silver', 'gold'];
 
-        if (h < 0.15) { // Swamp
+        if (isLand15) {
+            texPath = 'assets/textures/sand.png';
+            treeCount = 0;
+            grassDensity = 0;
+            berryCount = 0;
+            pondChance = 0;
+            oreTypes = ['rock', 'iron']; // Desert ores
+        } else if (h < 0.15) { // Swamp
             texPath = 'assets/textures/swamp_ground_texture.png';
             treeCount = 4; // Reduced from 6
             grassDensity = 2500; // Reduced from 4000
@@ -156,7 +164,7 @@ export class Shard {
         }
 
         const wm = this.worldManager;
-        const sandTex = wm ? wm.getTexture('assets/textures/swamp_ground_texture.png') : new THREE.TextureLoader().load('assets/textures/swamp_ground_texture.png');
+        const sandTex = wm ? wm.getTexture(isLand15 ? 'assets/textures/sand.png' : 'assets/textures/swamp_ground_texture.png') : new THREE.TextureLoader().load(isLand15 ? 'assets/textures/sand.png' : 'assets/textures/swamp_ground_texture.png');
         const dirtTex = wm ? wm.getTexture('assets/textures/dirt_texture.png') : new THREE.TextureLoader().load('assets/textures/dirt_texture.png');
         const grassTex = wm ? wm.getTexture('assets/textures/grass_texture.png') : new THREE.TextureLoader().load('assets/textures/grass_texture.png');
         const snowTex = wm ? wm.getTexture('assets/textures/snow_texture.png') : new THREE.TextureLoader().load('assets/textures/snow_texture.png');
@@ -275,6 +283,7 @@ export class Shard {
             uDirtTex: { value: dirtTex },
             uGrassTex: { value: grassTex },
             uSnowTex: { value: snowTex },
+            uIsLand15: { value: isLand15 },
             uPonds: { value: this.ponds.map(p => ({ pos: p.pos, radius: p.radius })) },
             uPondCount: { value: this.ponds.length }
         };
@@ -289,6 +298,7 @@ export class Shard {
             shader.uniforms.uDirtTex = terrainUniforms.uDirtTex;
             shader.uniforms.uGrassTex = terrainUniforms.uGrassTex;
             shader.uniforms.uSnowTex = terrainUniforms.uSnowTex;
+            shader.uniforms.uIsLand15 = terrainUniforms.uIsLand15;
             shader.uniforms.uPonds = terrainUniforms.uPonds;
             shader.uniforms.uPondCount = terrainUniforms.uPondCount;
 
@@ -296,6 +306,7 @@ export class Shard {
                 varying float vHeight;
                 varying vec3 vWorldPos;
                 varying float vInPond;
+                uniform bool uIsLand15;
                 
                 struct Pond {
                     vec3 pos;
@@ -331,6 +342,7 @@ export class Shard {
                 uniform sampler2D uDirtTex;
                 uniform sampler2D uGrassTex;
                 uniform sampler2D uSnowTex;
+                uniform bool uIsLand15;
                 varying float vHeight;
                 varying vec3 vWorldPos;
                 varying float vInPond;
@@ -349,7 +361,10 @@ export class Shard {
                 float h = vHeight;
                 vec4 terrainColor;
                 
-                if (h < -0.25) {
+                if (uIsLand15) {
+                    // Land15 is all sand
+                    terrainColor = sand;
+                } else if (h < -0.25) {
                     float t = smoothstep(-1.0, -0.25, h);
                     terrainColor = mix(sand, dirt, t);
                 } else if (h < 0.5) {

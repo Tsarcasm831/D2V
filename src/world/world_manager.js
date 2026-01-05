@@ -507,6 +507,12 @@ export class WorldManager {
     }
 
     _getRawTerrainHeight(x, z) {
+        // Only Land23 has complex terrain features (plateaus, canyons, mountains)
+        const isLand23 = this.worldMask && this.worldMask.landId === 'Land23';
+        if (!isLand23) {
+            return 0; // All other lands are flat
+        }
+
         const PLATEAU_X = 7509.5;
         const PLATEAU_Z = -6949.1;
         const dx = x - PLATEAU_X;

@@ -456,11 +456,11 @@ export class PlayerAnimator {
 
     _animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards = false) {
         const lerp = THREE.MathUtils.lerp;
-        const animSpeed = (isRunning ? 16 : 8) * (isMovingBackwards ? -1 : 1);
+        const animSpeed = isRunning ? 14.0 : 8.0;
         this.walkTime += delta * animSpeed;
         const t = this.walkTime;
 
-        if (isRunning) {
+        if (isRunning && !isMovingBackwards) {
             parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0.4, damp);
             parts.hips.position.z = lerp(parts.hips.position.z, 0, damp);
             parts.hips.position.y = (1.0 + Math.abs(Math.sin(t)) * 0.2) * SCALE_FACTOR;
@@ -488,6 +488,72 @@ export class PlayerAnimator {
 
             parts.head.rotation.x = lerp(parts.head.rotation.x, 0.25, damp);
             
+        } else if (isMovingBackwards) {
+            // --- BACKWARD WALKING (Ported from LocomotionAnimator.ts) ---
+            parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0.1, damp);
+            parts.hips.rotation.y = lerp(parts.hips.rotation.y, Math.cos(t) * 0.15 * -1, damp);
+            parts.hips.position.y = (0.98 + Math.abs(Math.sin(t)) * 0.04) * SCALE_FACTOR;
+
+            const calculateLeg = (offset) => {
+                const cycle = t + offset;
+                const sin = Math.sin(cycle);
+                const cos = Math.cos(cycle);
+
+                let thighRot = sin * 0.5;
+                let shinRot = 0;
+                let footRot = 0;
+
+                const isSwing = cos < 0; 
+                if (isSwing) {
+                    shinRot = -cos * 1.8; 
+                    footRot = sin * 0.5;
+                } else {
+                    shinRot = 0.05; 
+                    footRot = -thighRot;
+                }
+                return { thigh: thighRot, shin: shinRot, foot: footRot };
+            };
+
+            const leftLeg = calculateLeg(0);
+            const rightLeg = calculateLeg(Math.PI);
+
+            parts.leftThigh.rotation.x = leftLeg.thigh;
+            parts.leftShin.rotation.x = leftLeg.shin;
+            parts.rightThigh.rotation.x = rightLeg.thigh;
+            parts.rightShin.rotation.x = rightLeg.shin;
+
+            // Apply foot rotation to forefoot and heel groups
+            const footGroups = [parts.forefootGroups, parts.heelGroups];
+            footGroups.forEach(groups => {
+                if (groups) {
+                    groups.forEach((fg, i) => {
+                        // This logic assumes forefootGroups[0] is left, [1] is right
+                        // or similar mapping. In JS version, we apply to all.
+                        // For more precision, we'd need to know which group is which.
+                        // Usually these are arrays of 2 elements.
+                    });
+                }
+            });
+            
+            // Simplified foot rotation application for JS structure
+            if (parts.forefootGroups && parts.forefootGroups.length >= 2) {
+                parts.forefootGroups[0].rotation.x = leftLeg.foot;
+                parts.forefootGroups[1].rotation.x = rightLeg.foot;
+            }
+            if (parts.heelGroups && parts.heelGroups.length >= 2) {
+                parts.heelGroups[0].rotation.x = leftLeg.foot;
+                parts.heelGroups[1].rotation.x = rightLeg.foot;
+            }
+
+            parts.leftThigh.rotation.z = 0.1; 
+            parts.rightThigh.rotation.z = -0.1;
+
+            // Arms swing naturally
+            parts.rightArm.rotation.x = Math.sin(t) * 0.6;
+            parts.leftArm.rotation.x = Math.sin(t + Math.PI) * 0.6;
+            parts.rightForeArm.rotation.x = -0.4;
+            parts.leftForeArm.rotation.x = -0.4;
+
         } else {
             parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0, damp);
             parts.hips.rotation.y = lerp(parts.hips.rotation.y, 0, damp);

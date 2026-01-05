@@ -125,6 +125,7 @@ export class Player {
         this.isPickingUp = false;
         this.pickUpTime = 0;
         this.isDead = false;
+        this.godMode = false;
         this.deathTime = 0;
         this.deathVariation = { side: 1, twist: 0, fallDir: 1, stumbleDir: 0 };
         this.wasDeadKeyPressed = false;
@@ -200,7 +201,7 @@ export class Player {
     }
 
     takeDamage(amount) {
-        if (this.isDead || (this.actions && this.actions.isInvulnerable)) return;
+        if (this.isDead || (this.actions && this.actions.isInvulnerable) || this.godMode) return;
 
         this.stats.health -= amount;
         if (this.stats.health <= 0) {
@@ -639,8 +640,10 @@ export class Player {
 
         // Update personal light position to follow player (staying in scene root)
         if (this.playerLight && this.mesh) {
-            this.playerLight.position.copy(this.mesh.position);
-            this.playerLight.position.y += 2.0; // Slightly above head level
+            // Position the light slightly behind and above the player to avoid "lightbulb head" effect
+            const offset = new THREE.Vector3(0, 2.5, -1.0);
+            offset.applyQuaternion(this.mesh.quaternion);
+            this.playerLight.position.copy(this.mesh.position).add(offset);
         }
 
         // Ensure player mesh and all children are strictly on Layer 0
@@ -662,6 +665,28 @@ export class Player {
                         materials.forEach(mat => {
                             // This is a hint to the renderer to keep the material isolated
                             mat.lightMapIntensity = 0;
+                            
+                            // SHADER HACK: Force the material to ignore the personal point light
+                            // We do this by intercepting the light calculation and zeroing out 
+                            // any light that isn't a DirectionalLight or AmbientLight for this mesh.
+                            if (!mat._lightbulbFixed) {
+                                mat.onBeforeCompile = (shader) => {
+                                    shader.fragmentShader = shader.fragmentShader.replace(
+                                        '#include <lights_pars_begin>',
+                                        `#include <lights_pars_begin>
+                                        // Custom block to ignore non-directional lights
+                                        #undef USE_PUNCTUAL_LIGHTS
+                                        `
+                                    );
+                                };
+                                mat.customProgramCacheKey = () => 'no_point_lights';
+                                mat._lightbulbFixed = true;
+                            }
+
+                            // Ensure the material doesn't use the light's layer
+                            if (mat.defines) {
+                                delete mat.defines.USE_LIGHTMAP;
+                            }
                         });
                     }
                 }

@@ -20,6 +20,7 @@ export class OptionsUI {
 
         // Character
         this.resetBtn = document.getElementById('reset-character-btn');
+        this.godModeToggle = document.getElementById('godmode-toggle');
         
         // World Map
         this.worldMapBtn = document.getElementById('admin-world-map-btn');
@@ -87,6 +88,15 @@ export class OptionsUI {
                 }
             };
         }
+
+        if (this.godModeToggle) {
+            this.godModeToggle.onchange = (e) => {
+                if (this.game.player) {
+                    this.game.player.godMode = e.target.checked;
+                    console.log(`God Mode: ${this.game.player.godMode}`);
+                }
+            };
+        }
     }
 
     toggle() {
@@ -97,11 +107,11 @@ export class OptionsUI {
         if (!isVisible) {
             // Update time slider to current game time
             if (this.game.timeManager && this.timeSlider) {
-                this.timeSlider.value = this.game.timeManager.currentTime || 12;
-                const time = parseFloat(this.timeSlider.value);
-                const hours = Math.floor(time);
-                const minutes = Math.floor((time % 1) * 60);
-                this.timeDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                this.timeSlider.value = this.game.timeManager.time;
+            }
+            // Sync God Mode toggle
+            if (this.godModeToggle && this.game.player) {
+                this.godModeToggle.checked = !!this.game.player.godMode;
             }
         }
     }

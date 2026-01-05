@@ -16,6 +16,7 @@ export class Player {
     
     // Logic timers/flags
     isDead: boolean = false;
+    godMode: boolean = false;
     deathTime: number = 0;
     deathVariation = { side: 1, twist: 0, fallDir: 1, stumbleDir: 0 };
     isJumping: boolean = false;

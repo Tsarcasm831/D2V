@@ -253,6 +253,7 @@ function showOptionsMenu() {
     const weatherSelect = document.getElementById('weather-select');
     const timeSlider = document.getElementById('time-slider');
     const timeDisplay = document.getElementById('time-display');
+    const godModeToggle = document.getElementById('godmode-toggle-main');
 
     if (optionsMenu) optionsMenu.style.display = 'flex';
 
@@ -273,6 +274,9 @@ function showOptionsMenu() {
     if (timeSlider) {
         timeSlider.value = settings.time ?? 8;
         if (timeDisplay) timeDisplay.innerText = `${timeSlider.value.toString().padStart(2, '0')}:00`;
+    }
+    if (godModeToggle && window.gameInstance && window.gameInstance.player) {
+        godModeToggle.checked = !!window.gameInstance.player.godMode;
     }
 
     const saveSettings = () => {
@@ -305,6 +309,15 @@ function showOptionsMenu() {
     if (timeSlider) {
         timeSlider.oninput = () => {
             if (timeDisplay) timeDisplay.innerText = `${timeSlider.value.toString().padStart(2, '0')}:00`;
+            saveSettings();
+        };
+    }
+    
+    if (godModeToggle) {
+        godModeToggle.onchange = () => {
+            if (window.gameInstance && window.gameInstance.player) {
+                window.gameInstance.player.godMode = godModeToggle.checked;
+            }
             saveSettings();
         };
     }

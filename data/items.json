@@ -28,7 +28,8 @@
       "stackable": true,
       "maxStack": 20,
       "value": 2,
-      "plantId": "wheat"
+      "plantId": "wheat",
+      "icon": "assets/icons/wheat_seeds_icon.png"
     },
     "wheat": {
       "id": "wheat",
@@ -37,7 +38,8 @@
       "description": "Harvested grain.",
       "stackable": true,
       "maxStack": 50,
-      "value": 5
+      "value": 5,
+      "icon": "assets/icons/wheat_icon.png"
     },
     "potato_seeds": {
       "id": "potato_seeds",
@@ -47,7 +49,8 @@
       "stackable": true,
       "maxStack": 20,
       "value": 2,
-      "plantId": "potato"
+      "plantId": "potato",
+      "icon": "assets/icons/potato_seeds_icon.png"
     },
     "potato": {
       "id": "potato",
@@ -56,7 +59,8 @@
       "description": "A starchy tuber.",
       "stackable": true,
       "maxStack": 50,
-      "value": 4
+      "value": 4,
+      "icon": "assets/icons/potato_icon.png"
     },
     "tomato_seeds": {
       "id": "tomato_seeds",
@@ -66,7 +70,8 @@
       "stackable": true,
       "maxStack": 20,
       "value": 3,
-      "plantId": "tomato"
+      "plantId": "tomato",
+      "icon": "assets/icons/tomato_seeds_icon.png"
     },
     "tomato": {
       "id": "tomato",
@@ -75,7 +80,8 @@
       "description": "A juicy red fruit.",
       "stackable": true,
       "maxStack": 50,
-      "value": 6
+      "value": 6,
+      "icon": "assets/icons/tomato_icon.png"
     },
     "lettuce_seeds": {
       "id": "lettuce_seeds",
@@ -85,7 +91,8 @@
       "stackable": true,
       "maxStack": 20,
       "value": 1,
-      "plantId": "lettuce"
+      "plantId": "lettuce",
+      "icon": "assets/icons/lettuce_seeds_icon.png"
     },
     "lettuce": {
       "id": "lettuce",
@@ -94,7 +101,8 @@
       "description": "Crispy green leaves.",
       "stackable": true,
       "maxStack": 50,
-      "value": 3
+      "value": 3,
+      "icon": "assets/icons/lettuce_icon.png"
     },
     "carrot_seeds": {
       "id": "carrot_seeds",
@@ -104,7 +112,8 @@
       "stackable": true,
       "maxStack": 20,
       "value": 2,
-      "plantId": "carrot"
+      "plantId": "carrot",
+      "icon": "assets/icons/carrot_seeds_icon.png"
     },
     "carrot": {
       "id": "carrot",
@@ -113,7 +122,8 @@
       "description": "A crunchy orange root.",
       "stackable": true,
       "maxStack": 50,
-      "value": 4
+      "value": 4,
+      "icon": "assets/icons/carrot_icon.png"
     },
     "crop_plot": {
       "id": "crop_plot",
@@ -122,7 +132,8 @@
       "description": "A plot of tilled soil for growing crops.",
       "stackable": true,
       "maxStack": 10,
-      "value": 10
+      "value": 10,
+      "icon": "assets/icons/crop_plot_icon.png"
     },
     "iron_sword": {
       "id": "iron_sword",
@@ -334,7 +345,8 @@
       "description": "Sweet, sticky honey.",
       "stackable": true,
       "maxStack": 20,
-      "value": 15
+      "value": 15,
+      "icon": "assets/icons/honey_icon.png"
     },
     "beehive": {
       "id": "beehive",
@@ -343,7 +355,48 @@
       "description": "A hive for bees to produce honey.",
       "stackable": true,
       "maxStack": 5,
-      "value": 25
+      "value": 25,
+      "icon": "assets/icons/beehive_icon.png"
+    },
+    "berry": {
+      "id": "berry",
+      "name": "Berry",
+      "type": "food",
+      "description": "A sweet wild berry.",
+      "stackable": true,
+      "maxStack": 50,
+      "value": 2,
+      "icon": "assets/icons/berry_icon.png"
+    },
+    "meat": {
+      "id": "meat",
+      "name": "Raw Meat",
+      "type": "food",
+      "description": "Raw meat from a wild animal.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 5,
+      "icon": "assets/icons/meat_icon.png"
+    },
+    "pelt": {
+      "id": "pelt",
+      "name": "Animal Pelt",
+      "type": "material",
+      "description": "A soft animal pelt.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 10,
+      "icon": "assets/icons/pelt_icon.png"
+    },
+    "firepit": {
+      "id": "firepit",
+      "name": "Firepit",
+      "type": "building",
+      "description": "A warm fire for cooking and light.",
+      "stackable": true,
+      "maxStack": 1,
+      "value": 15,
+      "icon": "assets/icons/firepit_icon.png"
     }
   }
 }
