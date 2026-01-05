@@ -134,16 +134,25 @@ export class Ore {
         if (this.isDead) return;
 
         // Check if player has correct tool and tier
-        const tool = player.inventory.hotbar[player.inventory.selectedSlot];
-        const isPickaxe = tool && tool.type === 'pickaxe';
-        const toolTier = (tool && tool.tier) || 0;
+        const tool = player?.inventory?.hotbar[player.inventory.selectedSlot];
+        const isPickaxe = tool && (tool.type === 'pickaxe' || tool.id?.toLowerCase().includes('pickaxe'));
+        
+        // Determine tool tier: copper pickaxe is tier 1, iron pickaxe is tier 2
+        let toolTier = (tool && tool.tier) || 0;
+        if (toolTier === 0 && tool) {
+            const toolId = tool.id?.toLowerCase() || '';
+            if (toolId.includes('iron')) toolTier = 2;
+            else if (toolId.includes('copper')) toolTier = 1;
+        }
 
         if (!isPickaxe || toolTier < this.tierRequired) {
             if (player.ui) {
                 if (!isPickaxe) {
                     player.ui.showStatus("Requires a Pickaxe!");
                 } else {
-                    player.ui.showStatus(`Mining Tier too low! (Need Tier ${this.tierRequired})`);
+                    const tierNames = ["Basic", "Copper", "Iron"];
+                    const requiredName = tierNames[this.tierRequired] || `Tier ${this.tierRequired}`;
+                    player.ui.showStatus(`Requires a ${requiredName} Pickaxe!`);
                 }
             }
 

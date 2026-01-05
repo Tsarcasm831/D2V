@@ -378,6 +378,16 @@
       "value": 5,
       "icon": "assets/icons/meat_icon.png"
     },
+    "raw_meat": {
+      "id": "raw_meat",
+      "name": "Raw Meat",
+      "type": "food",
+      "description": "Raw meat from a wild animal.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 5,
+      "icon": "assets/icons/meat_icon.png"
+    },
     "pelt": {
       "id": "pelt",
       "name": "Animal Pelt",
@@ -386,6 +396,26 @@
       "stackable": true,
       "maxStack": 20,
       "value": 10,
+      "icon": "assets/icons/pelt_icon.png"
+    },
+    "bear_pelt": {
+      "id": "bear_pelt",
+      "name": "Bear Pelt",
+      "type": "material",
+      "description": "A thick bear pelt.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 15,
+      "icon": "assets/icons/pelt_icon.png"
+    },
+    "wolf_pelt": {
+      "id": "wolf_pelt",
+      "name": "Wolf Pelt",
+      "type": "material",
+      "description": "A coarse wolf pelt.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 12,
       "icon": "assets/icons/pelt_icon.png"
     },
     "firepit": {

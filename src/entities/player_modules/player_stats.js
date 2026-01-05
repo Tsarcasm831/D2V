@@ -37,6 +37,41 @@ export class PlayerStats {
         this.chakraRegenPerSec = 5;
     }
 
+    addXP(amount) {
+        this.xp += amount;
+        console.log(`Player gained ${amount} XP. Total: ${this.xp}/${this.xpToNextLevel}`);
+
+        while (this.xp >= this.xpToNextLevel) {
+            this.levelUp();
+        }
+
+        if (this.player.ui) this.player.ui.updateHud();
+    }
+
+    levelUp() {
+        this.xp -= this.xpToNextLevel;
+        this.level++;
+        this.xpToNextLevel = Math.floor(100 * Math.pow(1.2, this.level - 1));
+        
+        // Increase base stats on level up
+        this.base.vitality += 1;
+        this.base.strength += 1;
+        this.base.dexterity += 1;
+        this.base.intelligence += 1;
+        
+        this.recalculate();
+        
+        // Fully heal on level up
+        this.health = this.maxHealth;
+        this.chakra = this.maxChakra;
+
+        if (this.player.ui) {
+            this.player.ui.showStatus(`Level Up! You are now level ${this.level}`, false);
+            this.player.ui.updateHud();
+        }
+        console.log(`Leveled up to ${this.level}! Next level at ${this.xpToNextLevel} XP.`);
+    }
+
     recalculate() {
         if (!this.player.inventory) return;
 

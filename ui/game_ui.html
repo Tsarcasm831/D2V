@@ -78,15 +78,120 @@
         </div>
     </div>
 
-    <div id="ore-modal" class="modal">
-        <div class="modal-header">WORLD RESOURCES<span onclick="this.parentElement.parentElement.style.display='none'" style="cursor:pointer;">&times;</span></div>
-        <div class="inventory-grid" style="grid-template-columns: repeat(3, 1fr);">
-            <div class="inventory-slot" title="Trees"><div id="count-tree" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Trees</div></div>
-            <div class="inventory-slot" title="Rocks"><div id="count-rock" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Rocks</div></div>
-            <div class="inventory-slot" title="Iron"><div id="count-iron" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Iron</div></div>
-            <div class="inventory-slot" title="Wolves"><div id="count-wolf" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Wolves</div></div>
-            <div class="inventory-slot" title="Bears"><div id="count-bear" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Bears</div></div>
-            <div class="inventory-slot" title="Deer"><div id="count-deer" class="slot-count" style="position:static; text-align:center;">0</div><div style="font-size:9px; text-align:center;">Deer</div></div>
+    <div id="ore-modal" class="modal resource-monitor-modal">
+        <div class="modal-header">
+            <div class="header-title">WORLD RESOURCE MONITOR</div>
+            <span onclick="this.parentElement.parentElement.style.display='none'" class="close-button">&times;</span>
+        </div>
+        <div class="resource-monitor-content">
+            <div class="resource-section">
+                <div class="section-label">FLORA & TERRAIN</div>
+                <div class="resource-grid">
+                    <div class="resource-item" title="Trees">
+                        <img src="assets/icons/wood_log_icon.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">TREES</span>
+                            <span id="count-tree" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Rocks">
+                        <img src="assets/icons/wall_icon.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">ROCKS</span>
+                            <span id="count-rock" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Berries">
+                        <img src="assets/icons/berry_icon.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">BERRIES</span>
+                            <span id="count-berry_bush" class="res-count">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="resource-section">
+                <div class="section-label">MINERAL DEPOSITS</div>
+                <div class="resource-grid">
+                    <div class="resource-item" title="Coal">
+                        <img src="assets/icons/ores/coal.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">COAL</span>
+                            <span id="count-coal" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Copper">
+                        <img src="assets/icons/ores/copper.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">COPPER</span>
+                            <span id="count-copper" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Iron">
+                        <img src="assets/icons/ores/iron.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">IRON</span>
+                            <span id="count-iron" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Sulfur">
+                        <img src="assets/icons/ores/sulfur.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">SULFUR</span>
+                            <span id="count-sulfur" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Silver">
+                        <img src="assets/icons/ores/silver.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">SILVER</span>
+                            <span id="count-silver" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Gold">
+                        <img src="assets/icons/ores/gold.png" class="res-icon">
+                        <div class="res-info">
+                            <span class="res-name">GOLD</span>
+                            <span id="count-gold" class="res-count">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="resource-section">
+                <div class="section-label">WILDLIFE & THREATS</div>
+                <div class="resource-grid">
+                    <div class="resource-item" title="Deer">
+                        <div class="res-icon-placeholder">🦌</div>
+                        <div class="res-info">
+                            <span class="res-name">DEER</span>
+                            <span id="count-deer" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Wolves">
+                        <div class="res-icon-placeholder">🐺</div>
+                        <div class="res-info">
+                            <span class="res-name">WOLVES</span>
+                            <span id="count-wolf" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Bears">
+                        <div class="res-icon-placeholder">🐻</div>
+                        <div class="res-info">
+                            <span class="res-name">BEARS</span>
+                            <span id="count-bear" class="res-count">0</span>
+                        </div>
+                    </div>
+                    <div class="resource-item" title="Humanoids">
+                        <div class="res-icon-placeholder">👤</div>
+                        <div class="res-info">
+                            <span class="res-name">HUMANS</span>
+                            <span id="count-humanoid" class="res-count">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

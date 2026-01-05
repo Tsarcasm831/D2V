@@ -391,6 +391,7 @@ export class HumanoidNPC {
     }
 
     updateAI(player) {
+        if (!player || !player.mesh) return;
         this.timer -= 0.1; // AI runs at 10Hz
         if (this.timer <= 0) {
             if (this.state === 'idle') {

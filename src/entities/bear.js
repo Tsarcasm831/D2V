@@ -205,7 +205,7 @@ export class Bear {
                 const meatCount = Math.floor(Math.random() * 11) + 5;
                 player.inventory.addItem({ 
                     type: 'pelt', 
-                    name: 'Thick Pelt', 
+                    name: 'Animal Pelt', 
                     icon: 'assets/icons/pelt_icon.png', 
                     count: peltCount,
                     stackLimit: 99
@@ -423,8 +423,8 @@ export class Bear {
     }
 
     updateAI(player) {
-        const canAggro = player && !player.isInvulnerable && !player.isCombatMode;
-        const distToPlayer = player ? this.group.position.distanceTo(player.mesh.position) : 999;
+        const canAggro = player && player.mesh && !player.isInvulnerable && !player.isCombatMode;
+        const distToPlayer = (player && player.mesh) ? this.group.position.distanceTo(player.mesh.position) : 999;
 
         if (canAggro && distToPlayer < this.attackRange && this.state !== 'attack') {
             this.state = 'attack';
@@ -450,7 +450,7 @@ export class Bear {
 
     updateMovement(delta, player) {
         this.timer -= delta;
-        const distToPlayer = player ? this.group.position.distanceTo(player.mesh.position) : 999;
+        const distToPlayer = (player && player.mesh) ? this.group.position.distanceTo(player.mesh.position) : 999;
 
         if (this.state === 'attack') {
             const p = 1.0 - (this.timer / 1.2);
@@ -459,7 +459,7 @@ export class Bear {
                 this.headGroup.rotation.x = -0.4;
             } else if (p < 0.7) {
                 this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, 0.2, 15 * delta);
-                if (!this.hasDealtDamage && player && distToPlayer < 2.5 * SCALE_FACTOR) {
+                if (!this.hasDealtDamage && player && player.mesh && distToPlayer < 2.5 * SCALE_FACTOR) {
                     player.takeDamage(25 + Math.floor(this.level * 0.75));
                     this.hasDealtDamage = true;
                 }
@@ -468,7 +468,7 @@ export class Bear {
                 this.timer = 1.5;
             }
         } else if (this.state === 'chase') {
-            if (player) {
+            if (player && player.mesh) {
                 const targetRot = Math.atan2(player.mesh.position.x - this.group.position.x, player.mesh.position.z - this.group.position.z);
                 this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, targetRot, 6 * delta);
                 this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, 0, 5 * delta);
@@ -477,7 +477,7 @@ export class Bear {
                 this.group.position.addScaledVector(this._tempVec1, this.chaseSpeed * delta);
             }
         } else if (this.state === 'aggressive') {
-            if (player) {
+            if (player && player.mesh) {
                 const targetRot = Math.atan2(player.mesh.position.x - this.group.position.x, player.mesh.position.z - this.group.position.z);
                 this.group.rotation.y = THREE.MathUtils.lerp(this.group.rotation.y, targetRot, 3 * delta);
             }

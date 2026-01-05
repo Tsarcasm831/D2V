@@ -372,11 +372,9 @@ async function showServerSelection() {
             console.warn("Primary fetch failed, using fallback display rooms", fetchErr);
         }
         
-        // Ensure default rooms exist in the display even if fetch fails
+        // Ensure only Realm Alpha exists
         const displayRooms = {
-            'Alpha': rooms['Alpha'] || { players: 0, maxPlayers: 2 },
-            'Beta': rooms['Beta'] || { players: 0, maxPlayers: 2 },
-            'Gamma': rooms['Gamma'] || { players: 0, maxPlayers: 2 }
+            'Alpha': rooms['Alpha'] || { players: 0, maxPlayers: 2 }
         };
 
         if (serverListContainer) {

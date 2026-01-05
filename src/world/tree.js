@@ -37,6 +37,15 @@ export class Tree {
         this.stump.layers.enable(1);
         this.group.add(this.stump);
 
+        // Add an invisible large hitbox for easier raycasting
+        const hitboxHeight = 6 * SCALE_FACTOR;
+        const hitboxGeo = new THREE.CylinderGeometry(1.0 * SCALE_FACTOR, 1.0 * SCALE_FACTOR, hitboxHeight, 8);
+        const hitboxMat = new THREE.MeshBasicMaterial({ visible: false });
+        const hitbox = new THREE.Mesh(hitboxGeo, hitboxMat);
+        hitbox.position.y = hitboxHeight / 2;
+        hitbox.layers.enable(1); // Ensure it's on the interactive layer
+        this.group.add(hitbox);
+
         // Foliage group contains everything that disappears when cut
         this.foliage = new THREE.Group();
         this.foliage.layers.enable(1);
@@ -173,6 +182,56 @@ export class Tree {
 
     takeDamage(amount, player) {
         if (this.isDead) return;
+
+        // Check for correct tool
+        const tool = player?.inventory?.hotbar[player.inventory.selectedSlot];
+        const isAxe = tool && (tool.type === 'axe' || tool.id?.toLowerCase().includes('axe'));
+
+        if (!isAxe) {
+            // Allow punching with open hand (no tool equipped)
+            if (!tool) {
+                // Punching a tree does 1 damage to the tree, but 5 damage to the player
+                this.health -= 1;
+                if (player && player.takeDamage) {
+                    player.takeDamage(5);
+                    if (player.ui) {
+                        player.ui.showStatus("Punching trees hurts!", true);
+                    }
+                }
+                
+                // Visual feedback for tree
+                const originalScale = this.group.scale.clone();
+                this.group.scale.set(1.05, 1.05, 1.05);
+                setTimeout(() => { if (this.group && !this.isDead) this.group.scale.copy(originalScale); }, 50);
+
+                // Play punch sound
+                import('../utils/audio_manager.js').then(({ audioManager }) => {
+                    audioManager.play('hit-metallic', 0.3);
+                });
+
+                if (this.health <= 0) {
+                    this.die();
+                }
+                return;
+            }
+
+            // If a tool is equipped but it's not an axe, block it
+            if (player?.ui) {
+                player.ui.showStatus("Requires an Axe!");
+            }
+            
+            // Error sound for using wrong tool
+            import('../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('error-bad', 0.4);
+            });
+
+            // Minimal visual feedback
+            const originalScale = this.group.scale.clone();
+            this.group.scale.set(1.02, 1.02, 1.02);
+            setTimeout(() => { if (this.group) this.group.scale.copy(originalScale); }, 50);
+            return;
+        }
+
         this.health -= amount;
 
         // Visual feedback
@@ -182,13 +241,9 @@ export class Tree {
             if (!this.isDead) this.group.scale.copy(originalScale);
         }, 50);
 
-        // Play chop sound if using an axe, otherwise harvest sound
-        const tool = player?.inventory?.hotbar[player.inventory.selectedSlot];
-        const isAxe = tool && tool.type === 'axe';
-        const soundEffect = isAxe ? 'chop' : 'harvest';
-
+        // Play chop sound
         import('../utils/audio_manager.js').then(({ audioManager }) => {
-            audioManager.play(soundEffect, 0.5);
+            audioManager.play('chop', 0.5);
         });
 
         if (this.health <= 0) {
@@ -210,7 +265,7 @@ export class Tree {
                 this.shard.spawnItem('wood', dropPos, {
                     type: 'wood',
                     name: 'Wood Log',
-                    icon: 'wood_log_icon.png',
+                    icon: 'assets/icons/wood_log_icon.png',
                     count: 1,
                     stackLimit: 99
                 });
@@ -257,6 +312,12 @@ export class Tree {
             this.regrowTimer += delta;
             
             if (this.regrowTimer >= this.regrowTime) {
+                // If no player, safe to regrow
+                if (!player || !player.mesh) {
+                    this.regrow();
+                    return;
+                }
+
                 // Check if player is in a different chunk
                 const shardSize = 60; // SHARD_SIZE from world_bounds.js
                 const playerShardX = Math.floor(player.mesh.position.x / shardSize);

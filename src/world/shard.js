@@ -951,12 +951,14 @@ export class Shard {
         // Throttled and distance-based updates
         for (let i = 0, len = this.npcs.length; i < len; i++) {
             const n = this.npcs[i];
-            const npcPos = (n.group || n.mesh).position;
+            const mesh = n.group || n.mesh;
+            if (!mesh) continue;
+            const npcPos = mesh.position;
             const distSq = npcPos.distanceToSquared(playerPos);
             
             if (distSq < 900) { // Within 30m: Normal update
                 n.update(delta, player);
-                if (n.group || n.mesh) (n.group || n.mesh).visible = true;
+                mesh.visible = true;
                 if (n.animator) n.animator.isEnabled = true;
             } else if (distSq < 2500) { // Within 50m: 10Hz update
                 n._updateTimer = (n._updateTimer || 0) + delta;
@@ -964,7 +966,7 @@ export class Shard {
                     n.update(n._updateTimer, player);
                     n._updateTimer = 0;
                 }
-                if (n.group || n.mesh) (n.group || n.mesh).visible = true;
+                mesh.visible = true;
                 if (n.animator) n.animator.isEnabled = false; 
             } else { // Far: 2Hz update + Hide mesh
                 n._updateTimer = (n._updateTimer || 0) + delta;
@@ -972,42 +974,47 @@ export class Shard {
                     n.update(n._updateTimer, player);
                     n._updateTimer = 0;
                 }
-                if (n.group || n.mesh) (n.group || n.mesh).visible = false;
+                mesh.visible = false;
                 if (n.animator) n.animator.isEnabled = false;
             }
         }
 
         for (let i = 0, len = this.fauna.length; i < len; i++) {
             const f = this.fauna[i];
-            const fPos = (f.group || f.mesh).position;
+            const mesh = f.group || f.mesh;
+            if (!mesh) continue;
+            const fPos = mesh.position;
             const distSq = fPos.distanceToSquared(playerPos);
 
             if (distSq < 900) { // Within 30m
                 f.update(delta, player);
-                if (f.group || f.mesh) (f.group || f.mesh).visible = true;
+                mesh.visible = true;
             } else if (distSq < 2500) { // Within 50m
                 f._updateTimer = (f._updateTimer || 0) + delta;
                 if (f._updateTimer >= 0.1) {
                     f.update(f._updateTimer, player);
                     f._updateTimer = 0;
                 }
-                if (f.group || f.mesh) (f.group || f.mesh).visible = true;
+                mesh.visible = true;
             } else { // Beyond 50m: 2Hz update
                 f._updateTimer = (f._updateTimer || 0) + delta;
                 if (f._updateTimer >= 0.5) {
                     f.update(f._updateTimer, player);
                     f._updateTimer = 0;
                 }
-                if (f.group || f.mesh) (f.group || f.mesh).visible = false;
+                mesh.visible = false;
             }
         }
 
         for (let i = 0, len = this.resources.length; i < len; i++) {
             const r = this.resources[i];
             if (r.update) {
-                const rPos = (r.group || r.mesh).position;
-                if (rPos.distanceToSquared(playerPos) < 10000) {
-                    r.update(delta);
+                const mesh = r.group || r.mesh;
+                if (mesh) {
+                    const rPos = mesh.position;
+                    if (rPos.distanceToSquared(playerPos) < 10000) {
+                        r.update(delta);
+                    }
                 }
             }
         }

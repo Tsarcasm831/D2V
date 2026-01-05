@@ -92,21 +92,21 @@ const server = createServer(async (req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-// roomCode -> { players: Map(id -> state), seed: number }
+const SINGLE_ROOM_CODE = 'Alpha';
 const rooms = new Map();
+
+// Initialize the single room immediately
+rooms.set(SINGLE_ROOM_CODE, {
+    players: new Map(),
+    seed: Math.floor(Math.random() * 1000000)
+});
 
 server.listen(PORT, () => {
     console.log(`WebSocket server started on port ${PORT} [Build: ${new Date().toISOString()}]`);
 });
 
-function getOrCreateRoom(roomCode) {
-    if (!rooms.has(roomCode)) {
-        rooms.set(roomCode, {
-            players: new Map(),
-            seed: Math.floor(Math.random() * 1000000)
-        });
-    }
-    return rooms.get(roomCode);
+function getRoom() {
+    return rooms.get(SINGLE_ROOM_CODE);
 }
 
 wss.on('connection', (ws) => {
@@ -156,14 +156,12 @@ wss.on('connection', (ws) => {
     }
 
     function handleJoin(roomCode, requestedUsername, characterData) {
-        // Normalize room code to avoid 'Alpha' vs 'alpha' issues
-        const normalizedRoomCode = (roomCode || 'Alpha').trim();
-        
         // Clear room code if we're joining a new one to prevent close events
         // from the old room state being processed on the new connection logic.
         currentRoomCode = null; 
 
-        const room = getOrCreateRoom(normalizedRoomCode);
+        const room = getRoom();
+        const normalizedRoomCode = SINGLE_ROOM_CODE;
         
         // Ensure player is unique by playerId, allowing multiple players with same username.
         // We explicitly do NOT remove existing sessions by username here anymore.
@@ -285,11 +283,6 @@ wss.on('connection', (ws) => {
                     if (player && player.ws === ws) {
                         room.players.delete(playerId);
                         console.log(`[${timestamp}] Player ${username} (${playerId}) officially left room: ${currentRoomCode}. Remaining: ${room.players.size}`);
-                        
-                        if (room.players.size === 0) {
-                            rooms.delete(currentRoomCode);
-                            console.log(`[${timestamp}] Room ${currentRoomCode} deleted (empty)`);
-                        }
                     } else {
                         console.log(`[${timestamp}] Close event for ${username} (${playerId}) ignored: newer socket is active.`);
                     }
@@ -344,10 +337,6 @@ setInterval(() => {
                         if (currentPlayer && currentPlayer.ws === p.ws) {
                             currentRoom.players.delete(id);
                             console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) removed due to timeout.`);
-                            if (currentRoom.players.size === 0) {
-                                rooms.delete(roomCode);
-                                console.log(`[${new Date().toISOString()}] Room ${roomCode} deleted (empty after timeout)`);
-                            }
                         }
                     }
                 }, 1000);

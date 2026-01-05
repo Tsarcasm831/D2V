@@ -635,8 +635,15 @@ export class PlayerUI {
                         iconImg.className = 'hotbar-icon';
                         slot.appendChild(iconImg);
                     }
-                    if (iconImg.src !== item.icon) {
-                        iconImg.src = item.icon;
+                    
+                    // Fix malformed icon paths (e.g., missing 'assets/icons/')
+                    let iconPath = item.icon;
+                    if (iconPath === 'wood_log_icon.png') {
+                        iconPath = 'assets/icons/wood_log_icon.png';
+                    }
+                    
+                    if (iconImg.src !== iconPath) {
+                        iconImg.src = iconPath;
                     }
                 } else if (iconImg) {
                     iconImg.remove();
@@ -688,21 +695,23 @@ export class PlayerUI {
     }
 
     updateHud() {
+        if (!this.player || !this.player.stats) return;
+
         if (this.hFill) {
-            const hpPerc = (this.player.health / this.player.maxHealth) * 100;
+            const hpPerc = (this.player.stats.health / this.player.stats.maxHealth) * 100;
             this.hFill.style.width = `${hpPerc}%`;
             this.hFill.parentElement.classList.toggle('low-hp', hpPerc < 25);
         }
-        if (this.sFill) this.sFill.style.width = `${(this.player.stamina / this.player.maxStamina) * 100}%`;
-        if (this.cFill) this.cFill.style.width = `${(this.player.chakra / this.player.maxChakra) * 100}%`;
-        if (this.xFill) this.xFill.style.width = `${(this.player.xp / this.player.xpToNextLevel) * 100}%`;
+        if (this.sFill) this.sFill.style.width = `${(this.player.stats.stamina / this.player.stats.maxStamina) * 100}%`;
+        if (this.cFill) this.cFill.style.width = `${(this.player.stats.chakra / this.player.stats.maxChakra) * 100}%`;
+        if (this.xFill) this.xFill.style.width = `${(this.player.stats.xp / this.player.stats.xpToNextLevel) * 100}%`;
 
-        if (this.hudHpText) this.hudHpText.textContent = `${Math.ceil(this.player.health)}/${this.player.maxHealth}`;
-        if (this.hudStaminaText) this.hudStaminaText.textContent = `${Math.ceil(this.player.stamina)}/${this.player.maxStamina}`;
-        if (this.hudChakraText) this.hudChakraText.textContent = `${Math.ceil(this.player.chakra)}/${this.player.maxChakra}`;
+        if (this.hudHpText) this.hudHpText.textContent = `${Math.ceil(this.player.stats.health)}/${this.player.stats.maxHealth}`;
+        if (this.hudStaminaText) this.hudStaminaText.textContent = `${Math.ceil(this.player.stats.stamina)}/${this.player.stats.maxStamina}`;
+        if (this.hudChakraText) this.hudChakraText.textContent = `${Math.ceil(this.player.stats.chakra)}/${this.player.stats.maxChakra}`;
         if (this.hudXpText) {
-            const xpPerc = Math.floor((this.player.xp / this.player.xpToNextLevel) * 100);
-            this.hudXpText.textContent = `LV.${this.player.level} [${xpPerc}%]`;
+            const xpPerc = Math.floor((this.player.stats.xp / this.player.stats.xpToNextLevel) * 100);
+            this.hudXpText.textContent = `LV.${this.player.stats.level} [${xpPerc}%]`;
         }
     }
 
@@ -735,21 +744,25 @@ export class PlayerUI {
             deer: 0, wolf: 0, bear: 0, humanoid: 0
         };
 
-        const resources = this.player.worldManager.getNearbyResources();
+        // Use a larger radius for the world resources screen than the minimap
+        const searchRadius = 150; 
+        const playerPos = this.player.mesh.position;
+
+        const resources = this.player.worldManager.getNearbyResources(playerPos, searchRadius);
         resources.forEach(res => {
             if (!res.isDead && counts.hasOwnProperty(res.type)) {
                 counts[res.type]++;
             }
         });
 
-        const npcs = this.player.worldManager.getNearbyNPCs();
+        const npcs = this.player.worldManager.getNearbyNPCs(playerPos, searchRadius);
         npcs.forEach(npc => {
             if (!npc.isDead && counts.hasOwnProperty(npc.type)) {
                 counts[npc.type]++;
             }
         });
 
-        const fauna = this.player.worldManager.getNearbyFauna();
+        const fauna = this.player.worldManager.getNearbyFauna(playerPos, searchRadius);
         fauna.forEach(f => {
             if (!f.isDead && counts.hasOwnProperty(f.type)) {
                 counts[f.type]++;
@@ -759,7 +772,11 @@ export class PlayerUI {
         // Update DOM
         for (const [key, count] of Object.entries(counts)) {
             const el = document.getElementById(`count-${key}`);
-            if (el) el.textContent = count;
+            if (el) {
+                el.textContent = count;
+                // Add a visual cue if count is 0
+                el.parentElement.parentElement.style.opacity = count > 0 ? '1' : '0.5';
+            }
         }
     }
 }

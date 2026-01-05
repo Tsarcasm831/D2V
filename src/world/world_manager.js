@@ -673,6 +673,7 @@ export class WorldManager {
         const radSq = radius * radius;
         for (let i = 0; i < this._cachedNPCs.length; i++) {
             const n = this._cachedNPCs[i];
+            if (!n || (!n.group && !n.mesh)) continue;
             const entityPos = (n.group || n.mesh).position;
             const distSq = entityPos.distanceToSquared(pos);
             
@@ -690,6 +691,7 @@ export class WorldManager {
         const radSq = radius * radius;
         for (let i = 0; i < this._cachedFauna.length; i++) {
             const f = this._cachedFauna[i];
+            if (!f || (!f.group && !f.mesh)) continue;
             const entityPos = (f.group || f.mesh).position;
             if (entityPos.distanceToSquared(pos) < radSq) {
                 this._nearbyFaunaResult.push(f);
@@ -705,6 +707,7 @@ export class WorldManager {
         const radSq = radius * radius;
         for (let i = 0; i < this._cachedResources.length; i++) {
             const r = this._cachedResources[i];
+            if (!r || (!r.group && !r.mesh)) continue;
             const entityPos = (r.group || r.mesh).position;
             if (entityPos.distanceToSquared(pos) < radSq) {
                 this._nearbyResourcesResult.push(r);
@@ -720,6 +723,7 @@ export class WorldManager {
         const radSq = radius * radius;
         for (let i = 0; i < this._cachedItems.length; i++) {
             const item = this._cachedItems[i];
+            if (!item || (!item.group && !item.mesh)) continue;
             const entityPos = (item.group || item.mesh).position;
             if (entityPos.distanceToSquared(pos) < radSq) {
                 this._nearbyItemsResult.push(item);

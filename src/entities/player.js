@@ -203,6 +203,12 @@ export class Player {
         }
     }
 
+    addXP(amount) {
+        if (this.stats) {
+            this.stats.addXP(amount);
+        }
+    }
+
     takeDamage(amount) {
         if (this.isDead || (this.actions && this.actions.isInvulnerable) || this.godMode) return;
 

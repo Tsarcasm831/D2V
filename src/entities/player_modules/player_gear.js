@@ -95,8 +95,22 @@ export class PlayerGear {
         const item = this.player.inventory.hotbar[slot];
         
         let anyVisible = false;
+        const itemType = (item && item.type) ? item.type.toLowerCase() : null;
+        const itemId = (item && item.id) ? item.id.toLowerCase() : '';
+
         for (const [type, mesh] of Object.entries(this.heldItems)) {
-            const isMatch = !!(item && (item.type === type || (item.id && item.id.includes(type))));
+            let isMatch = false;
+            if (item) {
+                if (itemType === type) {
+                    isMatch = true;
+                } else if (itemId) {
+                    // Check if it's an exact ID match or has a clear separator
+                    // This prevents 'pickaxe' from matching 'axe'
+                    const parts = itemId.split(/[-_ ]/);
+                    isMatch = parts.includes(type);
+                }
+            }
+            
             mesh.visible = isMatch;
             if (isMatch) anyVisible = true;
         }

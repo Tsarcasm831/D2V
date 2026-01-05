@@ -9,7 +9,7 @@ export class PlayerActions {
         this.player = player;
         
         this.isCombat = false;
-        this.isInvulnerable = true;
+        this.isInvulnerable = false;
         this.isSummoning = false;
         this.summoningTime = 0;
         this.summoningCircle = null;
@@ -505,7 +505,9 @@ export class PlayerActions {
             if (closestItem.collect(this.player)) {
                 if (this.player.ui) {
                     this.player.ui.updateHotbar();
-                    this.player.ui.renderInventory();
+                    if (this.player.inventoryUI) {
+                        this.player.inventoryUI.render();
+                    }
                 }
                 this.player.animator.playPickup();
                 return true;
