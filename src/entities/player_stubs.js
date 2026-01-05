@@ -67,17 +67,31 @@ export class PlayerInventory {
             item.id = `item-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
         }
 
+        // Fetch data from items.json if available
+        let itemData = null;
+        if (this.player.worldManager && this.player.worldManager.itemsData && this.player.worldManager.itemsData.items) {
+            itemData = this.player.worldManager.itemsData.items[item.type];
+        }
+
         // Special case: currency
         if (item.type === 'gold_coin' || item.type === 'gold') {
             this.currency.gold += (item.count || 1);
             if (this.player.ui) this.player.ui.showStatus(`+${item.count || 1} Gold`, false);
+            if (this.player.inventoryUI && this.player.inventoryUI.render) {
+                this.player.inventoryUI.syncWithPlayer();
+                this.player.inventoryUI.render();
+            }
             return true;
         }
 
-        const stackLimit = item.stackLimit || 99;
+        const stackLimit = item.stackLimit || (itemData ? itemData.maxStack : (item.stackable === false ? 1 : 99));
         const countToAdd = item.count || 1;
+        // Check hotbar_able from passed item first, then from items.json, default to false
+        const isHotbarAble = item.hotbar_able === true || (itemData && itemData.hotbar_able === true);
 
-        if (preferStorage) {
+        let added = false;
+
+        if (preferStorage || !isHotbarAble) {
             // 1. Try to stack in storage
             for (let i = 0; i < this.storage.length; i++) {
                 const existing = this.storage[i];
@@ -85,31 +99,43 @@ export class PlayerInventory {
                     const room = stackLimit - existing.count;
                     const canAdd = Math.min(room, countToAdd);
                     existing.count += canAdd;
-                    return true;
+                    added = true;
+                    break;
                 }
             }
             // 2. Try empty storage slot
-            for (let i = 0; i < this.storage.length; i++) {
-                if (this.storage[i] === null) {
-                    this.storage[i] = { ...item };
-                    return true;
+            if (!added) {
+                for (let i = 0; i < this.storage.length; i++) {
+                    if (this.storage[i] === null) {
+                        this.storage[i] = { ...item };
+                        // Ensure the item in inventory has the hotbar_able property for future checks
+                        if (itemData) this.storage[i].hotbar_able = itemData.hotbar_able;
+                        added = true;
+                        break;
+                    }
+                }
+            }
+            
+            // If it's not hotbar able, we stop here. We don't want it in the hotbar even if storage is full.
+            if (!isHotbarAble && !added) return false;
+        }
+
+        if (!added) {
+            // 3. Try to stack in hotbar
+            for (let i = 0; i < this.hotbar.length; i++) {
+                const existing = this.hotbar[i];
+                if (existing && existing.type === item.type && existing.count < stackLimit) {
+                    const room = stackLimit - existing.count;
+                    const canAdd = Math.min(room, countToAdd);
+                    existing.count += canAdd;
+                    if (this.player.ui) this.player.ui.updateHotbar();
+                    added = true;
+                    break;
                 }
             }
         }
 
-        // 3. Try to stack in hotbar (if not already tried or failed storage)
-        for (let i = 0; i < this.hotbar.length; i++) {
-            const existing = this.hotbar[i];
-            if (existing && existing.type === item.type && existing.count < stackLimit) {
-                const room = stackLimit - existing.count;
-                const canAdd = Math.min(room, countToAdd);
-                existing.count += canAdd;
-                if (this.player.ui) this.player.ui.updateHotbar();
-                return true;
-            }
-        }
-
-        if (!preferStorage) {
+        if (!added && !preferStorage) {
             // 4. Try to stack in storage
             for (let i = 0; i < this.storage.length; i++) {
                 const existing = this.storage[i];
@@ -117,42 +143,54 @@ export class PlayerInventory {
                     const room = stackLimit - existing.count;
                     const canAdd = Math.min(room, countToAdd);
                     existing.count += canAdd;
-                    return true;
+                    added = true;
+                    break;
                 }
             }
         }
 
-        // 5. Try empty hotbar slot (if not already tried or failed storage)
-        if (!preferStorage) {
+        // 5. Try empty hotbar slot
+        if (!added && !preferStorage && isHotbarAble) {
             for (let i = 0; i < this.hotbar.length; i++) {
                 if (this.hotbar[i] === null) {
                     this.hotbar[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
+                    if (itemData) this.hotbar[i].hotbar_able = itemData.hotbar_able;
                     if (this.player.ui) this.player.ui.updateHotbar();
-                    return true;
+                    added = true;
+                    break;
                 }
             }
         }
 
-        // 6. Try empty storage slot (if not already tried or failed hotbar)
-        if (!preferStorage) {
+        // 6. Try empty storage slot
+        if (!added && !preferStorage) {
             for (let i = 0; i < this.storage.length; i++) {
                 if (this.storage[i] === null) {
                     this.storage[i] = { ...item };
-                    return true;
+                    if (itemData) this.storage[i].hotbar_able = itemData.hotbar_able;
+                    added = true;
+                    break;
                 }
             }
-        } else {
+        } else if (!added && isHotbarAble) {
             // If preferStorage was true and we are here, we already tried storage, so try hotbar as last resort
             for (let i = 0; i < this.hotbar.length; i++) {
                 if (this.hotbar[i] === null) {
                     this.hotbar[i] = { ...item, id: item.id || `item-${Math.random().toString(36).substr(2, 9)}`, count: countToAdd };
+                    if (itemData) this.hotbar[i].hotbar_able = itemData.hotbar_able;
                     if (this.player.ui) this.player.ui.updateHotbar();
-                    return true;
+                    added = true;
+                    break;
                 }
             }
         }
 
-        return false;
+        if (added && this.player.inventoryUI && this.player.inventoryUI.render) {
+            this.player.inventoryUI.syncWithPlayer();
+            this.player.inventoryUI.render();
+        }
+
+        return added;
     }
 
     equipById(itemId) {
@@ -236,15 +274,39 @@ export class PlayerInventory {
         return null;
     }
 
-    consumeItem(index, amount, isHotbar = true) {
-        const arr = isHotbar ? this.hotbar : this.storage;
-        if (arr[index]) {
-            arr[index].count -= amount;
-            if (arr[index].count <= 0) arr[index] = null;
-            if (this.player.ui) this.player.ui.updateHotbar();
-            return true;
+    moveItem(from, to) {
+        // from, to are { type: 'STORAGE' | 'HOTBAR', index: number }
+        const sourceArr = from.type === 'HOTBAR' ? this.hotbar : this.storage;
+        const targetArr = to.type === 'HOTBAR' ? this.hotbar : this.storage;
+
+        const item = sourceArr[from.index];
+        if (!item) return false;
+
+        // If moving TO hotbar, check if it's hotbar_able
+        if (to.type === 'HOTBAR') {
+            let itemData = null;
+            if (this.player.worldManager && this.player.worldManager.itemsData && this.player.worldManager.itemsData.items) {
+                itemData = this.player.worldManager.itemsData.items[item.type];
+            }
+            const isHotbarAble = item.hotbar_able === true || (itemData && itemData.hotbar_able === true);
+            if (!isHotbarAble) {
+                if (this.player.ui) this.player.ui.showStatus("Cannot place this item on hotbar!", true);
+                return false;
+            }
         }
-        return false;
+
+        const targetItem = targetArr[to.index];
+
+        // Swap items
+        targetArr[to.index] = item;
+        sourceArr[from.index] = targetItem;
+
+        if (this.player.ui) this.player.ui.updateHotbar();
+        if (this.player.inventoryUI) {
+            this.player.inventoryUI.syncWithPlayer();
+            this.player.inventoryUI.render();
+        }
+        return true;
     }
 }
 
@@ -711,7 +773,9 @@ export class PlayerUI {
         if (this.hudChakraText) this.hudChakraText.textContent = `${Math.ceil(this.player.stats.chakra)}/${this.player.stats.maxChakra}`;
         if (this.hudXpText) {
             const xpPerc = Math.floor((this.player.stats.xp / this.player.stats.xpToNextLevel) * 100);
-            this.hudXpText.textContent = `LV.${this.player.stats.level} [${xpPerc}%]`;
+            this.hudXpText.textContent = `[${xpPerc}%]`;
+            const levelBadge = document.getElementById('hud-level-badge');
+            if (levelBadge) levelBadge.textContent = `LV.${this.player.stats.level}`;
         }
     }
 

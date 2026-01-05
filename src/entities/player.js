@@ -90,8 +90,8 @@ export class Player {
                     } else {
                         targetScale = 6 + Math.sin(elapsed * 5) * 0.2;
                     }
-                    // Apply uniform scale to avoid stretching
-                    this.actions.summoningCircle.scale.set(targetScale, targetScale, targetScale);
+                    const aspect = this.actions.summoningCircle.userData.aspect || 1;
+                    this.actions.summoningCircle.scale.set(targetScale * aspect, targetScale, 1);
 
                     // Fade out logic
                     const fadeTime = 0.5;

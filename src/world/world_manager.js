@@ -63,6 +63,17 @@ export class WorldManager {
     async loadLand(landData) {
         if (!landData) return;
         
+        // Show loading screen transition
+        let loadingPromise = null;
+        try {
+            const { startLoadingSequence } = await import('../core/main.js');
+            const characterData = window.gameInstance?.player?.characterData || {};
+            const roomCode = window.gameInstance?.roomCode || 'Alpha';
+            loadingPromise = startLoadingSequence(characterData, roomCode, true);
+        } catch (e) {
+            console.error("Failed to trigger loading sequence:", e);
+        }
+
         // Save current position for the land we are leaving
         if (this.worldMask && window.gameInstance && window.gameInstance.player) {
             const pos = window.gameInstance.player.mesh.position;
@@ -398,14 +409,12 @@ export class WorldManager {
                         window.gameInstance.player.teleport(targetX, targetZ);
 
                         // Spawn assassin at the destination
-                        const sx = 80;
-                        const sz = -108;
-                        const key = `${sx},${sz}`;
+                        const key = `${80},${-108}`;
                         
                         // Ensure the shard is loaded or available
                         let shard = this.activeShards.get(key);
                         if (!shard) {
-                            shard = new Shard(this.scene, sx, sz, this);
+                            shard = new Shard(this.scene, 80, -108, this);
                             this.activeShards.set(key, shard);
                             if (shard.groundMesh) this.terrainMeshes.push(shard.groundMesh);
                             this.invalidateCache();
@@ -483,11 +492,14 @@ export class WorldManager {
         return result;
     }
 
-    getTerrainHeight(x, z) {
+    getTerrainHeight(x, z, skipInterpolation = false) {
         // Cut out terrain outside the world mask
         if (this.worldMask && !this.worldMask.containsXZ(x, z)) {
             return -2.0; // Ocean/Void height
         }
+
+        let h = 0;
+        let inPond = false;
 
         // Apply pond flattening first
         for (const pond of this.ponds) {
@@ -499,7 +511,9 @@ export class WorldManager {
             
             if (distSq < innerRadius * innerRadius) {
                 // Slightly below the water level for depth
-                return pond.y - 0.1;
+                h = pond.y - 0.1;
+                inPond = true;
+                break;
             } else if (distSq < outerRadius * outerRadius) {
                 const dist = Math.sqrt(distSq);
                 const t = (dist - innerRadius) / (outerRadius - innerRadius);
@@ -509,10 +523,53 @@ export class WorldManager {
                 const baseH = this._getRawTerrainHeight(x, z);
                 // Blend from pond basin depth to natural terrain
                 const pondTargetH = pond.y - 0.1;
-                return pondTargetH * (1 - smoothT) + baseH * smoothT;
+                h = pondTargetH * (1 - smoothT) + baseH * smoothT;
+                inPond = true;
+                break;
             }
         }
-        return this._getRawTerrainHeight(x, z);
+
+        if (!inPond) {
+            h = this._getRawTerrainHeight(x, z);
+        }
+
+        if (skipInterpolation) return h;
+
+        const sx = Math.floor((x + SHARD_SIZE / 2) / SHARD_SIZE);
+        const sz = Math.floor((z + SHARD_SIZE / 2) / SHARD_SIZE);
+        const shard = this.activeShards.get(`${sx},${sz}`);
+        
+        if (shard && shard.heights) {
+            const segments = 12;
+            const gridRes = segments + 1;
+            const localX = x - shard.offsetX;
+            const localZ = z - shard.offsetZ;
+            
+            // Map to grid index (0 to segments)
+            const fj = (localX / SHARD_SIZE + 0.5) * segments;
+            const fi = (localZ / SHARD_SIZE + 0.5) * segments;
+            
+            const j0 = Math.floor(fj);
+            const i0 = Math.floor(fi);
+            const j1 = Math.min(j0 + 1, segments);
+            const i1 = Math.min(i0 + 1, segments);
+            
+            const tj = fj - j0;
+            const ti = fi - i0;
+            
+            if (j0 >= 0 && j0 <= segments && i0 >= 0 && i0 <= segments) {
+                const h00 = shard.heights[i0 * gridRes + j0];
+                const h10 = shard.heights[i0 * gridRes + j1];
+                const h01 = shard.heights[i1 * gridRes + j0];
+                const h11 = shard.heights[i1 * gridRes + j1];
+                
+                const hRow0 = h00 * (1 - tj) + h10 * tj;
+                const hRow1 = h01 * (1 - tj) + h11 * tj;
+                return hRow0 * (1 - ti) + hRow1 * ti;
+            }
+        }
+
+        return h;
     }
 
     getTerrainNormal(x, z) {
@@ -527,10 +584,35 @@ export class WorldManager {
     }
 
     _getRawTerrainHeight(x, z) {
-        // Only Land23 has complex terrain features (plateaus, canyons, mountains)
-        const isLand23 = this.worldMask && this.worldMask.landId === 'Land23';
-        if (!isLand23) {
-            return 0; // All other lands are flat
+        const landId = this.worldMask ? this.worldMask.landId : null;
+        
+        if (landId === 'Land15') {
+            const cityX = (27.88521217690938 - 5.5) * 1500;
+            const cityZ = (35.83878130952189 - 5.5) * 1500;
+            const dx = x - cityX;
+            const dz = z - cityZ;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            const cityRadius = 600.0;
+            const transition = 150.0;
+
+            let cityInfluence = 1.0;
+            if (dist < cityRadius) {
+                cityInfluence = 0.0;
+            } else if (dist < cityRadius + transition) {
+                const t = (dist - cityRadius) / transition;
+                cityInfluence = t * t * (3 - 2 * t);
+            }
+
+            const scale = 0.002;
+            const h1 = Math.sin(x * scale) * Math.cos(z * scale * 1.2) * 20.0;
+            const h2 = Math.sin(x * scale * 2.5 + 500) * Math.sin(z * scale * 2.1) * 10.0;
+            const h3 = Math.cos(x * scale * 0.5) * 15.0;
+            const hills = (h1 + h2 + h3) + 15.0;
+            return hills * cityInfluence;
+        }
+
+        if (landId !== 'Land23') {
+            return 0;
         }
 
         const PLATEAU_X = 7509.5;

@@ -216,6 +216,35 @@ export class Ore {
     die() {
         this.isDead = true;
         this._explosionStartTime = performance.now();
+
+        // Spawn 4-6 Ore Items (similar to trees but fewer items)
+        if (this.shard && this.shard.spawnItem) {
+            const config = ORE_CONFIG[this.type] || ORE_CONFIG.rock;
+            const dropCount = 4 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < dropCount; i++) {
+                const dropPos = this.group.position.clone();
+                dropPos.x += (Math.random() - 0.5) * 2.5 * SCALE_FACTOR;
+                dropPos.z += (Math.random() - 0.5) * 2.5 * SCALE_FACTOR;
+                
+                // Determine item data based on ore type
+                const itemData = {
+                    type: this.type,
+                    name: this.type.charAt(0).toUpperCase() + this.type.slice(1),
+                    icon: `assets/icons/ores/${this.type}.png`,
+                    count: 1,
+                    stackLimit: 99
+                };
+
+                // Special handling for rock -> stone
+                if (this.type === 'rock') {
+                    itemData.type = 'stone';
+                    itemData.name = 'Stone';
+                    itemData.icon = 'assets/icons/stone_icon.png';
+                }
+
+                this.shard.spawnItem(itemData.type, dropPos, itemData);
+            }
+        }
         
         // Use the shard's update loop for the explosion instead of a separate RAF loop
         this.update = (delta) => {

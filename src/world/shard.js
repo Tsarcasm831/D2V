@@ -177,11 +177,9 @@ export class Shard {
         const grassTex = wm ? wm.getTexture('assets/textures/grass_texture.png') : new THREE.TextureLoader().load('assets/textures/grass_texture.png');
         const snowTex = wm ? wm.getTexture('assets/textures/snow_texture.png') : new THREE.TextureLoader().load('assets/textures/snow_texture.png');
 
-        const segments = 20; // Optimization: Reduced from 60 to 20 for performance
+        const segments = 12; // Adjusted to SHARD_SIZE / 5.0 = 12 segments for a 5m grid spacing
         
         // --- Pond flattened terrain logic ---
-        // We move pond generation UP before the terrain mesh is built
-        // to ensure getTerrainHeight uses the updated pond-flattened data.
         const hasPond = rng() < pondChance;
         let pendingPond = null;
         if (hasPond) {
@@ -233,16 +231,9 @@ export class Shard {
         // --- End Pond flattened terrain logic ---
 
         const groundGeo = new THREE.PlaneGeometry(SHARD_SIZE, SHARD_SIZE, segments, segments);
-        
-        // Deform vertices based on heightmap
-        const posAttr = groundGeo.getAttribute('position');
-        const normalAttr = groundGeo.getAttribute('normal');
-        
-        // Progressive height and normal calculation to reduce noise calls
-        // Throttled height calculation: only call noise once per grid point
         const gridRes = segments + 1;
-        const heights = new Float32Array(gridRes * gridRes);
-        const texelSize = SHARD_SIZE / segments;
+        this.heights = new Float32Array(gridRes * gridRes);
+        const heights = this.heights;
         
         for (let i = 0; i < gridRes; i++) {
             const vy = (0.5 - i / segments) * SHARD_SIZE;
@@ -250,20 +241,26 @@ export class Shard {
             for (let j = 0; j < gridRes; j++) {
                 const vx = (j / segments - 0.5) * SHARD_SIZE;
                 const worldX = vx + this.offsetX;
-                heights[i * gridRes + j] = this.getTerrainHeight(worldX, worldZ);
+                // Sampling at discrete points for the mesh and grid
+                heights[i * gridRes + j] = this.getTerrainHeight(worldX, worldZ, true);
             }
         }
 
-        for (let i = 0; i < posAttr.count; i++) {
-            posAttr.setZ(i, heights[i]);
+        const posAttr = groundGeo.getAttribute('position');
+        const normalAttr = groundGeo.getAttribute('normal');
+        for (let i = 0; i < gridRes; i++) {
+            for (let j = 0; j < gridRes; j++) {
+                const idx = i * gridRes + j;
+                // PlaneGeometry vertices are generated in row-major order (standard THREE.js)
+                posAttr.setZ(idx, heights[idx]);
+            }
         }
 
+        const texelSize = SHARD_SIZE / segments;
         const tempNormal = new THREE.Vector3();
         for (let i = 0; i < gridRes; i++) {
             for (let j = 0; j < gridRes; j++) {
                 const idx = i * gridRes + j;
-                
-                // Faster normal estimation using pre-calculated height grid
                 const hL = j > 0 ? heights[idx - 1] : heights[idx];
                 const hR = j < segments ? heights[idx + 1] : heights[idx];
                 const hD = i > 0 ? heights[idx - gridRes] : heights[idx];
@@ -416,14 +413,55 @@ export class Shard {
         // Use a simpler grid visualization to avoid artifacting
         const size = SHARD_SIZE;
         const divisions = segments;
-        const gridHelper = new THREE.GridHelper(size, divisions, 0x4444ff, 0x4444ff);
-        gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.2;
-        gridHelper.rotation.x = 0; // GridHelper is already on XZ plane
-        gridHelper.position.set(this.offsetX, 0.05, this.offsetZ);
+        const gridHelper = new THREE.Group();
+        
+        // Create a custom grid that follows the heightmap
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x4444ff, 
+            transparent: true, 
+            opacity: 0.6,
+            depthTest: false,
+            depthWrite: false
+        });
+        const gridOffset = 0.1; // Slightly above terrain to avoid Z-fighting
+
+        // X-axis lines (lines of constant worldZ)
+        for (let i = 0; i <= divisions; i++) {
+            const vy = (0.5 - i / divisions) * size;
+            const vz = -vy;
+            const points = [];
+            for (let j = 0; j <= divisions; j++) {
+                const vx = (j / divisions - 0.5) * size;
+                const h = heights[i * gridRes + j];
+                points.push(new THREE.Vector3(vx, h + gridOffset, vz));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geometry, lineMaterial);
+            line.layers.enable(1);
+            gridHelper.add(line);
+        }
+
+        // Z-axis lines (lines of constant worldX)
+        for (let j = 0; j <= divisions; j++) {
+            const vx = (j / divisions - 0.5) * size;
+            const points = [];
+            for (let i = 0; i <= divisions; i++) {
+                const vy = (0.5 - i / divisions) * size;
+                const vz = -vy;
+                const h = heights[i * gridRes + j];
+                points.push(new THREE.Vector3(vx, h + gridOffset, vz));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geometry, lineMaterial);
+            line.layers.enable(1);
+            gridHelper.add(line);
+        }
+
+        gridHelper.position.set(this.offsetX, 0, this.offsetZ);
         this.objects.add(gridHelper);
         this.shardGrid = gridHelper;
         this.shardGrid.visible = false;
+        this.shardGrid.layers.enable(1);
 
         // Procedural Ponds (Actual building instantiation)
         if (pendingPond) {

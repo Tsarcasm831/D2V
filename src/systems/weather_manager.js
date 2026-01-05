@@ -127,6 +127,10 @@ export class WeatherManager {
                     this.currentState = WEATHER_TYPES.CLEAR;
                     this.transitionProgress = 1.0;
                 }
+                if (this.snowParticles) {
+                    this.snowParticles.material.opacity = 0;
+                    this.snowParticles.visible = false;
+                }
             } else {
                 // In the mountains surrounding the bowl: Force Snowstorm
                 if (this.targetState !== WEATHER_TYPES.SNOWSTORM) {
@@ -266,7 +270,8 @@ export class WeatherManager {
                 delta
             );
         } else {
-            this.snowParticles.material.opacity = THREE.MathUtils.lerp(this.snowParticles.material.opacity, 0, delta * 2);
+            const fadeSpeed = (this.targetState === WEATHER_TYPES.CLEAR) ? delta * 6 : delta * 2;
+            this.snowParticles.material.opacity = THREE.MathUtils.lerp(this.snowParticles.material.opacity, 0, fadeSpeed);
             if (this.snowParticles.material.opacity < 0.01) {
                 this.snowParticles.visible = false;
             }

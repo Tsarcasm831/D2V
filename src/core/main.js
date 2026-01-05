@@ -74,10 +74,21 @@ function initMenuSnow() {
     animate();
 }
 
-async function startLoadingSequence(characterData, roomCode) {
+export async function startLoadingSequence(characterData, roomCode, isTravelling = false) {
     // Show loading screen immediately
     const loadingScreenElem = document.getElementById('loading-screen');
+    const loadingTitle = document.getElementById('loading-title');
+    const bgOverlay = document.getElementById('loading-bg-overlay');
+    
     if (loadingScreenElem) {
+        if (isTravelling) {
+            loadingScreenElem.classList.add('travelling');
+            if (loadingTitle) loadingTitle.innerText = "TRAVELLING";
+        } else {
+            loadingScreenElem.classList.remove('travelling');
+            if (loadingTitle) loadingTitle.innerText = "ENTERING REALM";
+        }
+
         // Randomly select a background image
         const bgImages = [
             'loading_bg.png', 'loading_bg_1.png', 'loading_bg_2.png', 'loading_bg_3.png',
@@ -85,18 +96,28 @@ async function startLoadingSequence(characterData, roomCode) {
             'loading_bg_8.png', 'loading_bg_9.png', 'loading_bg_10.png'
         ];
         const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)];
-        loadingScreenElem.style.backgroundImage = `url('assets/backgrounds/${randomBg}')`;
-        loadingScreenElem.style.backgroundSize = 'cover';
-        loadingScreenElem.style.backgroundPosition = 'center';
+        const bgUrl = `url('assets/backgrounds/${randomBg}')`;
+        
+        if (bgOverlay) {
+            bgOverlay.style.backgroundImage = bgUrl;
+        } else {
+            loadingScreenElem.style.backgroundImage = bgUrl;
+            loadingScreenElem.style.backgroundSize = 'cover';
+            loadingScreenElem.style.backgroundPosition = 'center';
+        }
         
         loadingScreenElem.style.display = 'flex';
         loadingScreenElem.style.opacity = '1';
     }
 
-    // Defer game creation to let the UI update
+    // Defer game creation or updates to let the UI update
     await new Promise(resolve => requestAnimationFrame(resolve));
     
-    const game = new Game(characterData, roomCode);
+    let game = window.gameInstance;
+    if (!game && !isTravelling) {
+        game = new Game(characterData, roomCode);
+    }
+    
     const loader = new AssetLoader();
     const fill = document.getElementById('loading-bar-fill');
     const whimsicalFill = document.getElementById('whimsical-bar-fill');
@@ -132,92 +153,98 @@ async function startLoadingSequence(characterData, roomCode) {
         tipElement.innerText = tips[Math.floor(Math.random() * tips.length)];
     }
 
-    let currentProgress = 0;
-    let targetProgress = 0;
-    let whimsicalProgress = 0;
+    let assetProgress = 0;
+    let mapProgress = 0;
+    let currentVisualProgress = 0;
     let realLoadingFinished = false;
     let falseLoadingFinished = false;
+    let animationStarted = false;
 
-    // Real progress animation (microbar)
-    function updateRealProgress() {
-        if (currentProgress < targetProgress) {
-            currentProgress += (targetProgress - currentProgress) * 0.05;
-            if (fill) fill.style.width = `${currentProgress * 100}%`;
-        }
-        if (currentProgress < 0.999 || !realLoadingFinished) {
-            requestAnimationFrame(updateRealProgress);
+    function animateProgress() {
+        const targetCombinedProgress = (assetProgress * 0.7) + (mapProgress * 0.3);
+        const target = realLoadingFinished ? 1 : targetCombinedProgress;
+        const diff = target - currentVisualProgress;
+        
+        // Always update if there's a difference, or if we need to finish
+        if (Math.abs(diff) > 0.0001 || (realLoadingFinished && currentVisualProgress < 1)) {
+            // Smoothly interpolate. Use a minimum step to ensure it doesn't crawl at the end
+            const step = Math.max(diff * 0.05, 0.0005);
+            currentVisualProgress = Math.min(currentVisualProgress + step, target);
+            
+            const displayPercent = Math.round(currentVisualProgress * 100);
+            
+            if (fill) fill.style.width = `${currentVisualProgress * 100}%`;
+            if (whimsicalFill) whimsicalFill.style.width = `${currentVisualProgress * 100}%`;
+
+            if (whimsicalStatus) {
+                if (currentVisualProgress < 0.999) {
+                    whimsicalStatus.innerText = `Etching world map... ${displayPercent}%`;
+                } else if (realLoadingFinished) {
+                    whimsicalStatus.innerText = "Ready to explore.";
+                    falseLoadingFinished = true;
+                }
+            }
+            
+            if (!falseLoadingFinished) {
+                requestAnimationFrame(animateProgress);
+            }
+        } else if (realLoadingFinished) {
+            falseLoadingFinished = true;
         }
     }
-    requestAnimationFrame(updateRealProgress);
 
-    // Whimsical progress animation
-    function updateWhimsicalProgress() {
-        if (!falseLoadingFinished) {
-            // Slower, more erratic progress
-            const increment = Math.random() * 0.005;
-            whimsicalProgress = Math.min(whimsicalProgress + increment, realLoadingFinished ? 1 : 0.95);
-            
-            if (whimsicalFill) whimsicalFill.style.width = `${whimsicalProgress * 100}%`;
-            
-            if (Math.random() < 0.02 && whimsicalStatus) {
-                whimsicalStatus.innerText = whimsicalMessages[Math.floor(Math.random() * whimsicalMessages.length)];
-            }
-
-            if (whimsicalProgress >= 1) {
-                falseLoadingFinished = true;
-                if (whimsicalStatus) whimsicalStatus.innerText = "Ready to explore.";
-            } else {
-                requestAnimationFrame(updateWhimsicalProgress);
-            }
-        }
+    // Start the animation loop immediately
+    if (!animationStarted) {
+        animationStarted = true;
+        requestAnimationFrame(animateProgress);
     }
-    requestAnimationFrame(updateWhimsicalProgress);
-    
+
     // Start asset loading
     const assetPromise = loader.loadAll((p) => {
-        targetProgress = p;
+        assetProgress = p;
     });
 
     // Start world map pre-caching in parallel
     const mapCachePromise = game.shardMap.preCacheWorld((p) => {
-        // We can optionally update a status message here if needed
-        if (whimsicalStatus && Math.random() < 0.05) {
-            whimsicalStatus.innerText = `Etching world map... ${Math.round(p * 100)}%`;
-        }
+        mapProgress = p;
     });
 
     await Promise.all([assetPromise, mapCachePromise]);
 
     realLoadingFinished = true;
-    targetProgress = 1;
+    assetProgress = 1;
+    mapProgress = 1;
     
-    // Ensure it takes at least 1 second longer than the real loading
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Wait for the whimsical bar to finish if it hasn't yet
+    // Wait for visual progress to catch up
     await new Promise(resolve => {
         const check = setInterval(() => {
             if (falseLoadingFinished) {
                 clearInterval(check);
                 resolve();
             }
-        }, 100);
+        }, 50);
     });
-
-    // Hide menu background components when loading finishes
-    const menuBg = document.getElementById('menu-background');
-    const menuSnow = document.getElementById('menu-snow-canvas');
-    if (menuBg) menuBg.style.display = 'none';
-    if (menuSnow) menuSnow.style.display = 'none';
+    
+    if (!isTravelling) {
+        // Hide menu background components only on initial load
+        const menuBg = document.getElementById('menu-background');
+        const menuSnow = document.getElementById('menu-snow-canvas');
+        if (menuBg) menuBg.style.display = 'none';
+        if (menuSnow) menuSnow.style.display = 'none';
+        
+        // Final initialization and start animation loop
+        game.initAfterLoading();
+    }
 
     const finalLoadingScreen = document.getElementById('loading-screen');
     if (finalLoadingScreen) {
         finalLoadingScreen.style.opacity = '0';
-        setTimeout(() => finalLoadingScreen.style.display = 'none', 600);
+        setTimeout(() => {
+            finalLoadingScreen.style.display = 'none';
+            finalLoadingScreen.classList.remove('travelling');
+        }, 800);
     }
 
-    // Final initialization and start animation loop
-    game.initAfterLoading();
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.opacity = '1';
 }

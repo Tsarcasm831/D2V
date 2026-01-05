@@ -2,6 +2,12 @@ import { audioManager } from '../utils/audio_manager.js';
 
 export class AssetLoader {
     constructor() {
+        if (AssetLoader.instance) {
+            return AssetLoader.instance;
+        }
+        AssetLoader.instance = this;
+        
+        this.cache = new Map();
         this.images = [
             'assets/icons/the_frozen_steppes_icon.png', 'assets/icons/firepit_icon.png', 'assets/icons/floor_icon.png', 'assets/icons/axe_icon.png',
             'assets/gear/shirt.png', 'assets/icons/pelt_icon.png', 'assets/icons/meat_icon.png', 'assets/icons/combat_icon.png',
@@ -38,12 +44,19 @@ export class AssetLoader {
         this.total = allImages.length + Object.keys(this.sounds).length;
 
         const imagePromises = allImages.map(src => {
+            if (this.cache.has(src)) {
+                this.loaded++;
+                if (onProgress) onProgress(this.loaded / this.total);
+                return Promise.resolve(this.cache.get(src));
+            }
+
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
+                    this.cache.set(src, img);
                     this.loaded++;
                     if (onProgress) onProgress(this.loaded / this.total);
-                    resolve();
+                    resolve(img);
                 };
                 img.onerror = () => {
                     this.loaded++;

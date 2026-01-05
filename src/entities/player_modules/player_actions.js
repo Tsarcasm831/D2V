@@ -3,6 +3,7 @@ import { SCALE_FACTOR, SHARD_SIZE } from '../../world/world_bounds.js';
 import { FireballProjectile } from '../../systems/fireball_projectile.js';
 import { IceboltProjectile } from '../../systems/icebolt_projectile.js';
 import { Owl } from '../owl.js';
+import { HitIndicator } from './hit_indicator.js';
 
 export class PlayerActions {
     constructor(player) {
@@ -17,13 +18,27 @@ export class PlayerActions {
         
         this.selectedSkill = { id: 'fireball', name: 'Fireball', icon: 'assets/vfx/fireball.png', cost: 20 };
         this.mountedHorse = null;
+        this.hitIndicator = new HitIndicator(player);
     }
 
     updateCombat(delta) {
         // Handle Action (Click/Tap)
         // Access game and inputManager safely
-        const game = this.player.worldManager ? this.player.worldManager.game : (this.player.game || null);
+        const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
         if (!game || !game.inputManager) return;
+
+        // Update hit indicator position and visibility
+        if (this.hitIndicator) {
+            this.hitIndicator.update();
+            this.hitIndicator.mesh.visible = true; // Force visibility
+            
+            // Temporary diagnostic log
+            if (!this._diagCounter) this._diagCounter = 0;
+            this._diagCounter++;
+            if (this._diagCounter % 100 === 0) {
+                console.log("PlayerActions: hitIndicator.update() called. Mouse pos:", game.inputManager.input.mouseWorldPos);
+            }
+        }
         
         const input = game.inputManager.input;
         if (input.action && !this.prevActionPressed) {
@@ -60,7 +75,7 @@ export class PlayerActions {
         let hitSomething = false;
 
         // 1. Raycast to find what was actually clicked if no target provided
-        const game = this.player.worldManager ? this.player.worldManager.game : (this.player.game || null);
+        const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
         const im = game ? game.inputManager : null;
         if (!target && im && im.raycaster && game.camera) {
             // Ensure raycaster is up to date
@@ -84,10 +99,19 @@ export class PlayerActions {
                 const hitMesh = intersects[0].object;
                 let hitObj = null;
 
-                // Search through our nearby lists for the owner
-                hitObj = nearbyResources.find(r => r.group && (r.group === hitMesh || r.group.contains(hitMesh)));
-                if (!hitObj) hitObj = nearbyNPCs.find(n => (n.group || n.mesh) && ((n.group || n.mesh) === hitMesh || (n.group || n.mesh).contains(hitMesh)));
-                if (!hitObj) hitObj = nearbyFauna.find(f => (f.group || f.mesh) && ((f.group || f.mesh) === hitMesh || (f.group || f.mesh).contains(hitMesh)));
+            const ownsMesh = (obj, mesh) => {
+                if (!obj || !mesh) return false;
+                if (obj === mesh) return true;
+                if (obj.isObject3D && mesh.id !== undefined) {
+                    return obj.getObjectById(mesh.id) !== undefined;
+                }
+                return false;
+            };
+
+            // Search through our nearby lists for the owner
+            hitObj = nearbyResources.find(r => ownsMesh(r.group, hitMesh));
+            if (!hitObj) hitObj = nearbyNPCs.find(n => ownsMesh(n.group || n.mesh, hitMesh));
+            if (!hitObj) hitObj = nearbyFauna.find(f => ownsMesh(f.group || f.mesh, hitMesh));
 
                 if (hitObj) {
                     const dist = playerPos.distanceTo(intersects[0].point);
@@ -181,7 +205,16 @@ export class PlayerActions {
 
         if (!this.summoningCircle) {
             const geo = new THREE.PlaneGeometry(1, 1);
-            const tex = new THREE.TextureLoader().load('assets/vfx/summoning_circle.png');
+            const tex = new THREE.TextureLoader().load(
+                'assets/vfx/summoning_circle.png',
+                (loadedTex) => {
+                    if (!this.summoningCircle) return;
+                    const aspect = loadedTex.image.width / loadedTex.image.height;
+                    this.summoningCircle.userData.aspect = aspect;
+                    const currentScale = this.summoningCircle.scale.y || 1;
+                    this.summoningCircle.scale.set(currentScale * aspect, currentScale, 1);
+                }
+            );
             const mat = new THREE.MeshBasicMaterial({ 
                 map: tex, 
                 transparent: true, 
@@ -191,8 +224,9 @@ export class PlayerActions {
                 depthWrite: false
             });
             this.summoningCircle = new THREE.Mesh(geo, mat);
+            this.summoningCircle.userData.aspect = 1;
             this.summoningCircle.rotation.x = -Math.PI / 2;
-            this.summoningCircle.scale.set(6, 6, 6);
+            this.summoningCircle.scale.set(6, 6, 1);
             this.summoningCircle.matrixAutoUpdate = true;
             this.player.scene.add(this.summoningCircle);
         }
@@ -206,7 +240,8 @@ export class PlayerActions {
         this.summoningCircle.position.y = groundHeight + 0.15;
         this.summoningCircle.material.opacity = 1;
         this.summoningCircle.visible = true;
-        this.summoningCircle.scale.set(0.001, 0.001, 0.001);
+        const aspect = this.summoningCircle.userData.aspect || 1;
+        this.summoningCircle.scale.set(0.001 * aspect, 0.001, 1);
         this.summoningCircle.rotation.z = 0; // Reset rotation for new animation
 
         import('../../utils/audio_manager.js').then(({ audioManager }) => {
@@ -344,7 +379,7 @@ export class PlayerActions {
         }
 
         // Projectile spawning
-        const game = this.player.worldManager ? this.player.worldManager.game : (this.player.game || null);
+        const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
         if (game && game.inputManager) {
             const startPos = this.player.mesh.position.clone();
             startPos.y += 1.2;
@@ -505,9 +540,6 @@ export class PlayerActions {
             if (closestItem.collect(this.player)) {
                 if (this.player.ui) {
                     this.player.ui.updateHotbar();
-                    if (this.player.inventoryUI) {
-                        this.player.inventoryUI.render();
-                    }
                 }
                 this.player.animator.playPickup();
                 return true;

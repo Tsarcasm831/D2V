@@ -14,8 +14,8 @@ export class GridLabelManager {
         
         this.pool = [];
         this.textureCache = new Map();
-        this.gridStep = 5.0; // Aligned with GridHelper(3000, 600) in game.js
-        this.labelRange = 25; // Slightly increased range for 5-unit grid
+        this.gridStep = 5.0; // Fixed world-space grid step
+        this.labelRange = 40; // Increased range to see more labels
         
         this.lastUpdate = 0;
         this.updateInterval = 200; // Update labels at 5Hz
@@ -95,7 +95,7 @@ export class GridLabelManager {
 
         for (let ix = minIX; ix <= maxIX; ix++) {
             for (let iz = minIZ; iz <= maxIZ; iz++) {
-                // Calculate center of this specific grid square
+                // Calculate position of the CENTER of this grid square
                 const squareCenterX = ix * step + step / 2;
                 const squareCenterZ = iz * step + step / 2;
                 
@@ -104,12 +104,10 @@ export class GridLabelManager {
                 const dz = squareCenterZ - playerPos.z;
                 if (dx * dx + dz * dz > rangeSq) continue;
 
-                // Calculate shard coordinates
-                const sx = Math.floor((squareCenterX + SHARD_SIZE / 2) / SHARD_SIZE);
-                const sz = Math.floor((squareCenterZ + SHARD_SIZE / 2) / SHARD_SIZE);
-
-                // Create a unique label based on grid index and shard index
-                const labelText = `${ix},${iz}\n[${sx},${sz}]`;
+                // Create a unique label for every grid cell center
+                const shardX = Math.floor(squareCenterX / SHARD_SIZE);
+                const shardZ = Math.floor(squareCenterZ / SHARD_SIZE);
+                const labelText = `${ix},${iz}\n${shardX},${shardZ}`;
                 
                 let sprite;
                 if (activeIndex < this.pool.length) {
@@ -136,7 +134,7 @@ export class GridLabelManager {
                 
                 // Float slightly above the grid to avoid Z-fighting
                 const height = this.scene.worldManager ? this.scene.worldManager.getTerrainHeight(squareCenterX, squareCenterZ) : 0;
-                sprite.position.set(squareCenterX, height + 0.25, squareCenterZ);
+                sprite.position.set(squareCenterX, height + 0.3, squareCenterZ);
                 activeIndex++;
             }
         }

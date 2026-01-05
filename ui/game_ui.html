@@ -2,21 +2,38 @@
     <div id="tooltip"></div>
     <div id="ui-layer">
     <div id="hud-container">
-        <div class="hud-row">
-            <div class="hud-label">HEALTH</div>
-            <div class="bar-container"><div id="health-fill" class="bar-fill"></div><div id="hud-hp-text" class="hud-text"></div></div>
+        <div id="hud-profile-circle">
+            <img src="assets/icons/profile_icon.png" id="hud-char-icon" alt="Profile">
         </div>
-        <div class="hud-row">
-            <div class="hud-label">STAMINA</div>
-            <div class="bar-container"><div id="stamina-fill" class="bar-fill"></div><div id="hud-stamina-text" class="hud-text"></div></div>
-        </div>
-        <div class="hud-row">
-            <div class="hud-label">CHAKRA</div>
-            <div class="bar-container"><div id="chakra-fill" class="bar-fill"></div><div id="hud-chakra-text" class="hud-text"></div></div>
-        </div>
-        <div class="hud-row">
-            <div class="hud-label">EXPERIENCE</div>
-            <div class="bar-container"><div id="xp-fill" class="bar-fill"></div><div id="hud-xp-text" class="hud-text"></div></div>
+        <div id="hud-bars">
+            <div class="hud-row">
+                <div class="bar-container health">
+                    <div id="health-fill" class="bar-fill"></div>
+                    <div class="hud-label-overlay">HEALTH</div>
+                    <div id="hud-hp-text" class="hud-text"></div>
+                </div>
+            </div>
+            <div class="hud-row">
+                <div class="bar-container stamina">
+                    <div id="stamina-fill" class="bar-fill"></div>
+                    <div class="hud-label-overlay">STAMINA</div>
+                    <div id="hud-stamina-text" class="hud-text"></div>
+                </div>
+            </div>
+            <div class="hud-row">
+                <div class="bar-container chakra">
+                    <div id="chakra-fill" class="bar-fill"></div>
+                    <div class="hud-label-overlay">CHAKRA</div>
+                    <div id="hud-chakra-text" class="hud-text"></div>
+                </div>
+            </div>
+            <div class="hud-row xp">
+                <div class="bar-container xp">
+                    <div id="xp-fill" class="bar-fill"></div>
+                    <div class="hud-label-overlay">EXPERIENCE <span id="hud-level-badge">LV.1</span></div>
+                    <div id="hud-xp-text" class="hud-text"></div>
+                </div>
+            </div>
         </div>
     </div>
 

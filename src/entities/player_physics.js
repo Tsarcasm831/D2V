@@ -164,27 +164,8 @@ export class PlayerPhysics {
             floorY += 0.8 * SCALE_FACTOR; // Ride height
         }
 
-        // Safety check for first frame or if terrain wasn't loaded yet
-        if (this.position.y < floorY) {
-            this.position.y = floorY;
-        }
-        
-        // Check for buildings/floors at this position
-        if (wm) {
-            const nearbyResources = wm.getNearbyResources(this.position, 4.0 * SCALE_FACTOR);
-            for (const res of nearbyResources) {
-                if (res.type === 'floor' && !res.isDead) {
-                    const floorTop = res.group.position.y + (res.floorHeight || 0);
-                    // If player is above or close to the floor top, treat it as the floor
-                    if (this.position.y >= floorTop - 0.2 * SCALE_FACTOR) {
-                        floorY = Math.max(floorY, floorTop);
-                    }
-                }
-            }
-        }
-
         const wasGrounded = this.isGrounded;
-        if (this.position.y <= floorY) {
+        if (this.position.y <= floorY + 0.05) { // Small buffer for stability
             this.position.y = floorY;
             this.velocity.y = 0;
             this.isGrounded = true;

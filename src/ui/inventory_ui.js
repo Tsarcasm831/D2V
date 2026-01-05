@@ -56,6 +56,8 @@ export class InventoryUI {
     this.state = {
       items: [],
       inventoryIds: [],
+      draggedItem: null,
+      draggedSource: null, // { type: 'INVENTORY' | 'HOTBAR', index: number }
       equipped: {
         HELMET: null,
         BODY: null,
@@ -394,24 +396,20 @@ export class InventoryUI {
   renderGeneralTab() {
     const totalCells = INVENTORY_ROWS * INVENTORY_COLS;
     const cellClass = 'inventory-slot-premium';
-    const unlockedCellsCount = 3 * INVENTORY_COLS;
 
     const cells = Array.from({ length: totalCells }).map((_, idx) => {
       const itemId = this.state.inventoryIds[idx];
       const item = this.getItemById(itemId);
-      const isLocked = idx >= unlockedCellsCount;
 
       return `
-        <div class="${cellClass} ${isLocked ? 'locked-slot' : ''}">
-          ${isLocked && !item ? `
-            <div class="absolute inset-0 flex items-center justify-center opacity-20">
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-1.24-5-4-5s-4 2.24-4 5v2H7c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71.83-3.1 3.1-3.1 2.27 0 3.1 1.39 3.1 3.1v2z"/></svg>
-            </div>
-          ` : ''}
+        <div class="${cellClass}" data-slot-type="STORAGE" data-slot-index="${idx}">
           ${item ? `
-            <div class="absolute inset-0 z-10 p-[3px] cursor-pointer" data-action="equip" data-item-id="${item.id}" data-tooltip-id="${item.id}">
-              <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm" alt="${escapeHtml(item.name)}" />
+            <div class="inventory-item-container" draggable="true" 
+                 data-action="equip" data-item-id="${item.id}" data-tooltip-id="${item.id}"
+                 data-slot-type="STORAGE" data-slot-index="${idx}">
+              <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm pointer-events-none" alt="${escapeHtml(item.name)}" />
               <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${this.getRarityBgClass(item.rarity)}"></div>
+              ${item.count > 1 ? `<div class="item-count-v3">${item.count}</div>` : ''}
             </div>
           ` : ''}
         </div>
@@ -419,8 +417,40 @@ export class InventoryUI {
     }).join('');
 
     return `
-      <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
-        <div class="new-inventory-grid">${cells}</div>
+      <div class="flex flex-col gap-4 mx-auto w-fit select-none">
+        <div class="bg-[#2a221a] p-[1px] shadow-2xl">
+          <div class="new-inventory-grid">${cells}</div>
+        </div>
+        ${this.renderHotbarSection()}
+      </div>
+    `;
+  }
+
+  renderHotbarSection() {
+    const hotbarItems = this.player?.inventory?.hotbar || Array(8).fill(null);
+    const cellClass = 'inventory-slot-premium';
+    
+    const cells = hotbarItems.map((item, idx) => {
+      return `
+        <div class="${cellClass} hotbar-slot-v3" data-slot-type="HOTBAR" data-slot-index="${idx}">
+          ${item ? `
+            <div class="inventory-item-container" draggable="true"
+                 data-action="equip" data-item-id="${item.id}" data-tooltip-id="${item.id}"
+                 data-slot-type="HOTBAR" data-slot-index="${idx}">
+              <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm pointer-events-none" alt="${escapeHtml(item.name)}" />
+              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${this.getRarityBgClass(item.rarity)}"></div>
+              ${item.count > 1 ? `<div class="item-count-v3">${item.count}</div>` : ''}
+            </div>
+          ` : ''}
+          <div class="hotbar-key-v3">${idx + 1}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="hotbar-container-v3">
+        <div class="hotbar-label-v3">Quick Access</div>
+        <div class="hotbar-grid-v3">${cells}</div>
       </div>
     `;
   }
@@ -905,6 +935,64 @@ export class InventoryUI {
         this.handleEquip(equipTarget.dataset.itemId);
       }
     };
+
+    // Drag and Drop events
+    wrapper.addEventListener('dragstart', (e) => {
+      const target = e.target.closest('.inventory-item-container');
+      if (!target) return;
+
+      this.state.draggedSource = {
+        type: target.dataset.slotType,
+        index: parseInt(target.dataset.slotIndex)
+      };
+      
+      // Visual feedback: make the original item semi-transparent
+      target.style.opacity = '0.5';
+      
+      // Required for Firefox
+      e.dataTransfer.setData('text/plain', '');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    wrapper.addEventListener('dragend', (e) => {
+      const target = e.target.closest('.inventory-item-container');
+      if (target) target.style.opacity = '1';
+      this.state.draggedSource = null;
+    });
+
+    wrapper.addEventListener('dragover', (e) => {
+      const slot = e.target.closest('.inventory-slot-premium');
+      if (slot) {
+        e.preventDefault(); // Allow drop
+        e.dataTransfer.dropEffect = 'move';
+        slot.classList.add('drag-over');
+      }
+    });
+
+    wrapper.addEventListener('dragleave', (e) => {
+      const slot = e.target.closest('.inventory-slot-premium');
+      if (slot) {
+        slot.classList.remove('drag-over');
+      }
+    });
+
+    wrapper.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const slot = e.target.closest('.inventory-slot-premium');
+      if (!slot || !this.state.draggedSource) return;
+
+      slot.classList.remove('drag-over');
+
+      const target = {
+        type: slot.dataset.slotType,
+        index: parseInt(slot.dataset.slotIndex)
+      };
+
+      if (this.player.inventory.moveItem(this.state.draggedSource, target)) {
+        this.syncWithPlayer();
+        this.render();
+      }
+    });
 
     // Prevent propagation
     wrapper.onclick = (e) => e.stopPropagation();

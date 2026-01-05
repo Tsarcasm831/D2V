@@ -30,6 +30,32 @@ export class ItemDrop {
             log.rotation.z = Math.PI / 2;
             log.castShadow = true;
             this.group.add(log);
+        } else if (['stone', 'coal', 'copper', 'iron', 'sulfur', 'silver', 'gold'].includes(this.type)) {
+            // Ore chunk visual
+            const oreColors = {
+                stone: 0x757575,
+                coal: 0x212121,
+                copper: 0xd35400,
+                iron: 0x455a64,
+                sulfur: 0xf1c40f,
+                silver: 0xbdc3c7,
+                gold: 0xffd700
+            };
+            const color = oreColors[this.type] || 0xaaaaaa;
+            const mat = wm ? wm.getSharedMaterial('standard', { 
+                color: color,
+                flatShading: true,
+                metalness: ['iron', 'silver', 'gold'].includes(this.type) ? 0.6 : 0,
+                roughness: 0.4
+            }) : new THREE.MeshStandardMaterial({ color: color, flatShading: true });
+
+            const ore = new THREE.Mesh(
+                new THREE.TetrahedronGeometry(0.15 * SCALE_FACTOR, 0),
+                mat
+            );
+            ore.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            ore.castShadow = true;
+            this.group.add(ore);
         } else {
             // Default generic cube for unknown drops
             const mat = wm ? wm.getSharedMaterial('standard', { color: 0xaaaaaa }) : new THREE.MeshStandardMaterial({ color: 0xaaaaaa });

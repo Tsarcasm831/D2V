@@ -8,6 +8,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 1,
+      "hotbar_able": false,
       "icon": "assets/icons/wood_log_icon.png"
     },
     "stone": {
@@ -18,6 +19,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 1,
+      "hotbar_able": false,
       "icon": "assets/icons/wall_icon.png"
     },
     "wheat_seeds": {
@@ -29,6 +31,7 @@
       "maxStack": 20,
       "value": 2,
       "plantId": "wheat",
+      "hotbar_able": false,
       "icon": "assets/icons/wheat_seeds_icon.png"
     },
     "wheat": {
@@ -39,6 +42,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 5,
+      "hotbar_able": false,
       "icon": "assets/icons/wheat_icon.png"
     },
     "potato_seeds": {
@@ -50,6 +54,7 @@
       "maxStack": 20,
       "value": 2,
       "plantId": "potato",
+      "hotbar_able": false,
       "icon": "assets/icons/potato_seeds_icon.png"
     },
     "potato": {
@@ -60,6 +65,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 4,
+      "hotbar_able": false,
       "icon": "assets/icons/potato_icon.png"
     },
     "tomato_seeds": {
@@ -71,6 +77,7 @@
       "maxStack": 20,
       "value": 3,
       "plantId": "tomato",
+      "hotbar_able": false,
       "icon": "assets/icons/tomato_seeds_icon.png"
     },
     "tomato": {
@@ -81,6 +88,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 6,
+      "hotbar_able": false,
       "icon": "assets/icons/tomato_icon.png"
     },
     "lettuce_seeds": {
@@ -92,6 +100,7 @@
       "maxStack": 20,
       "value": 1,
       "plantId": "lettuce",
+      "hotbar_able": false,
       "icon": "assets/icons/lettuce_seeds_icon.png"
     },
     "lettuce": {
@@ -102,6 +111,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 3,
+      "hotbar_able": false,
       "icon": "assets/icons/lettuce_icon.png"
     },
     "carrot_seeds": {
@@ -113,6 +123,7 @@
       "maxStack": 20,
       "value": 2,
       "plantId": "carrot",
+      "hotbar_able": false,
       "icon": "assets/icons/carrot_seeds_icon.png"
     },
     "carrot": {
@@ -123,6 +134,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 4,
+      "hotbar_able": false,
       "icon": "assets/icons/carrot_icon.png"
     },
     "crop_plot": {
@@ -133,6 +145,7 @@
       "stackable": true,
       "maxStack": 10,
       "value": 10,
+      "hotbar_able": false,
       "icon": "assets/icons/crop_plot_icon.png"
     },
     "iron_sword": {
@@ -143,6 +156,7 @@
       "stackable": false,
       "slot": "main_hand",
       "value": 50,
+      "hotbar_able": true,
       "stats": {
         "damage": 15,
         "attackSpeed": 1.2,
@@ -158,6 +172,7 @@
       "stackable": false,
       "slot": "main_hand",
       "value": 40,
+      "hotbar_able": true,
       "stats": {
         "damage": 10,
         "woodcutting": 1.5
@@ -172,6 +187,7 @@
       "stackable": false,
       "slot": "main_hand",
       "value": 40,
+      "hotbar_able": true,
       "stats": {
         "damage": 8,
         "mining": 1.5
@@ -187,6 +203,7 @@
       "slot": "vest",
       "meshName": "Vest",
       "value": 60,
+      "hotbar_able": false,
       "stats": {
         "defense": 15
       },
@@ -201,6 +218,7 @@
       "stackable": false,
       "slot": "chest",
       "value": 40,
+      "hotbar_able": false,
       "stats": {
         "defense": 10,
         "dodge": 0.02
@@ -217,6 +235,7 @@
       "stackable": false,
       "slot": "back",
       "value": 75,
+      "hotbar_able": false,
       "stats": {
         "stealth": 10,
         "dodge": 0.05
@@ -233,6 +252,7 @@
       "stackable": false,
       "slot": "head",
       "value": 30,
+      "hotbar_able": false,
       "stats": {
         "dodge": 0.03
       },
@@ -248,6 +268,7 @@
       "stackable": false,
       "slot": "head",
       "value": 35,
+      "hotbar_able": false,
       "stats": {
         "accuracy": 5
       },
@@ -263,6 +284,7 @@
       "stackable": false,
       "slot": "gloves",
       "value": 45,
+      "hotbar_able": false,
       "stats": {
         "attackSpeed": 0.1
       },
@@ -278,6 +300,7 @@
       "stackable": false,
       "slot": "boots",
       "value": 25,
+      "hotbar_able": false,
       "stats": {
         "moveSpeed": 0.05
       },
@@ -293,6 +316,7 @@
       "stackable": false,
       "slot": "pants",
       "value": 20,
+      "hotbar_able": false,
       "stats": {
         "defense": 2
       },
@@ -308,6 +332,7 @@
       "stackable": true,
       "maxStack": 9999,
       "value": 1,
+      "hotbar_able": false,
       "icon": "assets/icons/gold_coin.png"
     },
     "shirt": {
@@ -318,6 +343,7 @@
       "stackable": false,
       "slot": "chest",
       "value": 10,
+      "hotbar_able": false,
       "stats": {
         "defense": 1
       },
@@ -332,6 +358,7 @@
       "stackable": false,
       "slot": "pants",
       "value": 8,
+      "hotbar_able": false,
       "stats": {
         "defense": 1
       },
@@ -346,6 +373,7 @@
       "stackable": true,
       "maxStack": 20,
       "value": 15,
+      "hotbar_able": false,
       "icon": "assets/icons/honey_icon.png"
     },
     "beehive": {
@@ -356,6 +384,7 @@
       "stackable": true,
       "maxStack": 5,
       "value": 25,
+      "hotbar_able": false,
       "icon": "assets/icons/beehive_icon.png"
     },
     "berry": {
@@ -366,6 +395,7 @@
       "stackable": true,
       "maxStack": 50,
       "value": 2,
+      "hotbar_able": false,
       "icon": "assets/icons/berry_icon.png"
     },
     "meat": {
@@ -376,6 +406,7 @@
       "stackable": true,
       "maxStack": 20,
       "value": 5,
+      "hotbar_able": false,
       "icon": "assets/icons/meat_icon.png"
     },
     "raw_meat": {
@@ -386,6 +417,7 @@
       "stackable": true,
       "maxStack": 20,
       "value": 5,
+      "hotbar_able": false,
       "icon": "assets/icons/meat_icon.png"
     },
     "pelt": {
@@ -396,6 +428,7 @@
       "stackable": true,
       "maxStack": 20,
       "value": 10,
+      "hotbar_able": false,
       "icon": "assets/icons/pelt_icon.png"
     },
     "bear_pelt": {
@@ -406,6 +439,7 @@
       "stackable": true,
       "maxStack": 20,
       "value": 15,
+      "hotbar_able": false,
       "icon": "assets/icons/pelt_icon.png"
     },
     "wolf_pelt": {
@@ -416,6 +450,7 @@
       "stackable": true,
       "maxStack": 20,
       "value": 12,
+      "hotbar_able": false,
       "icon": "assets/icons/pelt_icon.png"
     },
     "firepit": {
@@ -426,6 +461,7 @@
       "stackable": true,
       "maxStack": 1,
       "value": 15,
+      "hotbar_able": false,
       "icon": "assets/icons/firepit_icon.png"
     }
   }
