@@ -223,7 +223,20 @@ export class FullWorld {
             
             // Show loading screen if it exists
             const loadingScreen = document.getElementById('loading-screen');
-            if (loadingScreen) loadingScreen.style.display = 'flex';
+            if (loadingScreen) {
+                // Randomly select a background image
+                const bgImages = [
+                    'loading_bg.png', 'loading_bg_1.png', 'loading_bg_2.png', 'loading_bg_3.png',
+                    'loading_bg_4.png', 'loading_bg_5.png', 'loading_bg_6.png', 'loading_bg_7.png',
+                    'loading_bg_8.png', 'loading_bg_9.png', 'loading_bg_10.png'
+                ];
+                const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)];
+                loadingScreen.style.backgroundImage = `url('assets/backgrounds/${randomBg}')`;
+                loadingScreen.style.backgroundSize = 'cover';
+                loadingScreen.style.backgroundPosition = 'center';
+                
+                loadingScreen.style.display = 'flex';
+            }
 
             // Find the original land module to import it
             const landId = selectedLand.id;

@@ -78,6 +78,17 @@ async function startLoadingSequence(characterData, roomCode) {
     // Show loading screen immediately
     const loadingScreenElem = document.getElementById('loading-screen');
     if (loadingScreenElem) {
+        // Randomly select a background image
+        const bgImages = [
+            'loading_bg.png', 'loading_bg_1.png', 'loading_bg_2.png', 'loading_bg_3.png',
+            'loading_bg_4.png', 'loading_bg_5.png', 'loading_bg_6.png', 'loading_bg_7.png',
+            'loading_bg_8.png', 'loading_bg_9.png', 'loading_bg_10.png'
+        ];
+        const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)];
+        loadingScreenElem.style.backgroundImage = `url('assets/backgrounds/${randomBg}')`;
+        loadingScreenElem.style.backgroundSize = 'cover';
+        loadingScreenElem.style.backgroundPosition = 'center';
+        
         loadingScreenElem.style.display = 'flex';
         loadingScreenElem.style.opacity = '1';
     }

@@ -80,6 +80,7 @@ export class Shard {
         // Land config overrides
         const landId = (this.worldManager && this.worldManager.worldMask) ? this.worldManager.worldMask.landId : null;
         const isLand15 = landId === 'Land15';
+        const isLand12 = landId === 'Land12';
         
         // Fast distance check to avoid heavy math for distant shards
         const PLATEAU_X = 7509.5;
@@ -121,6 +122,13 @@ export class Shard {
             berryCount = 0;
             pondChance = 0;
             oreTypes = ['rock', 'iron']; // Desert ores
+        } else if (isLand12) {
+            texPath = 'assets/textures/Rocky.png';
+            treeCount = 2;
+            grassDensity = 50;
+            berryCount = 0;
+            pondChance = 0.05;
+            oreTypes = ['rock', 'iron', 'coal']; // Rocky ores
         } else if (h < 0.15) { // Swamp
             texPath = 'assets/textures/swamp_ground_texture.png';
             treeCount = 4; // Reduced from 6
@@ -164,7 +172,7 @@ export class Shard {
         }
 
         const wm = this.worldManager;
-        const sandTex = wm ? wm.getTexture(isLand15 ? 'assets/textures/sand.png' : 'assets/textures/swamp_ground_texture.png') : new THREE.TextureLoader().load(isLand15 ? 'assets/textures/sand.png' : 'assets/textures/swamp_ground_texture.png');
+        const sandTex = wm ? wm.getTexture(isLand15 ? 'assets/textures/sand.png' : (isLand12 ? 'assets/textures/Rocky.png' : 'assets/textures/swamp_ground_texture.png')) : new THREE.TextureLoader().load(isLand15 ? 'assets/textures/sand.png' : (isLand12 ? 'assets/textures/Rocky.png' : 'assets/textures/swamp_ground_texture.png'));
         const dirtTex = wm ? wm.getTexture('assets/textures/dirt_texture.png') : new THREE.TextureLoader().load('assets/textures/dirt_texture.png');
         const grassTex = wm ? wm.getTexture('assets/textures/grass_texture.png') : new THREE.TextureLoader().load('assets/textures/grass_texture.png');
         const snowTex = wm ? wm.getTexture('assets/textures/snow_texture.png') : new THREE.TextureLoader().load('assets/textures/snow_texture.png');
@@ -284,6 +292,7 @@ export class Shard {
             uGrassTex: { value: grassTex },
             uSnowTex: { value: snowTex },
             uIsLand15: { value: isLand15 },
+            uIsLand12: { value: isLand12 },
             uPonds: { value: this.ponds.map(p => ({ pos: p.pos, radius: p.radius })) },
             uPondCount: { value: this.ponds.length }
         };
@@ -299,6 +308,7 @@ export class Shard {
             shader.uniforms.uGrassTex = terrainUniforms.uGrassTex;
             shader.uniforms.uSnowTex = terrainUniforms.uSnowTex;
             shader.uniforms.uIsLand15 = terrainUniforms.uIsLand15;
+            shader.uniforms.uIsLand12 = terrainUniforms.uIsLand12;
             shader.uniforms.uPonds = terrainUniforms.uPonds;
             shader.uniforms.uPondCount = terrainUniforms.uPondCount;
 
@@ -307,6 +317,7 @@ export class Shard {
                 varying vec3 vWorldPos;
                 varying float vInPond;
                 uniform bool uIsLand15;
+                uniform bool uIsLand12;
                 
                 struct Pond {
                     vec3 pos;
@@ -343,6 +354,7 @@ export class Shard {
                 uniform sampler2D uGrassTex;
                 uniform sampler2D uSnowTex;
                 uniform bool uIsLand15;
+                uniform bool uIsLand12;
                 varying float vHeight;
                 varying vec3 vWorldPos;
                 varying float vInPond;
@@ -364,6 +376,9 @@ export class Shard {
                 if (uIsLand15) {
                     // Land15 is all sand
                     terrainColor = sand;
+                } else if (uIsLand12) {
+                    // Land12 is all rocky
+                    terrainColor = sand; // sand uniform holds Rocky.png for Land12
                 } else if (h < -0.25) {
                     float t = smoothstep(-1.0, -0.25, h);
                     terrainColor = mix(sand, dirt, t);

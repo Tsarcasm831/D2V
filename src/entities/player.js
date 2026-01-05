@@ -29,8 +29,6 @@ export class Player {
     constructor(scene, shard, characterData = {}) {
         this.scene = scene;
         this.worldManager = shard; // Renamed internally for clarity, but keeping param name 'shard' compatible
-        this.characterData = characterData;
-        
         this.isCombat = false;
 
         this.bodyType = characterData.bodyType || 'male';
@@ -301,9 +299,6 @@ export class Player {
         }
     }
 
-    toggleCombat() {
-        if (this.actions) this.actions.toggleCombat();
-    }
 
     toggleInvulnerability() {
         if (this.actions) return this.actions.toggleInvulnerability();

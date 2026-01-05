@@ -391,11 +391,31 @@ export class WorldManager {
                 tpBtn.style.cursor = 'pointer';
                 tpBtn.style.borderRadius = '4px';
                 tpBtn.style.fontSize = '12px';
-                tpBtn.onclick = () => {
+                tpBtn.onclick = async () => {
                     if (window.gameInstance && window.gameInstance.player) {
                         const targetX = 80 * SHARD_SIZE;
                         const targetZ = -108 * SHARD_SIZE;
                         window.gameInstance.player.teleport(targetX, targetZ);
+
+                        // Spawn assassin at the destination
+                        const sx = 80;
+                        const sz = -108;
+                        const key = `${sx},${sz}`;
+                        
+                        // Ensure the shard is loaded or available
+                        let shard = this.activeShards.get(key);
+                        if (!shard) {
+                            shard = new Shard(this.scene, sx, sz, this);
+                            this.activeShards.set(key, shard);
+                            if (shard.groundMesh) this.terrainMeshes.push(shard.groundMesh);
+                            this.invalidateCache();
+                        }
+
+                        const { AssassinNPC } = await import('../entities/enemy_npc_assassin_1.js');
+                        const spawnPos = new THREE.Vector3(targetX, this.getTerrainHeight(targetX, targetZ), targetZ);
+                        const assassin = new AssassinNPC(this.scene, shard, spawnPos);
+                        shard.npcs.push(assassin);
+                        this.invalidateCache();
                     }
                 };
 
