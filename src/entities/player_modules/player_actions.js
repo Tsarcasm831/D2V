@@ -19,6 +19,136 @@ export class PlayerActions {
         this.mountedHorse = null;
     }
 
+    updateCombat(delta) {
+        // Handle Action (Click/Tap)
+        // Access game and inputManager safely
+        const game = this.player.worldManager ? this.player.worldManager.game : (this.player.game || null);
+        if (!game || !game.inputManager) return;
+        
+        const input = game.inputManager.input;
+        if (input.action && !this.prevActionPressed) {
+            console.log("PlayerActions: action triggered (mousedown)");
+            this.performAttack();
+        }
+        this.prevActionPressed = !!input.action;
+    }
+
+    performAttack(target = null) {
+        console.log("PlayerActions: performAttack called", target ? "with target" : "searching target");
+        if (this.player.isDead) {
+            console.log("PlayerActions: cannot attack, player is dead");
+            return;
+        }
+
+        const tool = this.player.inventory.hotbar[this.player.inventory.selectedSlot];
+        const isPickaxe = tool && (tool.type === 'pickaxe' || tool.id === 'pickaxe');
+        const isAxe = tool && (tool.type === 'axe' || tool.id === 'axe');
+
+        console.log("PlayerActions: equipped tool:", tool ? tool.type || tool.id : "none");
+
+        // Play animation
+        if (isAxe || isPickaxe) {
+            console.log("PlayerActions: playing axe swing animation");
+            this.player.animator.playAxeSwing();
+        } else {
+            console.log("PlayerActions: playing punch animation");
+            this.player.animator.playPunch();
+        }
+
+        const range = 7.5 * SCALE_FACTOR; 
+        const playerPos = this.player.mesh.position;
+        let hitSomething = false;
+
+        // 1. Raycast to find what was actually clicked if no target provided
+        const game = this.player.worldManager ? this.player.worldManager.game : (this.player.game || null);
+        const im = game ? game.inputManager : null;
+        if (!target && im && im.raycaster && game.camera) {
+            // Ensure raycaster is up to date
+            im.raycaster.setFromCamera(im.mouse, game.camera);
+            
+            const raycaster = im.raycaster;
+            // Get all interactive objects: NPCs, Fauna, Resources
+            const interactiveObjects = [];
+            const nearbyResources = this.player.worldManager.getNearbyResources(playerPos, range * 2);
+            const nearbyNPCs = this.player.worldManager.getNearbyNPCs(playerPos, range * 2);
+            const nearbyFauna = this.player.worldManager.getNearbyFauna(playerPos, range * 2);
+
+            nearbyResources.forEach(r => { if (r.group) interactiveObjects.push(r.group); });
+            nearbyNPCs.forEach(n => { if (n.group || n.mesh) interactiveObjects.push(n.group || n.mesh); });
+            nearbyFauna.forEach(f => { if (f.group || f.mesh) interactiveObjects.push(f.group || f.mesh); });
+
+            console.log(`PlayerActions: Raycasting against ${interactiveObjects.length} objects`);
+            const intersects = raycaster.intersectObjects(interactiveObjects, true);
+            if (intersects.length > 0) {
+                // Find which logic object owns this mesh
+                const hitMesh = intersects[0].object;
+                let hitObj = null;
+
+                // Search through our nearby lists for the owner
+                hitObj = nearbyResources.find(r => r.group && (r.group === hitMesh || r.group.contains(hitMesh)));
+                if (!hitObj) hitObj = nearbyNPCs.find(n => (n.group || n.mesh) && ((n.group || n.mesh) === hitMesh || (n.group || n.mesh).contains(hitMesh)));
+                if (!hitObj) hitObj = nearbyFauna.find(f => (f.group || f.mesh) && ((f.group || f.mesh) === hitMesh || (f.group || f.mesh).contains(hitMesh)));
+
+                if (hitObj) {
+                    const dist = playerPos.distanceTo(intersects[0].point);
+                    if (dist <= range) {
+                        target = hitObj;
+                        console.log("PlayerActions: Raycast found target", target.type);
+                    } else {
+                        console.log("PlayerActions: Target found but out of range", dist);
+                    }
+                }
+            }
+        }
+
+        // 2. Handle the target (either from raycast or proximity fallback)
+        if (target) {
+            if (target.takeDamage) {
+                const damage = (target.isEnemy) ? (5 + (this.player.stats.strength || 0)) : 1;
+                console.log(`PlayerActions: Hitting target type ${target.type} for ${damage} damage`);
+                target.takeDamage(damage, playerPos, this.player);
+                hitSomething = true;
+            }
+        } 
+        
+        // 3. Proximity Fallback (If raycast missed or found nothing)
+        if (!hitSomething) {
+            console.log("PlayerActions: Falling back to proximity search");
+            const enemies = [...this.player.worldManager.getNearbyNPCs(playerPos, range), 
+                             ...this.player.worldManager.getNearbyFauna(playerPos, range)];
+            
+            for (const enemy of enemies) {
+                if (enemy.isDead || !enemy.isEnemy) continue;
+                if (enemy.takeDamage) {
+                    console.log(`PlayerActions: Proximity damage to ${enemy.type}`);
+                    enemy.takeDamage(5 + (this.player.stats.strength || 0), playerPos, this.player);
+                    hitSomething = true;
+                    break;
+                }
+            }
+
+            if (!hitSomething) {
+                const resources = this.player.worldManager.getNearbyResources(playerPos, range);
+                for (const res of resources) {
+                    if (res.isDead) continue;
+                    if (res.takeDamage) {
+                        console.log(`PlayerActions: Proximity hit to resource ${res.type}`);
+                        res.takeDamage(1, this.player);
+                        hitSomething = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!hitSomething) {
+            console.log("PlayerActions: nothing hit, playing whoosh");
+            import('../../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('whoosh', 0.5);
+            });
+        }
+    }
+
     interact() {
         this.player.animator.playInteract();
     }
@@ -214,10 +344,11 @@ export class PlayerActions {
         }
 
         // Projectile spawning
-        if (this.player.game) {
+        const game = this.player.worldManager ? this.player.worldManager.game : (this.player.game || null);
+        if (game && game.inputManager) {
             const startPos = this.player.mesh.position.clone();
             startPos.y += 1.2;
-            const targetPos = this.player.game.inputManager.input.mouseWorldPos;
+            const targetPos = game.inputManager.input.mouseWorldPos;
 
             if (targetPos) {
                 let projectile = null;
@@ -228,7 +359,7 @@ export class PlayerActions {
                 }
 
                 if (projectile) {
-                    this.player.game.projectiles.push(projectile);
+                    game.projectiles.push(projectile);
                 }
             }
         }

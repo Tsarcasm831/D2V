@@ -199,11 +199,16 @@ export class InputManager {
                 return;
             }
 
-            // Block game clicks if inventory is open
+            // ONLY block game clicks if clicking DIRECTLY on the inventory UI
             const inventoryWrapper = document.getElementById('inventory-overlay-wrapper');
             const isInventoryOpen = inventoryWrapper && window.getComputedStyle(inventoryWrapper).display !== 'none';
             
-            if (isInventoryOpen && e.target.closest('#inventory-overlay-wrapper')) {
+            // Check if target is inside inventory or other UI elements
+            const isInventoryClick = isInventoryOpen && e.target.closest('#inventory-overlay-wrapper');
+            const isUILayerClick = !!e.target.closest('#ui-layer');
+
+            if (isInventoryClick || isUILayerClick) {
+                console.log("InputManager: mousedown blocked by UI", { isInventoryClick, isUILayerClick });
                 return;
             }
 
@@ -219,33 +224,20 @@ export class InputManager {
                 this.isRotating = true;
             }
             if (e.button === 0) {
-                // Discover slots based on ID for click support
-                if (e.target.closest('#slot-p')) {
-                    // Profile preview toggle removed
-                    return;
-                }
-
-                const isUI = !!e.target.closest('#ui-layer');
-                console.log("InputManager: mousedown LMB", {
-                    target: e.target,
-                    isUI: isUI,
-                    isBuildMode: this.game.buildManager.isBuildMode,
-                    mouseWorldPos: this.input.mouseWorldPos,
-                    gameMouseWorldPos: this.game.mouseWorldPos
-                });
-
-                if (isUI) {
-                    console.log("InputManager: UI clicked, ignoring");
-                    return;
-                }
-                
                 if (this.game.buildManager.isBuildMode) {
                     console.log("InputManager: Build mode placement triggered");
                     this.game.buildManager.place();
                     return;
                 }
+                
+                console.log("InputManager: Setting action=true for player");
                 this.input.action = true;
                 this.triggerActionFeedback();
+                
+                // Explicitly trigger attack logic if available
+                if (this.game.player && this.game.player.actions && this.game.player.actions.performAttack) {
+                    this.game.player.actions.performAttack();
+                }
             }
         });
         window.addEventListener('mouseup', (e) => {

@@ -130,6 +130,7 @@ export class Ore {
     }
 
     takeDamage(amount, player) {
+        console.log(`Ore: takeDamage called with amount ${amount} from player ${player ? 'exists' : 'null'}`);
         if (this.isDead) return;
 
         // Check if player has correct tool and tier

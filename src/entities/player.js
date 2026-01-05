@@ -67,6 +67,11 @@ export class Player {
         this.gear = new PlayerGear(this);
         this.actions = new PlayerActions(this);
         this.actions.update = (delta) => {
+            // Handle combat/gathering logic first (mining, chopping, attacking)
+            if (this.actions.updateCombat) {
+                this.actions.updateCombat(delta);
+            }
+            
             if (this.actions.updateParticles) {
                 this.actions.updateParticles(delta);
             }
@@ -544,10 +549,9 @@ export class Player {
         
         this.updateConfig();
 
-        // Handle Triggers from player.ts.new logic
+        // Animation triggers handled via this.actions.updateCombat
         if (input.interact) this.animator.playInteract();
-        if (input.action) this.animator.playPunch(); // Mapping 'action' to punch for now
-        // if (input.attack2) this.animator.playAxeSwing(); // Not mapped in current input
+        // Removed redundant input.action punch trigger to avoid double-firing or conflicts with tools
 
         // Handle Death Toggle
         if (input.isDead && !this.wasDeadKeyPressed) {
@@ -609,6 +613,10 @@ export class Player {
             const isRunning = input.run;
             const isJumping = !this.playerPhysics.isGrounded;
             
+            // Sync holding state to animator
+            const isHolding = this.gear && this.gear.heldItem;
+            this.animator.setHolding(!!isHolding);
+
             let jumpPhase = 'none';
             if (isJumping) {
                 jumpPhase = this.playerPhysics.velocity.y > 0 ? 'anticipation' : 'airborne';
@@ -659,9 +667,9 @@ export class Player {
 
         // Update personal light position to follow player (staying in scene root)
         if (this.playerLight && this.mesh) {
-            // Position the light slightly behind and above the player to avoid "lightbulb head" effect
+            // Position the light slightly behind and above the player's center
+            // but keep it independent of the player's rotation (no applyQuaternion)
             const offset = new THREE.Vector3(0, 2.5, -1.0);
-            offset.applyQuaternion(this.mesh.quaternion);
             this.playerLight.position.copy(this.mesh.position).add(offset);
         }
 

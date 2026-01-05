@@ -149,6 +149,7 @@ export class Bear {
     }
 
     takeDamage(amount, fromPos, player) {
+        console.log(`Bear: takeDamage called with amount ${amount} from player ${player ? 'exists' : 'null'}`);
         if (this.isDead) return;
         this.health -= amount;
 

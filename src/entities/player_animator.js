@@ -17,6 +17,11 @@ export class PlayerAnimator {
         this._tempVec2 = new THREE.Vector3();
         this._tempQuat = new THREE.Quaternion();
         this._localDown = new THREE.Vector3(0, -1, 0);
+        this._isHolding = false;
+    }
+
+    setHolding(isHolding) {
+        this._isHolding = isHolding;
     }
 
     playJumpWindup() { /* Handled in update via jumpPhase */ }
@@ -34,13 +39,15 @@ export class PlayerAnimator {
             this.interactTimer = 0;
         }
     }
-    playAxeSwing() { 
+    playAxeSwing() {
+        console.log("PlayerAnimator: playAxeSwing called");
         if (!this.isAxeSwing) {
             this.isAxeSwing = true;
             this.axeSwingTimer = 0;
         }
     }
-    playPunch() { 
+    playPunch() {
+        console.log("PlayerAnimator: playPunch called");
         if (!this.isPunch) {
             this.isPunch = true;
             this.punchTimer = 0;
@@ -393,21 +400,22 @@ export class PlayerAnimator {
                     parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, 1.2 * crouch, damp * 2);
                     parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 1.2 * crouch, damp * 2);
                 } else {
-                    parts.hips.rotation.x = lerp(parts.hips.rotation.x, isMoving ? 0.2 : 0, damp);
-                    const airborneTime = airTime - 0.15;
-                    const extensionFactor = Math.max(0, 1.0 - airborneTime * 8);
                     const tuck = jumpVelocity > 0 ? 0.8 : 0.3;
-                    const finalThighX = lerp(-tuck, 0.1, extensionFactor);
-                    const finalShinX = lerp(tuck * 1.5, -0.1, extensionFactor);
-
-                    parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, finalThighX, damp);
-                    parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, finalThighX, damp);
-                    parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, finalShinX, damp);
-                    parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, finalShinX, damp);
-
-                    const armFlail = jumpVelocity > 0 ? -1.0 : 0.5;
-                    parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, armFlail, damp);
-                    parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, armFlail, damp);
+                    parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -tuck, damp);
+                    parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -tuck, damp);
+                    
+                    if (parts.torsoContainer) {
+                        parts.torsoContainer.rotation.x = -parts.hips.rotation.x;
+                    }
+                    
+                    const isHolding = !!this._isHolding; // This would need to be tracked or passed
+                    if (isHolding) {
+                         parts.rightArm.rotation.x = -1.2;
+                         parts.rightForeArm.rotation.x = -1.5;
+                    } else {
+                         parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -2.5, damp);
+                    }
+                    parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -2.5, damp);
                     
                     parts.forefootGroups.forEach(fg => fg.rotation.x = lerp(fg.rotation.x, 0.5, damp));
                     parts.heelGroups.forEach(hg => hg.rotation.x = lerp(hg.rotation.x, 0.5, damp));

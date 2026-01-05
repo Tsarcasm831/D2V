@@ -195,24 +195,6 @@ export class Game {
             }
         }
 
-        // If we are in Land23, ensure Yureigakure shards are loaded
-        if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land23') {
-            const bowlCenter = { x: 7509.5, z: -6949.1 };
-            const sx = Math.floor((bowlCenter.x + SHARD_SIZE / 2) / SHARD_SIZE);
-            const sz = Math.floor((bowlCenter.z + SHARD_SIZE / 2) / SHARD_SIZE);
-            
-            for (let dx = -2; dx <= 2; dx++) {
-                for (let dz = -2; dz <= 2; dz++) {
-                    const x = sx + dx;
-                    const z = sz + dz;
-                    const key = `${x},${z}`;
-                    if (!this.worldManager.activeShards.has(key)) {
-                        this.worldManager.shardQueue.push({ x, z, key });
-                    }
-                }
-            }
-        }
-
         // Force process the shard queue
         while (this.worldManager.shardQueue.length > 0) {
             const { x, z, key } = this.worldManager.shardQueue.shift();
@@ -235,8 +217,6 @@ export class Game {
         if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land01') {
             this.spawnStarterTent();
             this.spawnAllBuildings();
-        } else if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land23') {
-            this.spawnYureigakureTown();
         }
 
         // Start the loop
@@ -267,49 +247,10 @@ export class Game {
                 console.warn(`Could not find shard for ${type} at ${pos.x}, ${pos.z}`);
             }
         });
-
-        this.spawnYureigakureTown();
     }
 
     spawnYureigakureTown() {
-        const bowlCenter = new THREE.Vector3(7509.5, 0, -6949.1);
-        const bowlInnerRadius = 45.0; // The flat bottom part
-        const spawnRadius = bowlInnerRadius - 5; // Inside the flat area
-        const buildingCount = 12;
-        
-        const buildingPool = ['long_tavern', 'blacksmith', 'square_hut', 'well', 'guard_tower', 'hut'];
-
-        for (let i = 0; i < buildingCount; i++) {
-            const angle = (i / buildingCount) * Math.PI * 2;
-            const x = bowlCenter.x + Math.cos(angle) * spawnRadius;
-            const z = bowlCenter.z + Math.sin(angle) * spawnRadius;
-            const pos = new THREE.Vector3(x, 0, z);
-
-            const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
-            const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
-            const shard = this.worldManager.activeShards.get(`${sx},${sz}`);
-
-            if (shard) {
-                pos.y = this.worldManager.getTerrainHeight(pos.x, pos.z);
-                const type = buildingPool[i % buildingPool.length];
-                const rotation = angle + Math.PI; // Face towards the center
-                
-                const building = new Building(this.scene, shard, type, pos, rotation);
-                shard.resources.push(building);
-
-                // Add an NPC to some buildings
-                if (i % 3 === 0) {
-                    import('../entities/humanoid_npc.js').then(({ HumanoidNPC }) => {
-                        const npcPos = pos.clone().add(new THREE.Vector3(Math.cos(angle) * -3, 0, Math.sin(angle) * -3)); // NPC inside the ring
-                        npcPos.y = this.worldManager.getTerrainHeight(npcPos.x, npcPos.z);
-                        const npc = new HumanoidNPC(this.scene, shard, npcPos);
-                        npc.name = type === 'long_tavern' ? "Yurei Innkeeper" : "Yurei Citizen";
-                        shard.npcs.push(npc);
-                    });
-                }
-            }
-        }
-        console.log("Yureigakure town spawned on the inside flat area of the bowl.");
+        // Town logic moved to Shard.setupEnvironment for persistence
     }
 
 

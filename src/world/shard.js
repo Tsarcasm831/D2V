@@ -711,6 +711,57 @@ export class Shard {
                 }
             }
         }
+
+        // --- Yureigakure Plateau (Land23) Specific Buildings ---
+        if (isLand23) {
+            const bowlCenter = new THREE.Vector3(7509.5, 0, -6949.1);
+            const bowlInnerRadius = 45.0;
+            const spawnRadius = bowlInnerRadius - 5;
+            const buildingCount = 12;
+            const buildingPool = ['long_tavern', 'blacksmith', 'square_hut', 'well', 'guard_tower', 'hut'];
+
+            // Add bonfire to center if this is the center shard
+            const bowlCenterSX = Math.floor((bowlCenter.x + SHARD_SIZE / 2) / SHARD_SIZE);
+            const bowlCenterSZ = Math.floor((bowlCenter.z + SHARD_SIZE / 2) / SHARD_SIZE);
+            
+            if (this.gridX === bowlCenterSX && this.gridZ === bowlCenterSZ) {
+                const bonfirePos = bowlCenter.clone();
+                bonfirePos.y = this.getTerrainHeight(bonfirePos.x, bonfirePos.z);
+                const bonfire = new Building(this.scene, this, 'firepit', bonfirePos);
+                bonfire.group.scale.set(3, 3, 3); // Large bonfire
+                this.resources.push(bonfire);
+            }
+
+            // Spawn ring of buildings
+            for (let i = 0; i < buildingCount; i++) {
+                const angle = (i / buildingCount) * Math.PI * 2;
+                const bx = bowlCenter.x + Math.cos(angle) * spawnRadius;
+                const bz = bowlCenter.z + Math.sin(angle) * spawnRadius;
+                
+                // Check if this building belongs to this shard
+                const bsx = Math.floor((bx + SHARD_SIZE / 2) / SHARD_SIZE);
+                const bsz = Math.floor((bz + SHARD_SIZE / 2) / SHARD_SIZE);
+                
+                if (bsx === this.gridX && bsz === this.gridZ) {
+                    const by = this.getTerrainHeight(bx, bz);
+                    const bPos = new THREE.Vector3(bx, by, bz);
+                    const type = buildingPool[i % buildingPool.length];
+                    const rotation = angle + Math.PI;
+                    
+                    const building = new Building(this.scene, this, type, bPos, rotation);
+                    this.resources.push(building);
+
+                    // Add NPCs
+                    if (i % 3 === 0) {
+                        const npcPos = bPos.clone().add(new THREE.Vector3(Math.cos(angle) * -3, 0, Math.sin(angle) * -3));
+                        npcPos.y = this.getTerrainHeight(npcPos.x, npcPos.z);
+                        const npc = new HumanoidNPC(this.scene, this, npcPos);
+                        npc.name = type === 'long_tavern' ? "Yurei Innkeeper" : "Yurei Citizen";
+                        this.npcs.push(npc);
+                    }
+                }
+            }
+        }
         // --- End Town Building Placement ---
 
         // Fauna Spawning (Animals)
