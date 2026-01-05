@@ -78,7 +78,6 @@ export class Player {
         this.syncConfig();
         this.handleTimers(dt);
         this.handleInput(dt, input, cameraAngle, obstacles);
-        this.animator.animate(this, dt, (input.x !== 0 || input.y !== 0), input);
     }
 
     private syncConfig() {
@@ -194,6 +193,7 @@ export class Player {
             while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
             this.mesh.rotation.y += rotDiff * this.turnSpeed * dt;
 
+            // Calculate movement direction in world space
             const inputLen = Math.sqrt(input.x * input.x + input.y * input.y);
             const normX = input.x / inputLen;
             const normY = -input.y / inputLen;
@@ -208,6 +208,23 @@ export class Player {
                 this.mesh.position.x += dx;
                 this.mesh.position.z += dz;
             }
+
+            // Calculate relative movement for the animator
+            // We want to know if we are moving forward/backward or strafing relative to current mesh rotation
+            const moveDirWorld = new THREE.Vector3(dx, 0, dz).normalize();
+            const forwardWorld = new THREE.Vector3();
+            this.mesh.getWorldDirection(forwardWorld);
+            
+            const dotForward = moveDirWorld.dot(forwardWorld);
+            const rightWorld = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), forwardWorld);
+            const dotRight = moveDirWorld.dot(rightWorld);
+
+            // Update input for animator to be relative
+            // animator.animate uses input.x for strafe and input.y for forward/back
+            const relativeInput = { ...input, x: dotRight, y: -dotForward };
+            this.animator.animate(this, dt, true, relativeInput);
+        } else {
+            this.animator.animate(this, dt, false, input);
         }
 
         if (this.isJumping) {

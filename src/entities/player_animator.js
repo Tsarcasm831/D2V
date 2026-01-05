@@ -47,7 +47,7 @@ export class PlayerAnimator {
         }
     }
 
-    animate(delta, isMoving, isRunning, isPickingUp, isDead, isJumping, jumpPhase, jumpTimer, jumpVelocity, isLedgeGrabbing, ledgeGrabTime, recoverTimer, isDragged, draggedPartName, dragVelocity, deathTime, deathVariation, isMovingBackwards) {
+    animate(delta, isMoving, isRunning, isPickingUp, isDead, isJumping, jumpPhase, jumpTimer, jumpVelocity, isLedgeGrabbing, ledgeGrabTime, recoverTimer, isDragged, draggedPartName, dragVelocity, deathTime, deathVariation, isMovingBackwards, strafe = 0, forward = 0) {
         if (this.isEnabled === false) return;
         
         const d = delta || 0.016;
@@ -372,11 +372,9 @@ export class PlayerAnimator {
                 
                 parts.hips.rotation.x = lerp(0.6, 0, subT);
             }
-
         } else if (isJumping) {
             // --- JUMP/FALL ANIMATION ---
             const airTime = jumpTimer || 0;
-            // Only show jump/fall animation if we've been in the air long enough
             const showJumpAnim = airTime > 0.15;
 
             if (showJumpAnim) {
@@ -415,12 +413,10 @@ export class PlayerAnimator {
                     parts.heelGroups.forEach(hg => hg.rotation.x = lerp(hg.rotation.x, 0.5, damp));
                 }
             } else if (isMoving) {
-                // Keep playing walk/run animation during the brief airtime threshold
-                this._animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards);
+                this._animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards, strafe, forward);
             }
-
         } else if (isMoving) {
-            this._animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards);
+            this._animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards, strafe, forward);
         } else {
             // Idle Pose
             parts.hips.position.y = lerp(parts.hips.position.y, 1.0 * SCALE_FACTOR, damp);
@@ -454,134 +450,131 @@ export class PlayerAnimator {
         }
     }
 
-    _animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards = false) {
+    _animateMovement(delta, isRunning, damp, parts, SCALE_FACTOR, isMovingBackwards = false, strafe = 0, forward = 0) {
         const lerp = THREE.MathUtils.lerp;
         const animSpeed = isRunning ? 14.0 : 8.0;
-        this.walkTime += delta * animSpeed;
+        
+        // Reverse the animation clock if moving backwards so legs/arms cycle correctly
+        const clockDirection = isMovingBackwards ? -1 : 1;
+        this.walkTime += delta * animSpeed * clockDirection;
         const t = this.walkTime;
 
-        if (isRunning && !isMovingBackwards) {
-            parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0.4, damp);
-            parts.hips.position.z = lerp(parts.hips.position.z, 0, damp);
-            parts.hips.position.y = (1.0 + Math.abs(Math.sin(t)) * 0.2) * SCALE_FACTOR;
-            parts.hips.rotation.y = Math.sin(t) * 0.15;
-            parts.hips.rotation.z = Math.sin(t) * 0.1;
+        // --- HIPS ---
+        const bounceBase = 0.98;
+        const bounceAmp = lerp(0.04, 0.12, isRunning ? 1.0 : 0.0);
+        const bounce = Math.abs(Math.sin(t)) * bounceAmp; 
+        parts.hips.position.y = (bounceBase + bounce) * SCALE_FACTOR;
 
-            const thighSwing = 0.9;
-            parts.leftThigh.rotation.x = Math.sin(t + Math.PI) * thighSwing;
-            parts.rightThigh.rotation.x = Math.sin(t) * thighSwing;
-            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.15, damp);
-            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.15, damp);
-            parts.leftShin.rotation.z = lerp(parts.leftShin.rotation.z, -0.15, damp);
-            parts.rightShin.rotation.z = lerp(parts.rightShin.rotation.z, 0.15, damp);
+        // Dynamic Hip Sway/Lean
+        const targetHipX = Math.sin(t) * 0.05 + strafe * 0.08;
+        parts.hips.position.x = lerp(parts.hips.position.x || 0, targetHipX * SCALE_FACTOR, damp);
+        
+        const leanForward = lerp(0.1, 0.4, (isRunning && forward > 0) ? 1.0 : 0.0);
+        parts.hips.rotation.x = lerp(parts.hips.rotation.x, leanForward, damp);
+        
+        const hipTwist = Math.cos(t) * 0.15 * (Math.abs(forward) > 0.1 ? Math.sign(forward) : 1);
+        parts.hips.rotation.y = lerp(parts.hips.rotation.y, hipTwist, damp);
+        
+        const hipRoll = Math.cos(t) * 0.05 - strafe * 0.15;
+        parts.hips.rotation.z = lerp(parts.hips.rotation.z, hipRoll, damp);
 
-            const kneeBendRun = 1.6;
-            parts.leftShin.rotation.x = Math.max(0, Math.cos(t)) * kneeBendRun + 0.3;
-            parts.rightShin.rotation.x = Math.max(0, -Math.cos(t)) * kneeBendRun + 0.3;
+        if (parts.torsoContainer) {
+            parts.torsoContainer.rotation.y = -parts.hips.rotation.y * 1.2; 
+            parts.torsoContainer.rotation.z = -parts.hips.rotation.z;
+        }
+        if (parts.neck) parts.neck.rotation.x = -leanForward * 0.8; 
 
-            const armSwingRun = 1.0;
-            parts.rightArm.rotation.x = Math.sin(t + Math.PI) * armSwingRun;
-            parts.leftArm.rotation.x = Math.sin(t) * armSwingRun;
+        // --- LEGS ---
+        const calculateLeg = (offset) => {
+            const cycle = t + offset;
+            const sin = Math.sin(cycle);
+            const cos = Math.cos(cycle);
 
-            parts.rightForeArm.rotation.x = -1.1 + Math.sin(t + Math.PI) * 0.3;
-            parts.leftForeArm.rotation.x = -1.1 + Math.sin(t) * 0.3;
+            let thighRotX = 0;
+            let thighRotZ = 0;
+            let shinRot = 0;
+            let footRot = 0;
 
-            parts.head.rotation.x = lerp(parts.head.rotation.x, 0.25, damp);
-            
-        } else if (isMovingBackwards) {
-            // --- BACKWARD WALKING (Ported from LocomotionAnimator.ts) ---
-            parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0.1, damp);
-            parts.hips.rotation.y = lerp(parts.hips.rotation.y, Math.cos(t) * 0.15 * -1, damp);
-            parts.hips.position.y = (0.98 + Math.abs(Math.sin(t)) * 0.04) * SCALE_FACTOR;
+            const isStrafing = Math.abs(strafe) > 0.2;
 
-            const calculateLeg = (offset) => {
-                const cycle = t + offset;
-                const sin = Math.sin(cycle);
-                const cos = Math.cos(cycle);
-
-                let thighRot = sin * 0.5;
-                let shinRot = 0;
-                let footRot = 0;
-
+            if (isRunning && forward >= 0.1) {
+                // Running Forward
+                thighRotX = sin * 0.9 + 0.2; 
+                const kneeBend = Math.max(0, -sin * 1.6 - 0.2); 
+                const impactStraighten = Math.max(0, sin * 0.2); 
+                shinRot = kneeBend + impactStraighten;
+                footRot = Math.max(0, -sin * 0.5);
+            } else if (forward < -0.1) {
+                // Walking Backward
+                thighRotX = sin * 0.4;
                 const isSwing = cos < 0; 
                 if (isSwing) {
-                    shinRot = -cos * 1.8; 
-                    footRot = sin * 0.5;
+                    shinRot = -cos * 1.5; 
+                    footRot = sin * 0.4;
                 } else {
                     shinRot = 0.05; 
-                    footRot = -thighRot;
+                    footRot = -thighRotX;
                 }
-                return { thigh: thighRot, shin: shinRot, foot: footRot };
-            };
-
-            const leftLeg = calculateLeg(0);
-            const rightLeg = calculateLeg(Math.PI);
-
-            parts.leftThigh.rotation.x = leftLeg.thigh;
-            parts.leftShin.rotation.x = leftLeg.shin;
-            parts.rightThigh.rotation.x = rightLeg.thigh;
-            parts.rightShin.rotation.x = rightLeg.shin;
-
-            // Apply foot rotation to forefoot and heel groups
-            const footGroups = [parts.forefootGroups, parts.heelGroups];
-            footGroups.forEach(groups => {
-                if (groups) {
-                    groups.forEach((fg, i) => {
-                        // This logic assumes forefootGroups[0] is left, [1] is right
-                        // or similar mapping. In JS version, we apply to all.
-                        // For more precision, we'd need to know which group is which.
-                        // Usually these are arrays of 2 elements.
-                    });
-                }
-            });
-            
-            // Simplified foot rotation application for JS structure
-            if (parts.forefootGroups && parts.forefootGroups.length >= 2) {
-                parts.forefootGroups[0].rotation.x = leftLeg.foot;
-                parts.forefootGroups[1].rotation.x = rightLeg.foot;
-            }
-            if (parts.heelGroups && parts.heelGroups.length >= 2) {
-                parts.heelGroups[0].rotation.x = leftLeg.foot;
-                parts.heelGroups[1].rotation.x = rightLeg.foot;
+            } else if (isStrafing && Math.abs(forward) < 0.2) {
+                // Pure Strafing
+                const isRightLeg = offset > Math.PI / 2;
+                const strafeDir = Math.sign(strafe);
+                thighRotX = sin * 0.2;
+                const outPhase = strafeDir > 0 ? (isRightLeg ? sin : -sin) : (isRightLeg ? -sin : sin);
+                thighRotZ = outPhase * 0.3;
+                shinRot = Math.max(0, -outPhase * 0.8);
+                footRot = -thighRotZ;
+            } else {
+                // Walking Forward
+                thighRotX = sin * 0.6; 
+                const walkKnee = Math.max(0, -Math.sin(cycle + 0.5) * 1.2); 
+                shinRot = walkKnee;
+                const heelStrike = Math.max(0, sin * 0.4); 
+                const pushOff = Math.max(0, -sin * 0.4);
+                footRot = heelStrike - pushOff;
             }
 
-            parts.leftThigh.rotation.z = 0.1; 
-            parts.rightThigh.rotation.z = -0.1;
+            if (isStrafing && Math.abs(forward) >= 0.2) {
+                thighRotZ += strafe * 0.1;
+            }
 
-            // Arms swing naturally
-            parts.rightArm.rotation.x = Math.sin(t) * 0.6;
-            parts.leftArm.rotation.x = Math.sin(t + Math.PI) * 0.6;
-            parts.rightForeArm.rotation.x = -0.4;
-            parts.leftForeArm.rotation.x = -0.4;
+            return { thighX: thighRotX, thighZ: thighRotZ, shin: shinRot, foot: footRot };
+        };
 
-        } else {
-            parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0, damp);
-            parts.hips.rotation.y = lerp(parts.hips.rotation.y, 0, damp);
-            parts.hips.rotation.z = lerp(parts.hips.rotation.z, 0, damp);
-            parts.hips.position.z = lerp(parts.hips.position.z, 0, damp);
-            parts.hips.position.y = (1.0 + Math.sin(t * 2) * 0.05) * SCALE_FACTOR;
+        const leftLeg = calculateLeg(0);
+        const rightLeg = calculateLeg(Math.PI);
 
-            parts.leftThigh.rotation.x = Math.sin(t + Math.PI) * 0.5;
-            parts.rightThigh.rotation.x = Math.sin(t) * 0.5;
-            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.15, damp);
-            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.15, damp);
-            parts.leftShin.rotation.z = lerp(parts.leftShin.rotation.z, -0.15, damp);
-            parts.rightShin.rotation.z = lerp(parts.rightShin.rotation.z, 0.15, damp);
+        parts.leftThigh.rotation.x = leftLeg.thighX;
+        parts.leftThigh.rotation.z = 0.1 + leftLeg.thighZ;
+        parts.leftShin.rotation.x = leftLeg.shin;
+        
+        parts.rightThigh.rotation.x = rightLeg.thighX;
+        parts.rightThigh.rotation.z = -0.1 + rightLeg.thighZ;
+        parts.rightShin.rotation.x = rightLeg.shin;
 
-            const kneeBendWalk = 1.2;
-            parts.leftShin.rotation.x = Math.max(0, Math.cos(t)) * kneeBendWalk;
-            parts.rightShin.rotation.x = Math.max(0, -Math.cos(t)) * kneeBendWalk;
-
-            parts.rightArm.rotation.x = Math.sin(t + Math.PI) * 0.4;
-            parts.leftArm.rotation.x = Math.sin(t) * 0.4;
-
-            parts.rightForeArm.rotation.x = -Math.max(0, Math.cos(t)) * 0.5 - 0.2;
-            parts.leftForeArm.rotation.x = -Math.max(0, -Math.cos(t)) * 0.5 - 0.2;
-
-            parts.head.rotation.x = lerp(parts.head.rotation.x, 0.15, damp);
-
-            parts.forefootGroups.forEach(fg => fg.rotation.x = lerp(fg.rotation.x, 0, damp));
-            parts.heelGroups.forEach(hg => hg.rotation.x = lerp(hg.rotation.x, 0, damp));
+        if (parts.forefootGroups && parts.forefootGroups.length >= 2) {
+            parts.forefootGroups[0].rotation.x = leftLeg.foot;
+            parts.forefootGroups[1].rotation.x = rightLeg.foot;
         }
+        if (parts.heelGroups && parts.heelGroups.length >= 2) {
+            parts.heelGroups[0].rotation.x = leftLeg.foot;
+            parts.heelGroups[1].rotation.x = rightLeg.foot;
+        }
+
+        // --- ARMS ---
+        const armPhase = Math.PI; 
+        const leftArmSin = Math.sin(t + armPhase);
+        const rightArmSin = Math.sin(t);
+        const baseArmSwing = lerp(0.6, 1.2, isRunning ? 1.0 : 0.0);
+        
+        parts.leftArm.rotation.x = leftArmSin * baseArmSwing;
+        parts.leftArm.rotation.z = 0.2;
+        parts.leftForeArm.rotation.x = lerp(-0.4, -2.0, isRunning ? 1.0 : 0.0); 
+
+        parts.rightArm.rotation.x = rightArmSin * baseArmSwing;
+        parts.rightArm.rotation.z = -0.2;
+        parts.rightForeArm.rotation.x = lerp(-0.4, -2.0, isRunning ? 1.0 : 0.0); 
+
+        if (parts.head) parts.head.rotation.x = lerp(parts.head.rotation.x, 0.2, damp);
     }
 }

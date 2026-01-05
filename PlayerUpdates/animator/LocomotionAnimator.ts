@@ -64,12 +64,19 @@ export class LocomotionAnimator {
         const bounce = Math.abs(Math.sin(t)) * bounceAmp; 
         parts.hips.position.y = bounceBase + bounce;
 
-        parts.hips.position.x = lerp(parts.hips.position.x, Math.sin(t) * 0.05 + strafe * 0.05, damp);
+        // Dynamic Hip Sway/Lean
+        const targetHipX = Math.sin(t) * 0.05 + strafe * 0.08;
+        parts.hips.position.x = lerp(parts.hips.position.x, targetHipX, damp);
         
         const leanForward = lerp(0.1, 0.4, runFactor * (forward > 0 ? 1 : 0));
         parts.hips.rotation.x = lerp(parts.hips.rotation.x, leanForward, damp);
-        parts.hips.rotation.y = lerp(parts.hips.rotation.y, Math.cos(t) * 0.15 * forward, damp);
-        parts.hips.rotation.z = lerp(parts.hips.rotation.z, Math.cos(t) * 0.05 - strafe * 0.1, damp);
+        
+        // Hip rotation: twist hips towards direction of travel slightly
+        const hipTwist = Math.cos(t) * 0.15 * (Math.abs(forward) > 0.1 ? Math.sign(forward) : 1);
+        parts.hips.rotation.y = lerp(parts.hips.rotation.y, hipTwist, damp);
+        
+        const hipRoll = Math.cos(t) * 0.05 - strafe * 0.15;
+        parts.hips.rotation.z = lerp(parts.hips.rotation.z, hipRoll, damp);
 
         parts.torsoContainer.rotation.y = -parts.hips.rotation.y * 1.2; 
         parts.torsoContainer.rotation.z = -parts.hips.rotation.z;
@@ -81,66 +88,76 @@ export class LocomotionAnimator {
             const sin = Math.sin(cycle);
             const cos = Math.cos(cycle);
 
-            let thighRot = 0;
+            let thighRotX = 0;
+            let thighRotZ = 0;
             let shinRot = 0;
             let footRot = 0;
 
+            const isMovingBackward = forward < -0.1;
+            const isStrafing = Math.abs(strafe) > 0.1;
+
             if (isRunning && forward >= 0) {
                 // Running Forward
-                thighRot = sin * 0.9 + 0.2; 
+                thighRotX = sin * 0.9 + 0.2; 
                 const kneeBend = Math.max(0, -sin * 1.6 - 0.2); 
                 const impactStraighten = Math.max(0, sin * 0.2); 
                 shinRot = kneeBend + impactStraighten;
                 footRot = Math.max(0, -sin * 0.5);
-            } else if (forward < -0.1) {
+            } else if (isMovingBackward) {
                 // Walking Backward
-                // Thigh Motion: Sinusoidal swing. 
-                // sin increasing (Leg moving front), sin decreasing (Leg moving back).
-                thighRot = sin * 0.5;
-                
-                // Swing Phase: Leg moving from Front to Back (Reach Back). 
-                // Occurs when sin is decreasing -> cos is negative.
+                thighRotX = sin * 0.4;
                 const isSwing = cos < 0; 
                 
                 if (isSwing) {
-                    // SWING: Bend knee to lift foot.
-                    // Max bend at mid-swing (cos = -1).
-                    shinRot = -cos * 1.8; 
-                    
-                    // Foot: Lift toe at start (sin=1), Point toe at end (sin=-1)
-                    footRot = sin * 0.5;
+                    shinRot = -cos * 1.5; 
+                    footRot = sin * 0.4;
                 } else {
-                    // STANCE: Leg moving Front relative to hips (Body moves back).
-                    // Leg straightens to bear weight.
                     shinRot = 0.05; 
-
-                    // Counter-rotate foot to keep it parallel to floor (Fake IK).
-                    // Global Foot Angle ~= Thigh + Foot = 0
-                    footRot = -thighRot;
-                    
-                    // Late Stance: As leg comes fully forward (sin -> 1), prepare to lift.
-                    // Slight roll onto heel/toe? 
-                    // Actually, just keeping it flat is safest for backward walk "planting".
+                    footRot = -thighRotX;
                 }
-
+            } else if (isStrafing && Math.abs(forward) < 0.2) {
+                // Pure Strafing
+                const isRightLeg = offset > Math.PI / 2;
+                const strafeDir = Math.sign(strafe); // 1 = right, -1 = left
+                
+                // Thigh X: Small forward/back swing for balance
+                thighRotX = sin * 0.2;
+                
+                // Thigh Z: The actual strafe "step"
+                // Leg moves out then in
+                const outPhase = strafeDir > 0 ? (isRightLeg ? sin : -sin) : (isRightLeg ? -sin : sin);
+                thighRotZ = outPhase * 0.3;
+                
+                // Shin: Bend more when swinging leg "across" or "out"
+                shinRot = Math.max(0, -outPhase * 0.8);
+                footRot = -thighRotZ;
             } else {
-                // Walking Forward
-                thighRot = sin * 0.6; 
+                // Walking Forward (standard or diagonal)
+                thighRotX = sin * 0.6; 
                 const walkKnee = Math.max(0, -Math.sin(cycle + 0.5) * 1.2); 
                 shinRot = walkKnee;
                 const heelStrike = Math.max(0, sin * 0.4); 
                 const pushOff = Math.max(0, -sin * 0.4);
                 footRot = heelStrike - pushOff;
             }
-            return { thigh: thighRot, shin: shinRot, foot: footRot };
+
+            // Blend in strafe lean if moving diagonally
+            if (isStrafing && Math.abs(forward) >= 0.2) {
+                thighRotZ += strafe * 0.1;
+            }
+
+            return { thighX: thighRotX, thighZ: thighRotZ, shin: shinRot, foot: footRot };
         };
 
         const leftLeg = calculateLeg(0);
         const rightLeg = calculateLeg(Math.PI);
 
-        parts.leftThigh.rotation.x = leftLeg.thigh;
+        parts.leftThigh.rotation.x = leftLeg.thighX;
+        parts.leftThigh.rotation.z = 0.1 + leftLeg.thighZ;
         parts.leftShin.rotation.x = leftLeg.shin;
-        parts.rightThigh.rotation.x = rightLeg.thigh;
+        
+        parts.rightThigh.rotation.x = rightLeg.thighX;
+        parts.rightThigh.rotation.z = -0.1 + rightLeg.thighZ;
         parts.rightShin.rotation.x = rightLeg.shin;
 
         const applyFoot = (shinGroup: THREE.Group, rot: number) => {

@@ -613,6 +613,23 @@ export class Player {
             if (isJumping) {
                 jumpPhase = this.playerPhysics.velocity.y > 0 ? 'anticipation' : 'airborne';
             }
+
+            // Calculate relative movement for the animator
+            let strafe = 0;
+            let forward = 0;
+            
+            if (isMoving) {
+                const moveDirWorld = new THREE.Vector3(this.playerPhysics.velocity.x, 0, this.playerPhysics.velocity.z).normalize();
+                const forwardWorld = new THREE.Vector3();
+                this.mesh.getWorldDirection(forwardWorld);
+                
+                const dotForward = moveDirWorld.dot(forwardWorld);
+                const rightWorld = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), forwardWorld);
+                const dotRight = moveDirWorld.dot(rightWorld);
+
+                strafe = dotRight;
+                forward = dotForward;
+            }
             
             this.animator.animate(
                 delta,
@@ -632,7 +649,9 @@ export class Player {
                 new THREE.Vector3(), // dragVelocity
                 this.deathTime,
                 this.deathVariation,
-                false // isMovingBackwards
+                forward < -0.1, // isMovingBackwards
+                strafe,
+                forward
             );
         }
 
