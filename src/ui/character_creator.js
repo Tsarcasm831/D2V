@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PlayerAnimator } from '../entities/player_animator.js';
+import { BODY_PRESETS } from '../data/constants.js';
 
 export class CharacterCreator {
     constructor(onComplete) {
@@ -99,14 +100,42 @@ export class CharacterCreator {
     }
 
     setupEventListeners() {
-        // Input changes
-        const inputs = ['body-type', 'player-name', 'skin-color', 'eye-color', 'shirt-color', 'shirt-pattern', 'head-scale', 'torso-width', 'torso-height', 'arm-scale', 'leg-scale'];
+        // Input changes with number display updates
+        const inputs = [
+            'body-type', 'player-name', 'skin-color', 'eye-color', 'shirt-color', 'shirt-pattern', 
+            'head-scale', 'torso-width', 'torso-height', 'arm-scale', 'leg-scale',
+            'neck-thickness', 'neck-height', 'neck-rotation', 'neck-tilt',
+            'chin-size', 'chin-length', 'chin-height', 'chin-forward', 'iris-scale', 'pupil-scale',
+            'foot-width', 'foot-length', 'heel-scale', 'heel-height', 'toe-spread', 'butt-scale',
+            'toggle-underwear', 'toggle-shirt', 'toggle-shorts'
+        ];
+        
         inputs.forEach(id => {
             const element = document.getElementById(id);
+            const valueElement = document.getElementById(`${id}-value`);
             const eventType = (element.type === 'color' || element.tagName === 'SELECT') ? 'change' : 'input';
-            element.addEventListener(eventType, () => this.updatePreview());
+            
+            const updateValue = () => {
+                // Update number display if it exists
+                if (valueElement) {
+                    let value = element.value;
+                    if (element.type === 'range') {
+                        value = parseFloat(value);
+                        // Format to 2 decimal places for precision
+                        valueElement.textContent = value.toFixed(2);
+                    }
+                }
+                this.updatePreview();
+            };
+            
+            element.addEventListener(eventType, updateValue);
             if (eventType === 'change') {
-                element.addEventListener('input', () => this.updatePreview());
+                element.addEventListener('input', updateValue);
+            }
+            
+            // Initialize number display
+            if (valueElement && element.type === 'range') {
+                valueElement.textContent = parseFloat(element.value).toFixed(2);
             }
         });
 
@@ -158,7 +187,7 @@ export class CharacterCreator {
         });
 
         // Gear
-        const gearItems = ['gear-vest', 'gear-leather-armor', 'gear-headband', 'gear-leather-gloves', 'gear-leather-hunters-cap', 'gear-assassins-cap', 'gear-leather-boots', 'gear-cloak', 'gear-pants'];
+        const gearItems = ['gear-shirt', 'gear-shorts', 'gear-vest', 'gear-leather-armor', 'gear-headband', 'gear-leather-gloves', 'gear-leather-hunters-cap', 'gear-assassins-cap', 'gear-leather-boots', 'gear-cloak', 'gear-pants'];
         gearItems.forEach(id => {
             const itemName = id.replace('gear-', '');
             const element = document.getElementById(id);
@@ -215,6 +244,24 @@ export class CharacterCreator {
             this.creator.style.display = 'none';
             if (this.onComplete) this.onComplete(charData);
         };
+
+        // Body preset buttons
+        const presetButtons = document.querySelectorAll('.preset-btn');
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presetName = btn.getAttribute('data-preset');
+                this.applyBodyPreset(presetName);
+            });
+        });
+
+        // Outfit preset buttons
+        const outfitPresetButtons = document.querySelectorAll('.outfit-preset-btn');
+        outfitPresetButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presetName = btn.getAttribute('data-outfit');
+                this.applyOutfitPreset(presetName);
+            });
+        });
     }
 
     getCharacterData() {
@@ -230,6 +277,26 @@ export class CharacterCreator {
             torsoHeight: parseFloat(document.getElementById('torso-height').value),
             armScale: parseFloat(document.getElementById('arm-scale').value),
             legScale: parseFloat(document.getElementById('leg-scale').value),
+            neckThickness: parseFloat(document.getElementById('neck-thickness').value),
+            neckHeight: parseFloat(document.getElementById('neck-height').value),
+            neckRotation: parseFloat(document.getElementById('neck-rotation').value),
+            neckTilt: parseFloat(document.getElementById('neck-tilt').value),
+            chinSize: parseFloat(document.getElementById('chin-size').value),
+            chinLength: parseFloat(document.getElementById('chin-length').value),
+            chinHeight: parseFloat(document.getElementById('chin-height').value),
+            chinForward: parseFloat(document.getElementById('chin-forward').value),
+            irisScale: parseFloat(document.getElementById('iris-scale').value),
+            pupilScale: parseFloat(document.getElementById('pupil-scale').value),
+            footWidth: parseFloat(document.getElementById('foot-width').value),
+            footLength: parseFloat(document.getElementById('foot-length').value),
+            heelScale: parseFloat(document.getElementById('heel-scale').value),
+            heelHeight: parseFloat(document.getElementById('heel-height').value),
+            toeSpread: parseFloat(document.getElementById('toe-spread').value),
+            buttScale: parseFloat(document.getElementById('butt-scale').value),
+            outfit: 'nude',
+            toggleUnderwear: document.getElementById('toggle-underwear').checked,
+            toggleShirt: document.getElementById('toggle-shirt').checked,
+            toggleShorts: document.getElementById('toggle-shorts').checked,
             gear: {
                 vest: localStorage.getItem('admin_vest') === 'true',
                 leatherArmor: localStorage.getItem('admin_leather-armor') === 'true',
@@ -289,8 +356,21 @@ export class CharacterCreator {
         }
 
         // Existing item attachment logic (shorts/shirt/gear)
-        if (this.attachShortsFn) this.attachShortsFn(parts, charData);
-        if (this.attachShirtFn) this.attachShirtFn(parts, charData);
+        const gearShirtEnabled = localStorage.getItem('admin_shirt') === 'true';
+        const gearShortsEnabled = localStorage.getItem('admin_shorts') === 'true';
+        const showShirt = charData.toggleShirt || gearShirtEnabled;
+        const showShorts = charData.toggleShorts || gearShortsEnabled;
+
+        // Handle individual clothing toggles
+        if (this.attachUnderwearFn && charData.toggleUnderwear) {
+            this.attachUnderwearFn(parts);
+        }
+        if (this.attachShortsFn && showShorts) {
+            this.attachShortsFn(parts, charData);
+        }
+        if (this.attachShirtFn && showShirt) {
+            this.attachShirtFn(parts, charData);
+        }
 
         const gearItems = ['vest', 'leather-armor', 'headband', 'leather-gloves', 'leather-hunters-cap', 'assassins-cap', 'leather-boots', 'cloak', 'pants'];
         gearItems.forEach(item => {
@@ -345,5 +425,94 @@ export class CharacterCreator {
         }
 
         this.previewRenderer.render(this.previewScene, this.previewCamera);
+    }
+
+    applyOutfitPreset(presetName) {
+        const setValue = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = value;
+                } else {
+                    element.value = value;
+                }
+                // Trigger input event to update preview
+                element.dispatchEvent(new Event('input'));
+            }
+        };
+
+        switch (presetName) {
+            case 'nude':
+                setValue('toggle-underwear', false);
+                setValue('toggle-shirt', false);
+                setValue('toggle-shorts', false);
+                break;
+            case 'underwear':
+                setValue('toggle-underwear', true);
+                setValue('toggle-shirt', false);
+                setValue('toggle-shorts', false);
+                break;
+            case 'casual':
+                setValue('toggle-underwear', true);
+                setValue('toggle-shirt', true);
+                setValue('toggle-shorts', true);
+                break;
+            case 'full':
+                setValue('toggle-underwear', true);
+                setValue('toggle-shirt', true);
+                setValue('toggle-shorts', true);
+                break;
+        }
+    }
+
+    applyBodyPreset(presetName) {
+        const preset = BODY_PRESETS[presetName];
+        if (!preset) return;
+
+        // Apply preset values to UI elements
+        const setValue = (id, value) => {
+            const element = document.getElementById(id);
+            const valueElement = document.getElementById(`${id}-value`);
+            if (element) {
+                element.value = value;
+                // Update number display if it exists
+                if (valueElement && element.type === 'range') {
+                    valueElement.textContent = parseFloat(value).toFixed(2);
+                }
+                // Trigger input event to update preview
+                element.dispatchEvent(new Event('input'));
+            }
+        };
+
+        setValue('torso-width', preset.torsoWidth || 1.0);
+        setValue('torso-height', preset.torsoHeight || 1.0);
+        setValue('arm-scale', preset.armScale || 1.0);
+        setValue('leg-scale', preset.legScale || 1.0);
+        setValue('head-scale', preset.headScale || 1.0);
+        setValue('foot-width', preset.footWidth || 1.0);
+        setValue('neck-height', preset.neckHeight || 0.6);
+        setValue('neck-thickness', preset.neckThickness || 1.0);
+        setValue('neck-rotation', preset.neckRotation || 0.0);
+        setValue('neck-tilt', preset.neckTilt || 0.0);
+        setValue('chin-size', preset.chinSize || 0.7);
+        setValue('chin-length', preset.chinLength || 1.0);
+        setValue('chin-height', preset.chinHeight || -0.04);
+        setValue('chin-forward', preset.chinForward || 0.03);
+        setValue('iris-scale', preset.irisScale || 1.0);
+        setValue('pupil-scale', preset.pupilScale || 1.0);
+        setValue('foot-length', preset.footLength || 1.0);
+        setValue('heel-scale', preset.heelScale || 1.218);
+        setValue('heel-height', preset.heelHeight || 1.0);
+        setValue('toe-spread', preset.toeSpread || 1.0);
+        setValue('butt-scale', preset.buttScale || 1.0);
+        
+        // Apply colors if present
+        if (preset.shirtColor) {
+            setValue('shirt-color', preset.shirtColor);
+        }
+        if (preset.hairColor) {
+            // Note: hair color would need to be added to the UI
+            console.log('Hair color preset:', preset.hairColor);
+        }
     }
 }

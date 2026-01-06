@@ -124,6 +124,11 @@ export class PunchAction {
                 parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.2, punchDamp);
                 parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.4, punchDamp);
                 parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.1, punchDamp);
+                
+                if (p >= 1.0) {
+                    player.isPunch = false;
+                    player.punchTimer = 0;
+                }
             }
         }
         playerModelResetFeet(parts, damp);

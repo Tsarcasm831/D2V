@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { SCALE_FACTOR } from '../world/world_bounds.js';
 
 export function attachShorts(parts, config = {}) {
     if (config.gear && config.gear.pants) return; // Don't show shorts if wearing pants
@@ -9,53 +8,65 @@ export function attachShorts(parts, config = {}) {
 
     const isFemale = config.bodyType === 'female';
     const torsoRadiusBottom = isFemale ? 0.27 : 0.22; // Match player_mesh.js values
-    const waistLen = isFemale ? 0.18 : 0.24; // Shorter waistband for female to avoid overlapping too high
+    const pelvisHeight = 0.14; // From TorsoBuilder
     
-    // Adjusted radii for female waistband to be tighter
-    const waistRadiusTop = isFemale ? torsoRadiusBottom * 1.04 : torsoRadiusBottom * 1.08;
-    const waistRadiusBottom = isFemale ? torsoRadiusBottom * 1.02 : torsoRadiusBottom * 1.06;
+    // Adjusted radii for a closer fit that follows the pelvis contour
+    const waistRadiusTop = isFemale ? torsoRadiusBottom * 1.02 : torsoRadiusBottom * 1.06;
+    const waistRadiusBottom = isFemale ? torsoRadiusBottom * 1.0 : torsoRadiusBottom * 1.04;
     
-    const waistGeo = new THREE.CylinderGeometry(waistRadiusTop, waistRadiusBottom, waistLen, 16);
+    const waistGeo = new THREE.CylinderGeometry(waistRadiusTop, waistRadiusBottom, pelvisHeight, 16);
     const waist = new THREE.Mesh(waistGeo, shortsMat);
     
-    // Position it to start slightly lower to ensure full coverage of the lower torso
-    // Adjusted y-position for the shorter waistband
-    const yOffset = isFemale ? 0.04 : 0.06;
-    waist.position.y = (yOffset + waistLen/2) * SCALE_FACTOR;
+    // Position to match body pelvis (parented to parts.pelvis)
+    waist.position.y = -pelvisHeight / 2;
+    // Match pelvis oval profile (torso uses z-scale 0.7)
+    waist.scale.set(1.03, 1.01, 0.74); 
     waist.castShadow = true;
-    parts.torsoContainer.add(waist);
+    parts.pelvis.add(waist);
 
     const waistOutline = new THREE.Mesh(waistGeo, outlineMat);
-    waistOutline.scale.setScalar(1.05);
+    waistOutline.scale.setScalar(1.06);
     waist.add(waistOutline);
 
-    // Crotch/Bottom Section to ensure underwear is covered from below
-    // Match the radius exactly to the bottom of the waistband to fix the seam
-    const crotchGeo = new THREE.SphereGeometry(waistRadiusBottom, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+    // Crotch/Bottom Section
+    const crotchGeo = new THREE.SphereGeometry(waistRadiusBottom * 0.98, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
     const crotch = new THREE.Mesh(crotchGeo, shortsMat);
-    crotch.position.y = -waistLen / 2;
+    crotch.position.y = -pelvisHeight / 2;
+    crotch.scale.set(1.02, 1.0, 0.72);
     waist.add(crotch);
 
     const crotchOutline = new THREE.Mesh(crotchGeo, outlineMat);
-    crotchOutline.scale.setScalar(1.05);
-    crotchOutline.position.y = -waistLen / 2;
+    crotchOutline.scale.setScalar(1.06);
+    crotchOutline.position.y = -pelvisHeight / 2;
     waist.add(crotchOutline);
 
-    // 2. Leg Sections (Attached to the thighs)
-    // Increased length to reach knee level (thigh segment is 0.4 units long)
-    const thighRadius = 0.1, legLen = 0.42;
-    const legGeo = new THREE.CylinderGeometry(thighRadius * 1.35, thighRadius * 1.25, legLen, 12);
+    // Leg Section - Wrap the thigh correctly
+    const thighRadius = 0.11, thighLen = 0.4;
+    const legLen = thighLen * 0.65;
+    const legGeo = new THREE.CylinderGeometry(thighRadius * 1.14, thighRadius * 1.08, legLen, 12);
+    const hemGeo = new THREE.CylinderGeometry(thighRadius * 1.15, thighRadius * 1.12, 0.045, 12);
     
     const attachLeg = (thighPart) => {
         const leg = new THREE.Mesh(legGeo, shortsMat);
-        // Positioned to cover the thigh segment down to the knee
-        leg.position.y = -legLen / 2 + 0.02; 
+        // Pivot is at the top of the thigh mesh due to createSegment translation
+        // The thigh mesh extends from y=0 to y=-0.4
+        leg.position.y = -legLen / 2; 
+        leg.scale.set(1.02, 1.0, 0.9);
         leg.castShadow = true;
         thighPart.add(leg);
 
         const legOutline = new THREE.Mesh(legGeo, outlineMat);
-        legOutline.scale.setScalar(1.1);
+        legOutline.scale.setScalar(1.05);
         leg.add(legOutline);
+
+        const hem = new THREE.Mesh(hemGeo, shortsMat);
+        hem.position.y = -legLen / 2;
+        hem.scale.set(1.02, 1.0, 0.9);
+        leg.add(hem);
+
+        const hemOutline = new THREE.Mesh(hemGeo, outlineMat);
+        hemOutline.scale.setScalar(1.05);
+        hem.add(hemOutline);
 
         return leg;
     };

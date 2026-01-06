@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import { SCALE_FACTOR } from '../world/world_bounds.js';
-import { LEATHER_COLOR, LEATHER_DETAIL } from './gear.js';
 
 export function attachShirt(parts, config = {}) {
     // Determine if the shirt should be leather (sync with leather armor)
@@ -19,7 +17,7 @@ export function attachShirt(parts, config = {}) {
     
     if (isLeather) {
         // Leather color sync
-        ctx.fillStyle = LEATHER_COLOR;
+        ctx.fillStyle = config.shirtColor || '#5d4037';
         ctx.fillRect(0, 0, 512, 512);
         
         // Add some leather-like grain
@@ -29,7 +27,7 @@ export function attachShirt(parts, config = {}) {
         }
         
         // Simple stitching lines
-        ctx.strokeStyle = LEATHER_DETAIL;
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
         ctx.globalAlpha = 0.3;
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(10, 10, 492, 492);
@@ -68,19 +66,28 @@ export function attachShirt(parts, config = {}) {
     shirtTex.wrapT = THREE.RepeatWrapping;
     
     // Compensate for cylinder aspect ratio to keep plaid square
-    // Circumference ~1.8, height ~0.32 -> ratio ~5.6
     shirtTex.repeat.set(6, 1.1); 
     shirtTex.needsUpdate = true;
 
     const shirtMat = new THREE.MeshToonMaterial({ map: shirtTex });
     const outlineMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
 
-    // 1. Torso Shirt (Shortened to only cover top 2/3)
-    // We adjust radii and length to wrap the upper torso without gaps
-    const torsoRadiusTop = 0.3, torsoRadiusBottom = 0.26, shirtLen = 0.32;
-    const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, shirtLen, 16);
+    // Match body torso dimensions from TorsoBuilder
+    const torsoRadiusTop = 0.28, torsoRadiusBottom = 0.22;
+    const torsoLen = 0.56;
+    
+    // 1. Torso Shirt - Slightly larger to cover abs and avoid clipping
+    const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, torsoLen, 16);
+    shirtTorsoGeo.scale(1, 1, 0.65); // Match body scaling
     const shirtTorso = new THREE.Mesh(shirtTorsoGeo, shirtMat);
     
+    // Position to match body torso mesh exactly. 
+    // Since we parent to parts.torso, we use (0,0,0).
+    shirtTorso.position.set(0, 0, 0.015); // Nudge forward to hug torso contour
+    shirtTorso.scale.set(1.04, 1.03, 1.16); // Inflate mostly in Z to cover abs without ballooning
+    shirtTorso.castShadow = true;
+    parts.torso.add(shirtTorso);
+
     // Female Breast Coverage
     if (config.bodyType === 'female' && parts.chest) {
         const breastShirtGeo = new THREE.SphereGeometry(0.13, 16, 16);
@@ -90,44 +97,55 @@ export function attachShirt(parts, config = {}) {
             if (child.isMesh && child.material !== outlineMat) {
                 const breastShirt = new THREE.Mesh(breastShirtGeo, shirtMat);
                 breastShirt.position.copy(child.position);
-                breastShirt.scale.copy(child.scale).multiplyScalar(1.02);
+                breastShirt.scale.copy(child.scale).multiplyScalar(1.03);
                 parts.chest.add(breastShirt);
                 
                 const breastO = new THREE.Mesh(breastShirtGeo, outlineMat);
                 breastO.position.copy(breastShirt.position);
-                breastO.scale.copy(breastShirt.scale).multiplyScalar(1.05);
-                breastO.position.z -= 0.01;
+                breastO.scale.copy(breastShirt.scale).multiplyScalar(1.06);
                 parts.chest.add(breastO);
             }
         }
     }
     
-    // Position it high on the torso (Base torso top is at ~0.55, bottom at ~0.1)
-    shirtTorso.position.y = 0.41 * SCALE_FACTOR;
-    shirtTorso.castShadow = true;
-    parts.torsoContainer.add(shirtTorso);
-
-    // Torso Top Cap (Shoulders) - No bottom cap to prevent seams/overlapping with waist
-    const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    // Torso Top Cap (Shoulders) - Match body shoulders
+    const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop * 1.06, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    topCapGeo.scale(1.0, 0.5, 0.68); // Smooth shoulder slope to sit under the vest
     const topCap = new THREE.Mesh(topCapGeo, shirtMat);
-    topCap.position.y = shirtLen / 2;
+    topCap.position.y = torsoLen / 2 + 0.01;
     shirtTorso.add(topCap);
 
+    // Shoulder wrap to cover traps and upper deltoids
+    const shoulderWrapGeo = new THREE.CylinderGeometry(
+        torsoRadiusTop * 1.08,
+        torsoRadiusTop * 1.02,
+        0.1,
+        16
+    );
+    shoulderWrapGeo.scale(1, 1, 0.68);
+    const shoulderWrap = new THREE.Mesh(shoulderWrapGeo, shirtMat);
+    shoulderWrap.position.y = torsoLen / 2 + 0.03;
+    shirtTorso.add(shoulderWrap);
+
     // Shirt Outlines
-    [shirtTorsoGeo, topCapGeo].forEach(g => {
+    [shirtTorsoGeo, topCapGeo, shoulderWrapGeo].forEach(g => {
         const o = new THREE.Mesh(g, outlineMat);
-        o.scale.setScalar(1.05);
-        if (g === topCapGeo) o.position.y = shirtLen / 2;
+        const outlineScale = (g === topCapGeo || g === shoulderWrapGeo) ? 1.03 : 1.05;
+        o.scale.setScalar(outlineScale);
+        if (g === topCapGeo) o.position.y = torsoLen / 2 + 0.01;
+        if (g === shoulderWrapGeo) o.position.y = torsoLen / 2 + 0.03;
         shirtTorso.add(o);
     });
 
-    // 2. Sleeves
-    const sleeveRadius = 0.12, sleeveLen = 0.25;
+    // 2. Sleeves - Match arm dimensions
+    const sleeveRadius = 0.1, sleeveLen = 0.36; 
     const sleeveGeo = new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLen, 12);
     
     const attachSleeve = (armPart) => {
         const sleeve = new THREE.Mesh(sleeveGeo, shirtMat);
-        sleeve.position.y = -sleeveLen / 2; // Cover upper part of the arm segment
+        // Cover upper part of arm
+        sleeve.position.y = -sleeveLen / 2 + 0.1; 
+        sleeve.scale.set(1.02, 1.02, 1.02);
         sleeve.castShadow = true;
         armPart.add(sleeve);
 
@@ -140,7 +158,7 @@ export function attachShirt(parts, config = {}) {
         // Sleeve Outlines
         [sleeveGeo, sJointGeo].forEach(g => {
             const o = new THREE.Mesh(g, outlineMat);
-            o.scale.setScalar(1.08);
+            o.scale.setScalar(1.1);
             if (g === sJointGeo) o.position.y = sleeveLen / 2;
             sleeve.add(o);
         });
@@ -148,8 +166,8 @@ export function attachShirt(parts, config = {}) {
         return sleeve;
     };
 
-    parts.rightSleeve = attachSleeve(parts.rightArm);
-    parts.leftSleeve = attachSleeve(parts.leftArm);
+    const rightSleeve = attachSleeve(parts.rightArm);
+    const leftSleeve = attachSleeve(parts.leftArm);
 
-    return { shirtTorso, rightSleeve: parts.rightSleeve, leftSleeve: parts.leftSleeve };
+    return { shirtTorso, rightSleeve, leftSleeve };
 }

@@ -6,31 +6,38 @@ export function attachUnderwear(parts) {
     const underwearMat = new THREE.MeshToonMaterial({ color: underwearColor });
     const outlineMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
 
-    // Underwear parameters (matching the bottom of the torso in player_mesh.js)
-    const torsoRadiusBottom = 0.22, underwearLen = 0.12;
+    // Match body pelvis dimensions from TorsoBuilder
+    const torsoRadiusBottom = 0.22; // From TorsoBuilder
+    const pelvisHeight = 0.14; // From TorsoBuilder
     
-    // 1. Waistband/Crotch Section (Bottom slice of the torso cylinder)
-    const underwearGeo = new THREE.CylinderGeometry(torsoRadiusBottom * 1.01, torsoRadiusBottom, underwearLen, 16);
-    const underwear = new THREE.Mesh(underwearGeo, underwearMat);
+    // 1. Pelvis Section - Match body pelvis geometry exactly
+    const pelvisGeo = new THREE.CylinderGeometry(torsoRadiusBottom * 0.95, torsoRadiusBottom * 0.55, pelvisHeight, 16);
+    pelvisGeo.scale(1, 1, 0.7); // Match body scaling
+    const underwear = new THREE.Mesh(pelvisGeo, underwearMat);
     
-    // Position it at the very bottom of the torso cylinder
-    // In player_mesh, torso is at y=0.325, cylinder bottom is at y=0.1
-    underwear.position.y = (0.1 + underwearLen/2) * SCALE_FACTOR;
-    parts.torsoContainer.add(underwear);
+    // Position relative to pelvis group (TorsoBuilder line 58)
+    // In TorsoBuilder, pelvis group is at y = -torsoLen/2 relative to torso mesh.
+    // The pelvis mesh inside that group is at y = -pelvisHeight/2.
+    underwear.position.set(0, -pelvisHeight / 2, 0);
+    underwear.scale.set(1.02, 1.02, 1.02); // Slightly larger to avoid Z-fighting
+    parts.pelvis.add(underwear);
 
-    // 2. Bottom Cap (Pelvic area)
-    const botCapGeo = new THREE.SphereGeometry(torsoRadiusBottom, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-    const botUnderwear = new THREE.Mesh(botCapGeo, underwearMat);
-    botUnderwear.position.y = -underwearLen / 2;
-    underwear.add(botUnderwear);
+    // 2. Crotch Section - Match body crotch geometry
+    const crotchGeo = new THREE.SphereGeometry(torsoRadiusBottom * 0.55, 16, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2);
+    crotchGeo.scale(1, 0.7, 0.7); // Match body scaling
+    const crotch = new THREE.Mesh(crotchGeo, underwearMat);
+    crotch.position.set(0, -pelvisHeight, 0);
+    crotch.scale.set(1.02, 1.02, 1.02);
+    parts.pelvis.add(crotch);
 
-    // Outlines for crisp look
-    [underwearGeo, botCapGeo].forEach(g => {
+    // Outlines
+    [pelvisGeo, crotchGeo].forEach(g => {
         const o = new THREE.Mesh(g, outlineMat);
-        o.scale.setScalar(1.05);
-        if (g === botCapGeo) o.position.y = -underwearLen / 2;
-        underwear.add(o);
+        o.scale.setScalar(1.04); 
+        if (g === crotchGeo) o.position.set(0, -pelvisHeight, 0);
+        else o.position.set(0, -pelvisHeight / 2, 0);
+        parts.pelvis.add(o);
     });
 
-    return { underwear, botUnderwear };
+    return { underwear, crotch };
 }

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 export class FootBuilder {
-    static create(materials, isLeft, arrays) {
-        const footMat = materials.boots;
+    static create(materials, isLeft, arrays, isNude = false) {
+        const footMat = isNude ? materials.skin : materials.boots;
 
         const footWidth = 0.095;
         const footHeight = 0.055;

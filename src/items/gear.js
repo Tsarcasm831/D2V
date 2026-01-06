@@ -109,14 +109,16 @@ export function attachCloak(parts) {
 }
 
 export function attachVest(parts) {
-    // Reference shirt dimensions from shirt.js:
-    // torsoRadiusTop = 0.3, torsoRadiusBottom = 0.26, shirtLen = 0.32
-    // We make the vest slightly larger to layer on top
-    const torsoRadiusTop = 0.315, torsoRadiusBottom = 0.275, vestLen = 0.38;
+    // Match torso contour and sit slightly above the shirt
+    const torsoRadiusTop = 0.315;
+    const torsoRadiusBottom = 0.275;
+    const vestLen = 0.38;
     
     const vestGroup = new THREE.Group();
     // Shirt is at 0.41 * SCALE_FACTOR, we align vest to it
     vestGroup.position.y = 0.41 * SCALE_FACTOR;
+    vestGroup.position.z = 0.02;
+    vestGroup.scale.set(1, 1, 0.65);
     parts.torsoContainer.add(vestGroup);
 
     // 1. MAIN BODY (Split Front)

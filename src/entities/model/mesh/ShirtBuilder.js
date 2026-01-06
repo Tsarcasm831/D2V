@@ -73,11 +73,12 @@ export class ShirtBuilder {
 
         const createdMeshes = [];
 
-        const torsoRadiusTop = 0.30;
+        const torsoRadiusTop = 0.38;
         const torsoRadiusBottom = 0.25;
-        const shirtLen = 0.42; 
+        const shirtLen = 0.58; 
         
         const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, shirtLen, 16);
+        shirtTorsoGeo.scale(1, 1, 0.65);
         const shirtTorso = new THREE.Mesh(shirtTorsoGeo, shirtMat);
         
         if (config.bodyType === 'female' && parts.chest) {
@@ -102,15 +103,15 @@ export class ShirtBuilder {
             }
         }
         
-        shirtTorso.position.y = 0.42; 
+        shirtTorso.position.y = 0.38; 
         shirtTorso.castShadow = true;
         parts.torsoContainer.add(shirtTorso);
         createdMeshes.push(shirtTorso);
 
-        const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        topCapGeo.scale(1, 0.6, 0.8);
+        const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop * 1.25, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        topCapGeo.scale(1.4, 0.7, 1.0);
         const topCap = new THREE.Mesh(topCapGeo, shirtMat);
-        topCap.position.y = shirtLen / 2;
+        topCap.position.y = shirtLen / 2 + 0.08;
         shirtTorso.add(topCap);
 
         [shirtTorsoGeo, topCapGeo].forEach(g => {
@@ -120,19 +121,19 @@ export class ShirtBuilder {
             shirtTorso.add(o);
         });
 
-        const sleeveRadius = 0.125;
-        const sleeveLen = 0.22;
+        const sleeveRadius = 0.18;
+        const sleeveLen = 0.28;
         const sleeveGeo = new THREE.CylinderGeometry(sleeveRadius * 1.05, sleeveRadius, sleeveLen, 12);
         
         const attachSleeve = (armPart) => {
             const sleeve = new THREE.Mesh(sleeveGeo, shirtMat);
-            sleeve.position.y = -sleeveLen / 2 + 0.05; 
+            sleeve.position.y = -sleeveLen / 2 + 0.08; 
             sleeve.castShadow = true;
             armPart.add(sleeve);
             createdMeshes.push(sleeve);
 
-            const sJointGeo = new THREE.SphereGeometry(sleeveRadius * 1.15, 12, 12);
-            sJointGeo.scale(0.95, 1.4, 0.85); 
+            const sJointGeo = new THREE.SphereGeometry(sleeveRadius * 1.6, 12, 12);
+            sJointGeo.scale(1.1, 1.5, 1.0); 
             
             const sJoint = new THREE.Mesh(sJointGeo, shirtMat);
             sJoint.position.set(0, 0, 0); 

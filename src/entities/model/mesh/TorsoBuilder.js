@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class TorsoBuilder {
-    static build(materials, arrays) {
+    static build(materials, arrays, isNude = false) {
         const hips = new THREE.Group();
         hips.position.y = 1.0;
 
@@ -14,7 +14,8 @@ export class TorsoBuilder {
         // Flatten the torso geometry
         const torsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, torsoLen, 16);
         torsoGeo.scale(1, 1, 0.65); // Make it oval
-        const torso = new THREE.Mesh(torsoGeo, materials.shirt); 
+        const torsoMat = isNude ? materials.skin : materials.shirt;
+        const torso = new THREE.Mesh(torsoGeo, torsoMat); 
         torso.position.y = torsoLen / 2 + 0.1; 
         torso.castShadow = true;
         torsoContainer.add(torso);
@@ -22,7 +23,7 @@ export class TorsoBuilder {
         // TOP SECTION: Shoulders & Traps (Unified Slope)
         const shoulderGeo = new THREE.SphereGeometry(torsoRadiusTop * 1.05, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
         shoulderGeo.scale(1, 0.5, 0.65); 
-        const topCap = new THREE.Mesh(shoulderGeo, materials.shirt);
+        const topCap = new THREE.Mesh(shoulderGeo, torsoMat);
         topCap.position.y = torsoLen / 2;
         torso.add(topCap);
 
@@ -61,13 +62,14 @@ export class TorsoBuilder {
         const pelvisHeight = 0.14;
         const pelvisGeo = new THREE.CylinderGeometry(torsoRadiusBottom * 0.95, torsoRadiusBottom * 0.55, pelvisHeight, 16);
         pelvisGeo.scale(1, 1, 0.7);
-        const pelvisMesh = new THREE.Mesh(pelvisGeo, materials.pants);
+        const pelvisMat = isNude ? materials.skin : materials.pants;
+        const pelvisMesh = new THREE.Mesh(pelvisGeo, pelvisMat);
         pelvisMesh.position.y = -pelvisHeight / 2;
         pelvis.add(pelvisMesh);
 
         const crotchGeo = new THREE.SphereGeometry(torsoRadiusBottom * 0.55, 16, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2);
         crotchGeo.scale(1, 0.7, 0.7);
-        const crotchMesh = new THREE.Mesh(crotchGeo, materials.pants);
+        const crotchMesh = new THREE.Mesh(crotchGeo, pelvisMat);
         crotchMesh.position.y = -pelvisHeight;
         pelvis.add(crotchMesh);
         
@@ -125,7 +127,8 @@ export class TorsoBuilder {
         const braCups = [];
 
         [-0.11, 0.11].forEach(x => {
-            const b = new THREE.Mesh(breastGeo, materials.shirt);
+            const bMat = isNude ? materials.skin : materials.shirt;
+            const b = new THREE.Mesh(breastGeo, bMat);
             b.position.x = x; 
             b.scale.set(1, 0.9, 0.6); 
             b.rotation.y = (x > 0 ? 1 : -1) * 0.15; 

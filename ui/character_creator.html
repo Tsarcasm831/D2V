@@ -29,19 +29,152 @@
             <div class="creator-section">
                 <div class="creator-label">SCALES</div>
                 <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Head</div>
-                <input type="range" id="head-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="head-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                    <span id="head-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
                 <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Width</div>
-                <input type="range" id="torso-width" min="0.8" max="1.3" step="0.05" value="1.0" style="width:100%">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="torso-width" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="torso-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
                 <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Height</div>
-                <input type="range" id="torso-height" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="torso-height" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                    <span id="torso-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
                 <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Arms</div>
-                <input type="range" id="arm-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="arm-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                    <span id="arm-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
                 <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Legs</div>
-                <input type="range" id="leg-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="width:100%">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="leg-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                    <span id="leg-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">NECK</div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Thickness</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="neck-thickness" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+                    <span id="neck-thickness-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Height</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="neck-height" min="0.3" max="1.2" step="0.05" value="0.95" style="flex:1">
+                    <span id="neck-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.95</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Rotation</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="neck-rotation" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                    <span id="neck-rotation-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Tilt</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="neck-tilt" min="-0.2" max="0.2" step="0.01" value="0.0" style="flex:1">
+                    <span id="neck-tilt-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                </div>
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">FACE</div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Size</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="chin-size" min="0.3" max="1.2" step="0.05" value="0.7" style="flex:1">
+                    <span id="chin-size-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.7</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Length</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="chin-length" min="0.6" max="1.4" step="0.05" value="1.0" style="flex:1">
+                    <span id="chin-length-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Height</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="chin-height" min="-0.1" max="0.1" step="0.01" value="-0.04" style="flex:1">
+                    <span id="chin-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.04</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Forward</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="chin-forward" min="0.0" max="0.1" step="0.01" value="0.03" style="flex:1">
+                    <span id="chin-forward-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.03</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Iris Scale</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="iris-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="iris-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Pupil Scale</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="pupil-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="pupil-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">FEET</div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Foot Width</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="foot-width" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="foot-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Foot Length</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="foot-length" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="foot-length-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Heel Scale</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="heel-scale" min="0.8" max="1.5" step="0.05" value="1.218" style="flex:1">
+                    <span id="heel-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.22</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Heel Height</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="heel-height" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="heel-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Toe Spread</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="toe-spread" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                    <span id="toe-spread-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">BODY</div>
+                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Scale</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="butt-scale" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+                    <span id="butt-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                </div>
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">BODY PRESETS</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="preset-btn" data-preset="average">Average</button>
+                    <button class="preset-btn" data-preset="muscular">Muscular</button>
+                    <button class="preset-btn" data-preset="slim">Slim</button>
+                    <button class="preset-btn" data-preset="heavy">Heavy</button>
+                </div>
             </div>
         </div>
 
         <div id="outfit-tab" class="tab-content">
+            <div class="creator-section">
+                <div class="creator-label">CLOTHING TOGGLES</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="toggle-underwear" checked style="margin: 0;">
+                        <span style="font-size: 12px; opacity: 0.8;">Underwear</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="toggle-shirt" checked style="margin: 0;">
+                        <span style="font-size: 12px; opacity: 0.8;">Shirt</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="toggle-shorts" checked style="margin: 0;">
+                        <span style="font-size: 12px; opacity: 0.8;">Shorts</span>
+                    </label>
+                </div>
+            </div>
             <div class="creator-section">
                 <div class="creator-label">SHIRT COLOR</div>
                 <input type="color" id="shirt-color" class="creator-input" value="#ffffff">
@@ -49,17 +182,34 @@
             <div class="creator-section">
                 <div class="creator-label">SHIRT PATTERN</div>
                 <select id="shirt-pattern" class="creator-input">
-                    <option value="none">NONE</option>
-                    <option value="stripes">STRIPES</option>
-                    <option value="dots">DOTS</option>
-                    <option value="checkered">CHECKERED</option>
+                    <option value="none">None</option>
+                    <option value="plaid">Plaid</option>
+                    <option value="stripes">Stripes</option>
+                    <option value="solid">Solid</option>
                 </select>
+            </div>
+            <div class="creator-section">
+                <div class="creator-label">OUTFIT PRESETS</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="outfit-preset-btn" data-outfit="nude">Nude</button>
+                    <button class="outfit-preset-btn" data-outfit="underwear">Underwear</button>
+                    <button class="outfit-preset-btn" data-outfit="casual">Casual</button>
+                    <button class="outfit-preset-btn" data-outfit="full">Full</button>
+                </div>
             </div>
         </div>
 
         <div id="gear-tab" class="tab-content">
             <div class="creator-label">ARMOR & ACCESSORIES</div>
             <div class="gear-grid">
+                <div class="gear-item" id="gear-shirt">
+                    <img src="assets/gear/shirt.png" class="gear-icon-img">
+                    <span class="gear-name">Shirt</span>
+                </div>
+                <div class="gear-item" id="gear-shorts">
+                    <img src="assets/gear/shorts.png" class="gear-icon-img">
+                    <span class="gear-name">Shorts</span>
+                </div>
                 <div class="gear-item" id="gear-leather-armor">
                     <img src="assets/gear/leather_armor.png" class="gear-icon-img">
                     <span class="gear-name">Armor</span>

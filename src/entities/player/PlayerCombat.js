@@ -57,10 +57,16 @@ export class PlayerCombat {
                 player.hasHit = true;
             }
 
-            if (player.axeSwingTimer > duration) { 
+        if (player.axeSwingTimer > duration) { 
                 player.isAxeSwing = false; 
                 player.axeSwingTimer = 0; 
                 player.hasHit = false;
+                
+                // Reset animator state if it exists
+                if (player.animator) {
+                    player.animator.isAxeSwing = false;
+                    player.animator.axeSwingTimer = 0;
+                }
             }
         }
     }
@@ -138,6 +144,10 @@ export class PlayerCombat {
             } else {
                 player.isPunch = false;
                 player.punchTimer = 0;
+                if (player.animator) {
+                    player.animator.isPunch = false;
+                    player.animator.punchTimer = 0;
+                }
             }
         } else if (player.comboChain === 2 && t > punch2Dur) {
             if (isHolding) {
@@ -145,11 +155,19 @@ export class PlayerCombat {
             } else {
                 player.isPunch = false;
                 player.punchTimer = 0;
+                if (player.animator) {
+                    player.animator.isPunch = false;
+                    player.animator.punchTimer = 0;
+                }
             }
         } else if (player.comboChain === 3 && t > punch3Dur) {
             player.isPunch = false;
             player.comboChain = 1;
             player.punchTimer = 0;
+            if (player.animator) {
+                player.animator.isPunch = false;
+                player.animator.punchTimer = 0;
+            }
         }
     }
 }

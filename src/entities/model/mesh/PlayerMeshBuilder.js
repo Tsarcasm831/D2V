@@ -6,7 +6,7 @@ import { FootBuilder } from './FootBuilder.js';
 import { createSegment } from './MeshUtils.js';
 
 export class PlayerMeshBuilder {
-    static build(materials) {
+    static build(materials, config = {}) {
         const group = new THREE.Group();
         group.castShadow = true;
         
@@ -22,8 +22,10 @@ export class PlayerMeshBuilder {
             buttockCheeks: []
         };
 
+        const isNude = config.outfit === 'nude' || config.outfit === 'naked';
+
         // 1. Torso & Hips
-        const torsoParts = TorsoBuilder.build(materials, arrays);
+        const torsoParts = TorsoBuilder.build(materials, arrays, isNude);
         group.add(torsoParts.hips);
         
         // 2. Head
@@ -34,20 +36,21 @@ export class PlayerMeshBuilder {
         const thighLen = 0.4;
         const shinLen = 0.42;
         const legSpacing = 0.15;
+        const legMat = isNude ? materials.skin : materials.pants;
 
-        const rightThigh = createSegment(0.11, thighLen, materials.pants, 0.085);
+        const rightThigh = createSegment(0.11, thighLen, legMat, 0.085);
         rightThigh.position.set(-legSpacing, 0, 0); 
         torsoParts.hips.add(rightThigh);
 
-        const leftThigh = createSegment(0.11, thighLen, materials.pants, 0.085);
+        const leftThigh = createSegment(0.11, thighLen, legMat, 0.085);
         leftThigh.position.set(legSpacing, 0, 0); 
         torsoParts.hips.add(leftThigh);
 
-        const rightShin = createSegment(0.095, shinLen, materials.pants, 0.065);
+        const rightShin = createSegment(0.095, shinLen, legMat, 0.065);
         rightShin.position.y = -thighLen; 
         rightThigh.add(rightShin);
 
-        const leftShin = createSegment(0.095, shinLen, materials.pants, 0.065);
+        const leftShin = createSegment(0.095, shinLen, legMat, 0.065);
         leftShin.position.y = -thighLen; 
         leftThigh.add(leftShin);
 
@@ -55,22 +58,23 @@ export class PlayerMeshBuilder {
         const footOffsetY = -shinLen; 
         const ankleRadius = 0.068;
         const ankleGeo = new THREE.SphereGeometry(ankleRadius, 16, 16);
+        const ankleMat = isNude ? materials.skin : materials.boots;
         
-        const rightAnkle = new THREE.Mesh(ankleGeo, materials.boots);
+        const rightAnkle = new THREE.Mesh(ankleGeo, ankleMat);
         rightAnkle.position.y = footOffsetY;
         rightAnkle.castShadow = true;
         rightShin.add(rightAnkle);
 
-        const leftAnkle = new THREE.Mesh(ankleGeo, materials.boots);
+        const leftAnkle = new THREE.Mesh(ankleGeo, ankleMat);
         leftAnkle.position.y = footOffsetY;
         leftAnkle.castShadow = true;
         leftShin.add(leftAnkle);
         
-        const rFoot = FootBuilder.create(materials, false, arrays);
+        const rFoot = FootBuilder.create(materials, false, arrays, isNude);
         rFoot.heelGroup.position.y = footOffsetY; 
         rightShin.add(rFoot.heelGroup); 
 
-        const lFoot = FootBuilder.create(materials, true, arrays);
+        const lFoot = FootBuilder.create(materials, true, arrays, isNude);
         lFoot.heelGroup.position.y = footOffsetY;
         leftShin.add(lFoot.heelGroup); 
 
@@ -80,10 +84,11 @@ export class PlayerMeshBuilder {
 
         const buildArm = () => {
             const armGroup = new THREE.Group();
-            const deltRadius = 0.13;
+            const deltRadius = 0.105;
             const deltGeo = new THREE.SphereGeometry(deltRadius, 16, 16);
-            deltGeo.scale(1.0, 0.85, 0.95); 
-            const delt = new THREE.Mesh(deltGeo, materials.shirt);
+            deltGeo.scale(0.85, 0.82, 0.75); 
+            const armMat = isNude ? materials.skin : materials.shirt;
+            const delt = new THREE.Mesh(deltGeo, armMat);
             delt.position.y = 0.02; 
             delt.castShadow = true;
             armGroup.add(delt);
@@ -92,7 +97,7 @@ export class PlayerMeshBuilder {
             const upperBotR = 0.07; 
             const upperGeo = new THREE.CylinderGeometry(upperTopR, upperBotR, upperArmLen, 12);
             upperGeo.translate(0, -upperArmLen/2, 0);
-            const upperMesh = new THREE.Mesh(upperGeo, materials.shirt);
+            const upperMesh = new THREE.Mesh(upperGeo, armMat);
             upperMesh.position.y = 0.03; 
             upperMesh.castShadow = true;
             armGroup.add(upperMesh);
@@ -105,7 +110,7 @@ export class PlayerMeshBuilder {
 
             const elbowGeo = new THREE.SphereGeometry(elbowRadius, 16, 16);
             elbowGeo.scale(1, 1, 0.95);
-            const elbow = new THREE.Mesh(elbowGeo, materials.shirt);
+            const elbow = new THREE.Mesh(elbowGeo, armMat);
             elbow.castShadow = true;
             foreArmGroup.add(elbow);
 
@@ -113,7 +118,7 @@ export class PlayerMeshBuilder {
             const lowerBotR = 0.055; 
             const lowerGeo = new THREE.CylinderGeometry(lowerTopR, lowerBotR, lowerArmLen, 12);
             lowerGeo.translate(0, -lowerArmLen/2, 0);
-            const lowerMesh = new THREE.Mesh(lowerGeo, materials.shirt);
+            const lowerMesh = new THREE.Mesh(lowerGeo, armMat);
             lowerMesh.castShadow = true;
             lowerMesh.scale.set(1.1, 1, 0.95); 
             foreArmGroup.add(lowerMesh);

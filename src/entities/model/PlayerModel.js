@@ -4,11 +4,11 @@ import { PlayerEquipment } from './PlayerEquipment.js';
 import { PlayerMeshBuilder } from './mesh/PlayerMeshBuilder.js';
 
 export class PlayerModel {
-    constructor(config) {
+    constructor(config = {}) {
         this.parts = {};
         this.materials = new PlayerMaterials(config);
         
-        const build = PlayerMeshBuilder.build(this.materials);
+        const build = PlayerMeshBuilder.build(this.materials, config);
         this.group = build.group;
         this.parts = build.parts;
         
@@ -113,10 +113,14 @@ export class PlayerModel {
         // 5. Neck & Head Scaling
         const nT = config.neckThickness || 1.0;
         const nH = config.neckHeight || 1.0;
+        const nR = config.neckRotation || 0.0;
+        const nTilt = config.neckTilt || 0.0;
         
         if (this.parts.neck) {
             this.parts.neck.scale.set(nT, nH, nT);
             this.parts.neck.position.y = 0.70 + (0.12 * nH);
+            this.parts.neck.rotation.z = nR;
+            this.parts.neck.rotation.x = nTilt;
         }
         if (this.parts.neckBase) {
             this.parts.neckBase.scale.set(nT, 1, nT);

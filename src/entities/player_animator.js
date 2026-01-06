@@ -36,11 +36,15 @@ export class PlayerAnimator {
     playAxeSwing() {
         this.isAxeSwing = true;
         this.axeSwingTimer = 0;
+        this.isPunch = false; 
+        this.punchTimer = 0;
     }
 
     playPunch() {
         this.isPunch = true;
         this.punchTimer = 0;
+        this.isAxeSwing = false; 
+        this.axeSwingTimer = 0;
     }
 
     animate(delta, isMoving, isRunning, isPickingUp, isDead, isJumping, jumpPhase, jumpTimer, jumpVelocity, isLedgeGrabbing, ledgeGrabTime, recoverTimer, isDragged, draggedPartName, dragVelocity, deathTime, deathVariation, isMovingBackwards, strafe = 0, forward = 0) {
@@ -83,6 +87,14 @@ export class PlayerAnimator {
         };
 
         this.modularAnimator.animate(playerState, delta, isMoving, input);
+        
+        // Advance timers on the shared state so we don't overwrite increments.
+        if (playerState.isAxeSwing) {
+            playerState.axeSwingTimer += delta;
+        }
+        if (playerState.isPunch) {
+            playerState.punchTimer += delta;
+        }
         
         // Sync back persistent timers
         this.isPickingUp = playerState.isPickingUp;
