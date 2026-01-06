@@ -283,6 +283,45 @@ export class Player {
         this.model.sync(this.config);
     }
 
+    updateCloth(delta) {
+        if (!this.mesh || !this.parts) return;
+
+        const collisionSpheres = [];
+        const addSphere = (obj, radius, yOffset = 0) => {
+            if (!obj) return;
+            const center = new THREE.Vector3();
+            obj.getWorldPosition(center);
+            center.y += yOffset;
+            collisionSpheres.push({ center, radius });
+        };
+        const addSphereLocal = (obj, radius, offset) => {
+            if (!obj) return;
+            const center = offset.clone().applyMatrix4(obj.matrixWorld);
+            collisionSpheres.push({ center, radius });
+        };
+
+        this.mesh.updateMatrixWorld(true);
+
+        addSphere(this.parts.torso, 0.32 * SCALE_FACTOR);
+        addSphere(this.parts.hips, 0.3 * SCALE_FACTOR);
+        addSphere(this.parts.topCap, 0.26 * SCALE_FACTOR, 0.02 * SCALE_FACTOR);
+        const upperArmOffset = new THREE.Vector3(0, -0.14 * SCALE_FACTOR, 0);
+        const foreArmOffset = new THREE.Vector3(0, -0.12 * SCALE_FACTOR, 0);
+        addSphereLocal(this.parts.rightArm, 0.13 * SCALE_FACTOR, upperArmOffset);
+        addSphereLocal(this.parts.leftArm, 0.13 * SCALE_FACTOR, upperArmOffset);
+        addSphereLocal(this.parts.rightForeArm, 0.11 * SCALE_FACTOR, foreArmOffset);
+        addSphereLocal(this.parts.leftForeArm, 0.11 * SCALE_FACTOR, foreArmOffset);
+
+        const anchorVelocity = this.playerPhysics ? this.playerPhysics.velocity : null;
+
+        this.mesh.traverse(child => {
+            if (child.userData && child.userData.clothSimulator) {
+                child.userData.clothSimulator.update(delta, child.matrixWorld, collisionSpheres, anchorVelocity);
+                child.userData.clothSimulator.updateMesh();
+            }
+        });
+    }
+
     update(delta, input, camera) {
         this.syncConfig();
 
@@ -311,6 +350,8 @@ export class Player {
             const isMoving = input.x !== 0 || input.y !== 0;
             this.animator.animate(delta, isMoving, input.run, this.isPickingUp, this.isDead, this.isJumping, '', 0, this.jumpVelocity, this.isLedgeGrabbing, this.ledgeGrabTime, this.recoverTimer, this.isDragged, this.draggedPartName, this.dragVelocity, this.deathTime, this.deathVariation, false, input.x, input.y);
         }
+
+        this.updateCloth(delta);
 
         if (this.ui) this.ui.updateHud();
 

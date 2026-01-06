@@ -238,8 +238,21 @@ export class AssassinNPC {
                  center.y += yOffset;
                  collisionSpheres.push({ center, radius });
             };
+            const addSphereLocal = (obj, radius, offset) => {
+                 if (!obj) return;
+                 const center = offset.clone().applyMatrix4(obj.matrixWorld);
+                 collisionSpheres.push({ center, radius });
+            };
+            this.group.updateMatrixWorld(true);
             addSphere(this.parts.torso, 0.32 * SCALE_FACTOR);
             addSphere(this.parts.hips, 0.3 * SCALE_FACTOR);
+            addSphere(this.parts.topCap, 0.26 * SCALE_FACTOR, 0.02 * SCALE_FACTOR);
+            const upperArmOffset = new THREE.Vector3(0, -0.14 * SCALE_FACTOR, 0);
+            const foreArmOffset = new THREE.Vector3(0, -0.12 * SCALE_FACTOR, 0);
+            addSphereLocal(this.parts.rightArm, 0.13 * SCALE_FACTOR, upperArmOffset);
+            addSphereLocal(this.parts.leftArm, 0.13 * SCALE_FACTOR, upperArmOffset);
+            addSphereLocal(this.parts.rightForeArm, 0.11 * SCALE_FACTOR, foreArmOffset);
+            addSphereLocal(this.parts.leftForeArm, 0.11 * SCALE_FACTOR, foreArmOffset);
 
             this.group.traverse(child => {
                 if (child.userData && child.userData.clothSimulator) {

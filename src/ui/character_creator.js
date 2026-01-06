@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PlayerAnimator } from '../entities/player_animator.js';
+import { PlayerDebug } from '../entities/player/PlayerDebug.js';
 import { BODY_PRESETS } from '../data/constants.js';
 import { SCALE_FACTOR } from '../world/world_bounds.js';
 
@@ -19,6 +20,7 @@ export class CharacterCreator {
         this.isDragging = false;
         this.previousMouseX = 0;
         this.animator = null;
+        this.isDebugHitbox = false;
         this.lastUpdateTime = performance.now();
         this.animationState = {
             isMoving: false,
@@ -178,6 +180,15 @@ export class CharacterCreator {
         }, { passive: true });
 
         window.addEventListener('touchend', () => this.isDragging = false, { passive: true });
+
+        window.addEventListener('keydown', (e) => {
+            if (this.creator.style.display === 'none') return;
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+            if (e.key.toLowerCase() === 'g') {
+                this.isDebugHitbox = !this.isDebugHitbox;
+                this.updatePreviewDebug();
+            }
+        });
 
         // Tabs
         const tabs = document.querySelectorAll('.creator-tab');
@@ -433,6 +444,20 @@ export class CharacterCreator {
 
         this.previewScene.add(this.currentPreviewMesh);
         this.animator = new PlayerAnimator(parts);
+        this.updatePreviewDebug();
+    }
+
+    updatePreviewDebug() {
+        if (!this.currentPreviewMesh || !this.currentPreviewParts) return;
+        const previewPlayer = {
+            model: {
+                group: this.currentPreviewMesh,
+                parts: this.currentPreviewParts
+            },
+            scene: this.previewScene,
+            isDebugHitbox: this.isDebugHitbox
+        };
+        PlayerDebug.updateHitboxVisuals(previewPlayer);
     }
 
     show() {
@@ -473,6 +498,10 @@ export class CharacterCreator {
             );
         }
 
+        if (this.isDebugHitbox) {
+            this.updatePreviewDebug();
+        }
+
         this.updateClothPreview(delta);
         this.previewRenderer.render(this.previewScene, this.previewCamera);
     }
@@ -490,9 +519,21 @@ export class CharacterCreator {
             center.y += yOffset;
             collisionSpheres.push({ center, radius });
         };
+        const addSphereLocal = (obj, radius, offset) => {
+            if (!obj) return;
+            const center = offset.clone().applyMatrix4(obj.matrixWorld);
+            collisionSpheres.push({ center, radius });
+        };
 
         addSphere(this.currentPreviewParts.torso, 0.32 * SCALE_FACTOR);
         addSphere(this.currentPreviewParts.hips, 0.3 * SCALE_FACTOR);
+        addSphere(this.currentPreviewParts.topCap, 0.26 * SCALE_FACTOR, 0.02 * SCALE_FACTOR);
+        const upperArmOffset = new THREE.Vector3(0, -0.14 * SCALE_FACTOR, 0);
+        const foreArmOffset = new THREE.Vector3(0, -0.12 * SCALE_FACTOR, 0);
+        addSphereLocal(this.currentPreviewParts.rightArm, 0.13 * SCALE_FACTOR, upperArmOffset);
+        addSphereLocal(this.currentPreviewParts.leftArm, 0.13 * SCALE_FACTOR, upperArmOffset);
+        addSphereLocal(this.currentPreviewParts.rightForeArm, 0.11 * SCALE_FACTOR, foreArmOffset);
+        addSphereLocal(this.currentPreviewParts.leftForeArm, 0.11 * SCALE_FACTOR, foreArmOffset);
 
         this.currentPreviewMesh.traverse(child => {
             if (child.userData && child.userData.clothSimulator) {

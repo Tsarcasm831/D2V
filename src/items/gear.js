@@ -120,6 +120,7 @@ export function attachCloak(parts, offsets = {}) {
     const yokeGeo = new THREE.CylinderGeometry(0.36, 0.33, 0.08, 18, 1, true, Math.PI * 0.1, Math.PI * 1.8);
     yokeGeo.scale(1, 1, 0.7);
     const yoke = new THREE.Mesh(yokeGeo, yokeMat);
+    yoke.rotation.z = Math.PI;
     yoke.position.y = 0.02;
     yoke.castShadow = true;
     yokeGroup.add(yoke);

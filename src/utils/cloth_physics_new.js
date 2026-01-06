@@ -57,7 +57,7 @@ export class ClothSimulator {
         this.points = [];
         this.constraints = [];
         this.gravity = new THREE.Vector3(0, -9.8, 0);
-        this.wind = new THREE.Vector3(0, 0, -5.0); // Constant backward force
+        this.wind = new THREE.Vector3(0, 0, -1.0);
         
         this.init();
     }
@@ -126,8 +126,13 @@ export class ClothSimulator {
         anchorTransform.decompose(new THREE.Vector3(), anchorRotation, new THREE.Vector3());
         
         // Calculate world wind based on anchor rotation
-        const localWind = new THREE.Vector3(0, 0, -5.0);
-        const worldWind = localWind.applyQuaternion(anchorRotation);
+        const baseWind = this.wind.clone();
+        const windStrength = baseWind.length();
+        const worldWind = baseWind.applyQuaternion(anchorRotation);
+        if (windStrength > 0) {
+            worldWind.y = 0;
+            if (worldWind.lengthSq() > 0) worldWind.setLength(windStrength);
+        }
 
         // Add movement drag: push cloak opposite to movement direction
         if (anchorVelocity) {
@@ -166,6 +171,7 @@ export class ClothSimulator {
                 resolveCollisions(p);
             }
             for (const c of this.constraints) c.satisfy();
+            for (const p of this.points) resolveCollisions(p);
         }
     }
 
