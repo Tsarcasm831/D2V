@@ -48,3 +48,4 @@ yarn-error.log*
 
 # Git
 .git/
+commit.md

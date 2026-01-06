@@ -255,6 +255,10 @@ export class CharacterCreator {
             this.previewScene.remove(this.currentPreviewMesh);
         }
 
+        this.currentPreviewMesh = mesh;
+        this.currentPreviewMesh.position.y = 0;
+        this.currentPreviewMesh.rotation.y = this.previewRotation;
+
         // Apply outfit materials directly if needed, or rely on createPlayerMesh initialization
         if (charData.outfit !== 'naked' && parts.materials) {
             const mats = parts.materials;
@@ -297,6 +301,9 @@ export class CharacterCreator {
                 if (this.gearFns[fnName]) this.gearFns[fnName](parts);
             }
         });
+
+        this.previewScene.add(this.currentPreviewMesh);
+        this.animator = new PlayerAnimator(parts);
     }
 
     show() {
