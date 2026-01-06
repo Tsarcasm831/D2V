@@ -103,7 +103,7 @@ export class HitIndicator {
         }
 
         const mousePos = game.inputManager.input.mouseWorldPos || game.mouseWorldPos;
-        const attackRange = 1.0 * SCALE_FACTOR;
+        const attackRange = 3.0 * SCALE_FACTOR;
         const playerPos = this.player.mesh ? this.player.mesh.position : new THREE.Vector3();
 
         if (!mousePos) {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PlayerAnimator } from '../entities/player_animator.js';
 import { BODY_PRESETS } from '../data/constants.js';
+import { SCALE_FACTOR } from '../world/world_bounds.js';
 
 export class CharacterCreator {
     constructor(onComplete) {
@@ -8,6 +9,7 @@ export class CharacterCreator {
         this.creator = document.getElementById('character-creator');
         this.previewContainer = document.getElementById('creator-preview');
         this.currentPreviewMesh = null;
+        this.currentPreviewParts = null;
         this.createPlayerMeshFn = null;
         this.attachShortsFn = null;
         this.attachUnderwearFn = null;
@@ -107,7 +109,11 @@ export class CharacterCreator {
             'neck-thickness', 'neck-height', 'neck-rotation', 'neck-tilt',
             'chin-size', 'chin-length', 'chin-height', 'chin-forward', 'iris-scale', 'pupil-scale',
             'foot-width', 'foot-length', 'heel-scale', 'heel-height', 'toe-spread', 'butt-scale',
-            'toggle-underwear', 'toggle-shirt', 'toggle-shorts'
+            'cloak-cape-x', 'cloak-cape-y', 'cloak-cape-z',
+            'cloak-yoke-x', 'cloak-yoke-y', 'cloak-yoke-z',
+            'cloak-collar-x', 'cloak-collar-y', 'cloak-collar-z',
+            'cloak-clasp-x', 'cloak-clasp-y', 'cloak-clasp-z',
+            'toggle-underwear'
         ];
         
         inputs.forEach(id => {
@@ -207,6 +213,9 @@ export class CharacterCreator {
                     element.style.background = 'rgba(255, 255, 255, 0.03)';
                     element.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                 }
+                if (itemName === 'cloak') {
+                    this.updateCloakControlsVisibility();
+                }
                 this.updatePreview();
             });
         });
@@ -262,9 +271,23 @@ export class CharacterCreator {
                 this.applyOutfitPreset(presetName);
             });
         });
+
+        this.updateCloakControlsVisibility();
+    }
+
+    updateCloakControlsVisibility() {
+        const section = document.getElementById('cloak-position-section');
+        if (!section) return;
+        const enabled = localStorage.getItem('admin_cloak') === 'true';
+        section.style.display = enabled ? 'block' : 'none';
     }
 
     getCharacterData() {
+        const getRangeValue = (id) => {
+            const element = document.getElementById(id);
+            return element ? parseFloat(element.value) : 0;
+        };
+
         return {
             bodyType: document.getElementById('body-type').value,
             name: document.getElementById('player-name').value || 'Traveler',
@@ -295,8 +318,28 @@ export class CharacterCreator {
             buttScale: parseFloat(document.getElementById('butt-scale').value),
             outfit: 'nude',
             toggleUnderwear: document.getElementById('toggle-underwear').checked,
-            toggleShirt: document.getElementById('toggle-shirt').checked,
-            toggleShorts: document.getElementById('toggle-shorts').checked,
+            cloakOffsets: {
+                cape: {
+                    x: getRangeValue('cloak-cape-x'),
+                    y: getRangeValue('cloak-cape-y'),
+                    z: getRangeValue('cloak-cape-z')
+                },
+                yoke: {
+                    x: getRangeValue('cloak-yoke-x'),
+                    y: getRangeValue('cloak-yoke-y'),
+                    z: getRangeValue('cloak-yoke-z')
+                },
+                collar: {
+                    x: getRangeValue('cloak-collar-x'),
+                    y: getRangeValue('cloak-collar-y'),
+                    z: getRangeValue('cloak-collar-z')
+                },
+                clasp: {
+                    x: getRangeValue('cloak-clasp-x'),
+                    y: getRangeValue('cloak-clasp-y'),
+                    z: getRangeValue('cloak-clasp-z')
+                }
+            },
             gear: {
                 vest: localStorage.getItem('admin_vest') === 'true',
                 leatherArmor: localStorage.getItem('admin_leather-armor') === 'true',
@@ -323,6 +366,7 @@ export class CharacterCreator {
         }
 
         this.currentPreviewMesh = mesh;
+        this.currentPreviewParts = parts;
         this.currentPreviewMesh.position.y = 0;
         this.currentPreviewMesh.rotation.y = this.previewRotation;
 
@@ -358,17 +402,16 @@ export class CharacterCreator {
         // Existing item attachment logic (shorts/shirt/gear)
         const gearShirtEnabled = localStorage.getItem('admin_shirt') === 'true';
         const gearShortsEnabled = localStorage.getItem('admin_shorts') === 'true';
-        const showShirt = charData.toggleShirt || gearShirtEnabled;
-        const showShorts = charData.toggleShorts || gearShortsEnabled;
 
         // Handle individual clothing toggles
         if (this.attachUnderwearFn && charData.toggleUnderwear) {
             this.attachUnderwearFn(parts);
         }
-        if (this.attachShortsFn && showShorts) {
+        // Handle gear shirt/shorts
+        if (this.attachShortsFn && gearShortsEnabled) {
             this.attachShortsFn(parts, charData);
         }
-        if (this.attachShirtFn && showShirt) {
+        if (this.attachShirtFn && gearShirtEnabled) {
             this.attachShirtFn(parts, charData);
         }
 
@@ -378,7 +421,13 @@ export class CharacterCreator {
             if (isEnabled) {
                 const camelName = item.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
                 const fnName = `attach${camelName}`;
-                if (this.gearFns[fnName]) this.gearFns[fnName](parts);
+                if (this.gearFns[fnName]) {
+                    if (item === 'cloak') {
+                        this.gearFns[fnName](parts, charData.cloakOffsets);
+                    } else {
+                        this.gearFns[fnName](parts);
+                    }
+                }
             }
         });
 
@@ -424,7 +473,33 @@ export class CharacterCreator {
             );
         }
 
+        this.updateClothPreview(delta);
         this.previewRenderer.render(this.previewScene, this.previewCamera);
+    }
+
+    updateClothPreview(delta) {
+        if (!this.currentPreviewMesh || !this.currentPreviewParts) return;
+
+        this.currentPreviewMesh.updateMatrixWorld(true);
+
+        const collisionSpheres = [];
+        const addSphere = (obj, radius, yOffset = 0) => {
+            if (!obj) return;
+            const center = new THREE.Vector3();
+            obj.getWorldPosition(center);
+            center.y += yOffset;
+            collisionSpheres.push({ center, radius });
+        };
+
+        addSphere(this.currentPreviewParts.torso, 0.32 * SCALE_FACTOR);
+        addSphere(this.currentPreviewParts.hips, 0.3 * SCALE_FACTOR);
+
+        this.currentPreviewMesh.traverse(child => {
+            if (child.userData && child.userData.clothSimulator) {
+                child.userData.clothSimulator.update(delta, child.matrixWorld, collisionSpheres);
+                child.userData.clothSimulator.updateMesh();
+            }
+        });
     }
 
     applyOutfitPreset(presetName) {
@@ -444,23 +519,15 @@ export class CharacterCreator {
         switch (presetName) {
             case 'nude':
                 setValue('toggle-underwear', false);
-                setValue('toggle-shirt', false);
-                setValue('toggle-shorts', false);
                 break;
             case 'underwear':
                 setValue('toggle-underwear', true);
-                setValue('toggle-shirt', false);
-                setValue('toggle-shorts', false);
                 break;
             case 'casual':
                 setValue('toggle-underwear', true);
-                setValue('toggle-shirt', true);
-                setValue('toggle-shorts', true);
                 break;
             case 'full':
                 setValue('toggle-underwear', true);
-                setValue('toggle-shirt', true);
-                setValue('toggle-shorts', true);
                 break;
         }
     }

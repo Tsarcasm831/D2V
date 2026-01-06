@@ -59,47 +59,119 @@ const DARK_GREY = '#333333';
 const CLOAK_MAT = new THREE.MeshToonMaterial({ color: DARK_GREY, side: THREE.DoubleSide });
 const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
 
-export function attachCloak(parts) {
+export function attachCloak(parts, offsets = {}) {
+    const getOffset = (section) => offsets[section] || {};
+    const applyOffset = (obj, base, section) => {
+        const offset = getOffset(section);
+        obj.position.set(
+            base.x + (offset.x || 0),
+            base.y + (offset.y || 0),
+            base.z + (offset.z || 0)
+        );
+    };
+
     const cloakGroup = new THREE.Group();
-    // Position it at shoulder height - Raised to sit on top of shoulders
-    cloakGroup.position.set(0, 0.66 * SCALE_FACTOR, -0.05);
+    // Position it at shoulder height
+    cloakGroup.position.set(0, 0.64 * SCALE_FACTOR, 0.02);
     parts.torsoContainer.add(cloakGroup);
 
     // 1. MAIN CAPE BODY (Back) - Using Cloth Simulator
-    const capeWidth = 0.9, capeHeight = 1.3; // Made slightly narrower and longer
-    // Performance optimization: Reduced resolution from 10x12 to 6x8
-    const simulator = new ClothSimulator(capeWidth, capeHeight, 6, 8, Math.PI * 0.5);
-    const cape = simulator.createMesh(CLOAK_MAT);
-    // Position it at shoulder height - Raised to sit on top of shoulders
-    // The cape mesh is translated by -height/2 in createMesh, so we align its top at the group's origin.
-    // Move it behind the player. Torso radius is ~0.3, so -0.35 to -0.4 is safe.
-    cape.position.set(0, 0, -0.35);
-    cloakGroup.add(cape);
-    cloakGroup.userData.clothSimulator = simulator;
-    cloakGroup.userData.cloakMesh = cape;
+    const capeWidth = 0.95, capeHeight = 1.35; // Slightly wider and longer for shoulder coverage
+    // Moderate resolution for smoother drape
+    const simulator = new ClothSimulator(capeWidth, capeHeight, 7, 9, -Math.PI * 0.55);
+    const capeMat = CLOAK_MAT;
+    const yokeMat = CLOAK_MAT;
+    const collarMat = CLOAK_MAT;
+    const claspMat = METAL_MAT;
 
-    // 2. SHOULDER WRAPS
-    const wrapWidth = 0.45, wrapHeight = 0.12, wrapDepth = 0.55;
-    const wrapGeo = new THREE.BoxGeometry(wrapWidth, wrapHeight, wrapDepth);
-    
-    const wrapR = new THREE.Mesh(wrapGeo, CLOAK_MAT);
-    wrapR.position.set(0.35, 0.05, -0.1);
-    wrapR.rotation.z = -0.2;
-    cloakGroup.add(wrapR);
+    const cape = simulator.createMesh(capeMat);
+    // Anchor cloth at the top of the back.
+    const capeAnchor = new THREE.Group();
+    applyOffset(
+        capeAnchor,
+        { x: 0, y: 0.02 * SCALE_FACTOR, z: -0.2 * SCALE_FACTOR },
+        'cape'
+    );
+    cloakGroup.add(capeAnchor);
+    // The cape mesh is translated by -height/2 in createMesh, so we align its top at the anchor.
+    cape.position.set(0, 0, 0);
+    cape.castShadow = true;
+    cape.userData.clothSimulator = simulator;
+    capeAnchor.add(cape);
 
-    const wrapL = new THREE.Mesh(wrapGeo, CLOAK_MAT);
-    wrapL.position.set(-0.35, 0.05, -0.1);
-    wrapL.rotation.z = 0.2;
-    cloakGroup.add(wrapL);
+    // 2. SHOULDER YOKE
+    const shoulderOverlap = 0.1 * SCALE_FACTOR;
+    const staticRaise = 0.05 * SCALE_FACTOR;
+    const yokeForward = 0.12 * SCALE_FACTOR;
+    const yokeGroup = new THREE.Group();
+    applyOffset(
+        yokeGroup,
+        {
+            x: 0,
+            y: 0.03 - shoulderOverlap + staticRaise + (0.05 * SCALE_FACTOR),
+            z: -0.02 - shoulderOverlap + yokeForward
+        },
+        'yoke'
+    );
+    yokeGroup.rotation.x = 0.0;
+    cloakGroup.add(yokeGroup);
+
+    const yokeParts = [];
+    const yokeGeo = new THREE.CylinderGeometry(0.36, 0.33, 0.08, 18, 1, true, Math.PI * 0.1, Math.PI * 1.8);
+    yokeGeo.scale(1, 1, 0.7);
+    const yoke = new THREE.Mesh(yokeGeo, yokeMat);
+    yoke.position.y = 0.02;
+    yoke.castShadow = true;
+    yokeGroup.add(yoke);
+    yokeParts.push(yoke);
+
+    const shoulderCapGeo = new THREE.SphereGeometry(0.12, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    shoulderCapGeo.scale(1.2, 0.55, 0.95);
+    const capR = new THREE.Mesh(shoulderCapGeo, yokeMat);
+    capR.position.set(0.32, 0.02, 0.02);
+    capR.rotation.z = -0.12;
+    capR.castShadow = true;
+    yokeGroup.add(capR);
+    yokeParts.push(capR);
+
+    const capL = new THREE.Mesh(shoulderCapGeo, yokeMat);
+    capL.position.set(-0.32, 0.02, 0.02);
+    capL.rotation.z = 0.12;
+    capL.castShadow = true;
+    yokeGroup.add(capL);
+    yokeParts.push(capL);
+
+    const spineGeo = new THREE.BoxGeometry(0.06, 0.14, 0.05);
+    const spine = new THREE.Mesh(spineGeo, yokeMat);
+    spine.position.set(0, -0.01, -0.04);
+    spine.castShadow = true;
+    yokeGroup.add(spine);
+    yokeParts.push(spine);
 
     // 3. COLLAR/NECK PIECE
-    const collarGeo = new THREE.CylinderGeometry(0.25, 0.3, 0.15, 16, 1, true);
-    const collar = new THREE.Mesh(collarGeo, CLOAK_MAT);
-    collar.position.y = 0.1;
+    const collarGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.12, 16, 1, true, Math.PI * 0.1, Math.PI * 1.8);
+    collarGeo.scale(1, 1, 0.8);
+    const collar = new THREE.Mesh(collarGeo, collarMat);
+    applyOffset(
+        collar,
+        { x: 0, y: 0.12 + staticRaise, z: 0 },
+        'collar'
+    );
     cloakGroup.add(collar);
 
+    // 4. FRONT CLASP
+    const claspGeo = new THREE.CircleGeometry(0.035, 10);
+    const clasp = new THREE.Mesh(claspGeo, claspMat);
+    applyOffset(
+        clasp,
+        { x: 0, y: 0.02 + staticRaise, z: 0.2 },
+        'clasp'
+    );
+    clasp.rotation.x = -Math.PI / 2;
+    cloakGroup.add(clasp);
+
     // Outlines
-    [wrapR, wrapL, collar].forEach(mesh => {
+    [...yokeParts, collar].forEach(mesh => {
         const o = new THREE.Mesh(mesh.geometry, OUTLINE_MAT);
         o.scale.setScalar(1.05);
         mesh.add(o);

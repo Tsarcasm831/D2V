@@ -83,7 +83,44 @@ export class PlayerPhysics {
         
         const finalSpeed = baseSpeed * speedModifier;
 
-        if (isMoving && !player.isPickingUp && !player.isSkinning) {
+        // Face the hit_indicator if it exists and is visible
+        if (player.actions && player.actions.hitIndicator && player.actions.hitIndicator.mesh.visible) {
+            const hitIndicatorPos = player.actions.hitIndicator.mesh.position;
+            const direction = new THREE.Vector3();
+            direction.subVectors(hitIndicatorPos, player.mesh.position);
+            direction.y = 0; // Keep rotation on Y axis only
+            direction.normalize();
+            
+            const targetRotation = Math.atan2(direction.x, direction.z);
+            let rotDiff = targetRotation - player.mesh.rotation.y;
+            while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+            while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+            player.mesh.rotation.y += rotDiff * (player.turnSpeed || 5) * dt;
+
+            // Handle movement when facing hit indicator
+            if (isMoving && !player.isPickingUp && !player.isSkinning) {
+                const inputLen = Math.sqrt(input.x * input.x + input.y * input.y);
+                const normX = input.x / inputLen;
+                const normY = -input.y / inputLen;
+
+                // Movement is always relative to camera, not player rotation
+                const cameraRotation = cameraAngle + Math.PI;
+                const fX = Math.sin(cameraRotation); const fZ = Math.cos(cameraRotation);
+                const rX = Math.sin(cameraRotation - Math.PI / 2); const rZ = Math.cos(cameraRotation - Math.PI / 2);
+
+                const dx = (fX * normY + rX * normX) * finalSpeed * dt;
+                const dz = (fZ * normY + rZ * normX) * finalSpeed * dt;
+
+                const nextPos = player.mesh.position.clone();
+                nextPos.x += dx;
+                nextPos.z += dz;
+
+                if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
+                    player.mesh.position.copy(nextPos);
+                }
+            }
+        } else if (isMoving && !player.isPickingUp && !player.isSkinning) {
+            // Original movement-based rotation when no hit indicator
             const targetRotation = cameraAngle + Math.PI;
             let rotDiff = targetRotation - player.mesh.rotation.y;
             while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;

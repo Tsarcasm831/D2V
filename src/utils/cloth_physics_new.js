@@ -64,15 +64,17 @@ export class ClothSimulator {
 
     init() {
         const dy = this.height / (this.rows - 1);
-        const radius = this.bendAngle > 0.01 ? this.width / this.bendAngle : 0;
+        const absBend = Math.abs(this.bendAngle);
+        const radius = absBend > 0.01 ? this.width / absBend : 0;
 
         for (let r = 0; r < this.rows; r++) {
             for (let c = 0; c < this.cols; c++) {
                 let x, z;
-                if (this.bendAngle > 0.01) {
-                    const theta = (c / (this.cols - 1) - 0.5) * this.bendAngle;
+                if (absBend > 0.01) {
+                    const theta = (c / (this.cols - 1) - 0.5) * absBend;
                     x = radius * Math.sin(theta);
                     z = -radius * (1 - Math.cos(theta)); // Curve backward (edges towards -Z)
+                    if (this.bendAngle < 0) z *= -1;
                 } else {
                     const dx = this.width / (this.cols - 1);
                     x = (c - (this.cols - 1) / 2) * dx;

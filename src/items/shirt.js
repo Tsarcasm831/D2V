@@ -112,28 +112,16 @@ export function attachShirt(parts, config = {}) {
     const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop * 1.06, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
     topCapGeo.scale(1.0, 0.5, 0.68); // Smooth shoulder slope to sit under the vest
     const topCap = new THREE.Mesh(topCapGeo, shirtMat);
-    topCap.position.y = torsoLen / 2 + 0.01;
+    topCap.position.y = torsoLen / 2 - 0.03; // Lower position to meet breast coverage
     shirtTorso.add(topCap);
 
-    // Shoulder wrap to cover traps and upper deltoids
-    const shoulderWrapGeo = new THREE.CylinderGeometry(
-        torsoRadiusTop * 1.08,
-        torsoRadiusTop * 1.02,
-        0.1,
-        16
-    );
-    shoulderWrapGeo.scale(1, 1, 0.68);
-    const shoulderWrap = new THREE.Mesh(shoulderWrapGeo, shirtMat);
-    shoulderWrap.position.y = torsoLen / 2 + 0.03;
-    shirtTorso.add(shoulderWrap);
 
     // Shirt Outlines
-    [shirtTorsoGeo, topCapGeo, shoulderWrapGeo].forEach(g => {
+    [shirtTorsoGeo, topCapGeo].forEach(g => {
         const o = new THREE.Mesh(g, outlineMat);
-        const outlineScale = (g === topCapGeo || g === shoulderWrapGeo) ? 1.03 : 1.05;
+        const outlineScale = (g === topCapGeo) ? 1.03 : 1.05;
         o.scale.setScalar(outlineScale);
-        if (g === topCapGeo) o.position.y = torsoLen / 2 + 0.01;
-        if (g === shoulderWrapGeo) o.position.y = torsoLen / 2 + 0.03;
+        if (g === topCapGeo) o.position.y = torsoLen / 2 - 0.03;
         shirtTorso.add(o);
     });
 

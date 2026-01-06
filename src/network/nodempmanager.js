@@ -305,7 +305,7 @@ class RemotePlayer {
             if (characterData.gear.assassinsCap) gear.attachAssassinsCap(parts);
             if (characterData.gear.leatherBoots) gear.attachLeatherBoots(parts);
             if (characterData.gear.hood) gear.attachHood(parts);
-            if (characterData.gear.cloak) gear.attachCloak(parts);
+            if (characterData.gear.cloak) gear.attachCloak(parts, characterData.cloakOffsets);
         }
 
         this.animator = new PlayerAnimator(parts);

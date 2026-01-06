@@ -1,0 +1,5 @@
+{
+  "name": "Toon Character Animator",
+  "description": "A 3D character animation studio allowing users to customize a toon character and trigger procedural animations like walking, running, jumping, and ragdoll effects.",
+  "requestFramePermissions": []
+}
