@@ -636,10 +636,16 @@ export function attachAssassinsCap(parts) {
     return capGroup;
 }
 
-export function attachLeatherBoots(parts) {
+export function attachLeatherBoots(parts, model = null) {
+    // Use model arrays if available, otherwise try to use parts directly for backward compatibility
+    const heelGroups = model ? model.heelGroups : (parts.heelGroups || []);
+    const forefootGroups = model ? model.forefootGroups : (parts.forefootGroups || []);
+    
     const SOLE_MAT = new THREE.MeshToonMaterial({ color: '#1a1a1a' }); // Black sole
 
     const attachBoot = (shinPart, heelGroup, forefootGroup) => {
+        if (!shinPart) return null;
+        
         const bootGroup = new THREE.Group();
         shinPart.add(bootGroup);
 
@@ -649,6 +655,12 @@ export function attachLeatherBoots(parts) {
         const cuff = new THREE.Mesh(cuffGeo, LEATHER_MAT);
         cuff.position.y = -0.32;
         bootGroup.add(cuff);
+
+        // Handle case where heelGroup or forefootGroup are missing (e.g. legacy or malformed model)
+        if (!heelGroup || !forefootGroup) {
+            console.warn("attachBoot: Missing heelGroup or forefootGroup, skipping foot part visuals.");
+            return bootGroup;
+        }
 
         // 2. Heel/Back of Boot - Moved forward a touch
         const heelCoverRadius = 0.13; 
@@ -718,10 +730,25 @@ export function attachLeatherBoots(parts) {
         return bootGroup;
     };
 
-    const rH = parts.rightShin.children.find(c => c.type === 'Group' && parts.heelGroups.includes(c));
-    const rF = parts.rightShin.children.find(c => c.type === 'Group' && parts.forefootGroups.includes(c));
-    const lH = parts.leftShin.children.find(c => c.type === 'Group' && parts.heelGroups.includes(c));
-    const lF = parts.leftShin.children.find(c => c.type === 'Group' && parts.forefootGroups.includes(c));
+    const findPart = (root, name) => {
+        if (!root) return null;
+        if (root.name === name) return root;
+        return root.getObjectByName(name);
+    };
+
+    const rAnchor = findPart(parts.rightShin, 'right_foot_anchor');
+    const rH = findPart(rAnchor, 'right_heel');
+    const rF = findPart(rAnchor, 'right_forefoot');
+    
+    const lAnchor = findPart(parts.leftShin, 'left_foot_anchor');
+    const lH = findPart(lAnchor, 'left_heel');
+    const lF = findPart(lAnchor, 'left_forefoot');
+
+    // Robustness check to prevent crashes if groups aren't found
+    if (!rH || !rF || !lH || !lF) {
+        console.warn("attachLeatherBoots: Could not find all foot parts. Parts found:", { rH:!!rH, rF:!!rF, lH:!!lH, lF:!!lF });
+        return { rightBoot: new THREE.Group(), leftBoot: new THREE.Group() };
+    }
 
     const rightBoot = attachBoot(parts.rightShin, rH, rF);
     const leftBoot = attachBoot(parts.leftShin, lH, lF);

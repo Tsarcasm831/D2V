@@ -19,12 +19,14 @@ import { FireballProjectile } from '../systems/fireball_projectile.js';
 
 
 import { OptionsUI } from '../ui/options_ui.js';
+import { ParticleManager } from '../systems/particle_manager.js';
 
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
         this.roomCode = roomCode;
         this.scene = new THREE.Scene();
         this.projectiles = [];
+        this.particleManager = new ParticleManager(this.scene);
         this.scene.background = new THREE.Color(0x050a14);
         this.scene.fog = new THREE.FogExp2(0x050a14, 0.008);
         
@@ -522,6 +524,7 @@ export class Game {
         this.inputManager.updateMouseWorldPos(this.worldManager.terrainMeshes);
         this.timeManager.update(delta);
         this.weatherManager.update(delta);
+        this.particleManager.update(delta);
         
         this.worldManager.update(this.player, delta);
         this.player.update(delta, this.input, this.camera);

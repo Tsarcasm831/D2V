@@ -16,9 +16,10 @@ export class HumanoidNPC {
         this.isDead = false;
         this.type = 'humanoid';
 
-        const { mesh, parts } = createPlayerMesh();
+        const { mesh, parts, model } = createPlayerMesh();
         this.group = mesh; // We use group to match the animal NPC structure
         this.parts = parts;
+        this.model = model;
         this.group.position.copy(pos);
         this.scene.add(this.group);
 

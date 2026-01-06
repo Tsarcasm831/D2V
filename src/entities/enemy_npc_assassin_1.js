@@ -17,10 +17,11 @@ export class AssassinNPC {
         this.isDead = false;
         this.type = 'assassin';
 
-        const { mesh, parts } = createPlayerMesh();
+        const { mesh, parts, model } = createPlayerMesh();
         this.group = mesh;
         this.mesh = mesh; // Alias for CombatScene compatibility
         this.parts = parts;
+        this.model = model;
         this.group.position.copy(pos);
         this.scene.add(this.group);
 
@@ -94,7 +95,7 @@ export class AssassinNPC {
         attachCloak(this.parts);
         
         // Black Boots override
-        const boots = attachLeatherBoots(this.parts);
+        const boots = attachLeatherBoots(this.parts, this.model);
         const blackBootMat = new THREE.MeshToonMaterial({ color: 0x050505 });
         boots.rightBoot.traverse(child => {
             if (child.isMesh && child.material && child.material.type !== 'MeshBasicMaterial') {

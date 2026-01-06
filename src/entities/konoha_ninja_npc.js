@@ -21,9 +21,10 @@ export class KonohaNinjaNPC {
             skinColor: '#ffdbac'
         };
 
-        const { mesh, parts } = createPlayerMesh(characterData);
+        const { mesh, parts, model } = createPlayerMesh(characterData);
         this.mesh = mesh;
         this.parts = parts;
+        this.model = model;
         this.mesh.position.copy(pos);
         this.scene.add(this.mesh);
 

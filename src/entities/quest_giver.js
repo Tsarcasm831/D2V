@@ -14,9 +14,10 @@ export class QuestGiver extends NPC {
             this.scene.remove(this.mesh);
         }
 
-        const { mesh, parts } = createPlayerMesh();
+        const { mesh, parts, model } = createPlayerMesh();
         this.group = mesh;
         this.parts = parts;
+        this.model = model;
         this.group.position.copy(pos);
         this.scene.add(this.group);
 

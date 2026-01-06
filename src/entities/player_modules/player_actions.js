@@ -4,6 +4,8 @@ import { FireballProjectile } from '../../systems/fireball_projectile.js';
 import { IceboltProjectile } from '../../systems/icebolt_projectile.js';
 import { Owl } from '../owl.js';
 import { HitIndicator } from './hit_indicator.js';
+import { PlayerCombat } from '../player/PlayerCombat.js';
+import { PlayerInteraction } from '../player/PlayerInteraction.js';
 
 export class PlayerActions {
     constructor(player) {
@@ -21,160 +23,77 @@ export class PlayerActions {
         this.hitIndicator = new HitIndicator(player);
     }
 
-    updateCombat(delta) {
-        // Handle Action (Click/Tap)
-        // Access game and inputManager safely
+    update(delta) {
         const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
         if (!game || !game.inputManager) return;
 
-        // Update hit indicator position and visibility
+        const input = game.inputManager.input;
+        const obstacles = this.player.worldManager ? this.player.worldManager.getNearbyResources(this.player.mesh.position, 10 * SCALE_FACTOR).map(r => r.group).filter(g => g) : [];
+        const particleManager = game.particleManager;
+
+        // Delegate to modular systems
+        PlayerInteraction.update(this.player, delta, input, obstacles);
+        PlayerCombat.update(this.player, delta, input, obstacles, particleManager);
+
+        // Update indicators and effects
         if (this.hitIndicator) {
             this.hitIndicator.update();
-            this.hitIndicator.mesh.visible = true; // Force visibility
+            this.hitIndicator.mesh.visible = true;
+        }
+
+        this.updateParticles(delta);
+
+        if (this.isSummoning) {
+            this.updateSummoning(delta);
+        }
+    }
+
+    updateSummoning(delta) {
+        this.summoningTime -= delta;
+        
+        if (this.summoningCircle) {
+            this.summoningCircle.rotation.z += delta * 2;
             
-            // Temporary diagnostic log
-            if (!this._diagCounter) this._diagCounter = 0;
-            this._diagCounter++;
-            if (this._diagCounter % 100 === 0) {
-                console.log("PlayerActions: hitIndicator.update() called. Mouse pos:", game.inputManager.input.mouseWorldPos);
+            const totalTime = 3.0;
+            const elapsed = totalTime - this.summoningTime;
+            
+            let targetScale = 6;
+            if (elapsed < 0.5) {
+                targetScale = (elapsed / 0.5) * 6;
+            } else {
+                targetScale = 6 + Math.sin(elapsed * 5) * 0.2;
+            }
+            const aspect = this.summoningCircle.userData.aspect || 1;
+            this.summoningCircle.scale.set(targetScale * aspect, targetScale, 1);
+
+            const fadeTime = 0.5;
+            if (this.summoningTime < fadeTime) {
+                this.summoningCircle.material.opacity = this.summoningTime / fadeTime;
+            } else {
+                this.summoningCircle.material.opacity = 1;
             }
         }
-        
-        const input = game.inputManager.input;
-        if (input.action && !this.prevActionPressed) {
-            console.log("PlayerActions: action triggered (mousedown)");
-            this.performAttack();
+
+        if (this.summoningTime <= 0) {
+            this.isSummoning = false;
+            this.summoningTime = 0;
+            if (this.summoningCircle) {
+                this.summoningCircle.visible = false;
+            }
         }
-        this.prevActionPressed = !!input.action;
     }
 
     performAttack(target = null) {
-        console.log("PlayerActions: performAttack called", target ? "with target" : "searching target");
-        if (this.player.isDead) {
-            console.log("PlayerActions: cannot attack, player is dead");
-            return;
-        }
-
-        const tool = this.player.inventory.hotbar[this.player.inventory.selectedSlot];
-        const isPickaxe = tool && (tool.type === 'pickaxe' || tool.id === 'pickaxe');
-        const isAxe = tool && (tool.type === 'axe' || tool.id === 'axe');
-
-        console.log("PlayerActions: equipped tool:", tool ? tool.type || tool.id : "none");
-
-        // Play animation
-        if (isAxe || isPickaxe) {
-            console.log("PlayerActions: playing axe swing animation");
-            this.player.animator.playAxeSwing();
+        if (this.player.config && this.player.config.selectedItem) {
+            PlayerCombat.playAxeSwing(this.player);
         } else {
-            console.log("PlayerActions: playing punch animation");
-            this.player.animator.playPunch();
-        }
-
-        const range = 7.5 * SCALE_FACTOR; 
-        const playerPos = this.player.mesh.position;
-        let hitSomething = false;
-
-        // 1. Raycast to find what was actually clicked if no target provided
-        const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
-        const im = game ? game.inputManager : null;
-        if (!target && im && im.raycaster && game.camera) {
-            // Ensure raycaster is up to date
-            im.raycaster.setFromCamera(im.mouse, game.camera);
-            
-            const raycaster = im.raycaster;
-            // Get all interactive objects: NPCs, Fauna, Resources
-            const interactiveObjects = [];
-            const nearbyResources = this.player.worldManager.getNearbyResources(playerPos, range * 2);
-            const nearbyNPCs = this.player.worldManager.getNearbyNPCs(playerPos, range * 2);
-            const nearbyFauna = this.player.worldManager.getNearbyFauna(playerPos, range * 2);
-
-            nearbyResources.forEach(r => { if (r.group) interactiveObjects.push(r.group); });
-            nearbyNPCs.forEach(n => { if (n.group || n.mesh) interactiveObjects.push(n.group || n.mesh); });
-            nearbyFauna.forEach(f => { if (f.group || f.mesh) interactiveObjects.push(f.group || f.mesh); });
-
-            console.log(`PlayerActions: Raycasting against ${interactiveObjects.length} objects`);
-            const intersects = raycaster.intersectObjects(interactiveObjects, true);
-            if (intersects.length > 0) {
-                // Find which logic object owns this mesh
-                const hitMesh = intersects[0].object;
-                let hitObj = null;
-
-            const ownsMesh = (obj, mesh) => {
-                if (!obj || !mesh) return false;
-                if (obj === mesh) return true;
-                if (obj.isObject3D && mesh.id !== undefined) {
-                    return obj.getObjectById(mesh.id) !== undefined;
-                }
-                return false;
-            };
-
-            // Search through our nearby lists for the owner
-            hitObj = nearbyResources.find(r => ownsMesh(r.group, hitMesh));
-            if (!hitObj) hitObj = nearbyNPCs.find(n => ownsMesh(n.group || n.mesh, hitMesh));
-            if (!hitObj) hitObj = nearbyFauna.find(f => ownsMesh(f.group || f.mesh, hitMesh));
-
-                if (hitObj) {
-                    const dist = playerPos.distanceTo(intersects[0].point);
-                    if (dist <= range) {
-                        target = hitObj;
-                        console.log("PlayerActions: Raycast found target", target.type);
-                    } else {
-                        console.log("PlayerActions: Target found but out of range", dist);
-                    }
-                }
-            }
-        }
-
-        // 2. Handle the target (either from raycast or proximity fallback)
-        if (target) {
-            if (target.takeDamage) {
-                const damage = (target.isEnemy) ? (5 + (this.player.stats.strength || 0)) : 1;
-                console.log(`PlayerActions: Hitting target type ${target.type} for ${damage} damage`);
-                target.takeDamage(damage, playerPos, this.player);
-                hitSomething = true;
-            }
-        } 
-        
-        // 3. Proximity Fallback (If raycast missed or found nothing)
-        if (!hitSomething) {
-            console.log("PlayerActions: Falling back to proximity search");
-            const enemies = [...this.player.worldManager.getNearbyNPCs(playerPos, range), 
-                             ...this.player.worldManager.getNearbyFauna(playerPos, range)];
-            
-            for (const enemy of enemies) {
-                if (enemy.isDead || !enemy.isEnemy) continue;
-                if (enemy.takeDamage) {
-                    console.log(`PlayerActions: Proximity damage to ${enemy.type}`);
-                    enemy.takeDamage(5 + (this.player.stats.strength || 0), playerPos, this.player);
-                    hitSomething = true;
-                    break;
-                }
-            }
-
-            if (!hitSomething) {
-                const resources = this.player.worldManager.getNearbyResources(playerPos, range);
-                for (const res of resources) {
-                    if (res.isDead) continue;
-                    if (res.takeDamage) {
-                        console.log(`PlayerActions: Proximity hit to resource ${res.type}`);
-                        res.takeDamage(1, this.player);
-                        hitSomething = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (!hitSomething) {
-            console.log("PlayerActions: nothing hit, playing whoosh");
-            import('../../utils/audio_manager.js').then(({ audioManager }) => {
-                audioManager.play('whoosh', 0.5);
-            });
+            PlayerCombat.playPunch(this.player);
         }
     }
 
     interact() {
-        this.player.animator.playInteract();
+        this.player.isInteracting = true;
+        this.player.interactTimer = 0;
     }
 
     toggleCombat() {
@@ -199,7 +118,7 @@ export class PlayerActions {
 
         this.player.stats.chakra -= 40;
         this.isSummoning = true;
-        this.summoningTime = 3.0; // 3 seconds effect
+        this.summoningTime = 3.0; 
         this.player.ui.showStatus("Summoning Jutsu!", false);
         this.player.ui.updateHud();
 
@@ -242,7 +161,7 @@ export class PlayerActions {
         this.summoningCircle.visible = true;
         const aspect = this.summoningCircle.userData.aspect || 1;
         this.summoningCircle.scale.set(0.001 * aspect, 0.001, 1);
-        this.summoningCircle.rotation.z = 0; // Reset rotation for new animation
+        this.summoningCircle.rotation.z = 0; 
 
         import('../../utils/audio_manager.js').then(({ audioManager }) => {
             audioManager.play('whoosh', 0.8, 0.5);
@@ -250,18 +169,18 @@ export class PlayerActions {
             audioManager.play('owl_hoot', 0.5);
         });
 
-        this.player.animator.playInteract();
+        this.player.isInteracting = true;
+        this.player.interactTimer = 0;
 
-        // Create particles
         this.spawnSummoningParticles(worldPos);
 
-        // Spawn friendly Owl
         const owlPos = worldPos.clone();
         owlPos.x += 2 * SCALE_FACTOR;
         owlPos.z += 2 * SCALE_FACTOR;
         owlPos.y = this.player.worldManager.getTerrainHeight(owlPos.x, owlPos.z);
 
-        const currentShard = this.player.worldManager.activeShards.get(`${Math.floor((worldPos.x + SHARD_SIZE / 2) / SHARD_SIZE)},${Math.floor((worldPos.z + SHARD_SIZE / 2) / SHARD_SIZE)}`);
+        const shardKey = `${Math.floor((worldPos.x + SHARD_SIZE / 2) / SHARD_SIZE)},${Math.floor((worldPos.z + SHARD_SIZE / 2) / SHARD_SIZE)}`;
+        const currentShard = this.player.worldManager.activeShards.get(shardKey);
         if (currentShard) {
             const owl = new Owl(this.player.scene, currentShard, owlPos);
             owl.isSummoned = true;
@@ -273,8 +192,6 @@ export class PlayerActions {
 
     spawnSummoningParticles(pos) {
         if (!this.particles) this.particles = [];
-        
-        // 1. Dust clouds around the base
         for (let i = 0; i < 12; i++) {
             const angle = (i / 12) * Math.PI * 2;
             const radius = 3;
@@ -282,28 +199,13 @@ export class PlayerActions {
             pPos.x += Math.cos(angle) * radius;
             pPos.z += Math.sin(angle) * radius;
             pPos.y += 0.2;
-
             const geo = new THREE.SphereGeometry(0.5, 8, 8);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: 0xcccccc, 
-                transparent: true, 
-                opacity: 0.4,
-                depthWrite: false
-            });
+            const mat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.4, depthWrite: false });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.copy(pPos);
             this.player.scene.add(mesh);
-            
-            this.particles.push({
-                mesh: mesh,
-                velocity: new THREE.Vector3(Math.cos(angle) * 0.5, 1.5 + Math.random(), Math.sin(angle) * 0.5),
-                life: 1.5 + Math.random() * 1.0,
-                maxLife: 2.5,
-                type: 'dust'
-            });
+            this.particles.push({ mesh: mesh, velocity: new THREE.Vector3(Math.cos(angle) * 0.5, 1.5 + Math.random(), Math.sin(angle) * 0.5), life: 1.5 + Math.random() * 1.0, maxLife: 2.5, type: 'dust' });
         }
-
-        // 2. Rising sparks/energy
         for (let i = 0; i < 20; i++) {
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * 3;
@@ -311,49 +213,27 @@ export class PlayerActions {
             pPos.x += Math.cos(angle) * radius;
             pPos.z += Math.sin(angle) * radius;
             pPos.y += 0.1;
-
             const geo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: 0x00ffff, 
-                transparent: true, 
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.copy(pPos);
             this.player.scene.add(mesh);
-
-            this.particles.push({
-                mesh: mesh,
-                velocity: new THREE.Vector3((Math.random() - 0.5) * 0.2, 2.0 + Math.random() * 2, (Math.random() - 0.5) * 0.2),
-                life: 1.0 + Math.random() * 1.5,
-                maxLife: 2.5,
-                type: 'spark'
-            });
+            this.particles.push({ mesh: mesh, velocity: new THREE.Vector3((Math.random() - 0.5) * 0.2, 2.0 + Math.random() * 2, (Math.random() - 0.5) * 0.2), life: 1.0 + Math.random() * 1.5, maxLife: 2.5, type: 'spark' });
         }
     }
 
     updateParticles(delta) {
         if (!this.particles) return;
-        
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.life -= delta;
-            
             if (p.life <= 0) {
                 this.player.scene.remove(p.mesh);
                 this.particles.splice(i, 1);
                 continue;
             }
-
-            // Move
             p.mesh.position.addScaledVector(p.velocity, delta);
-            
-            // Slow down
             p.velocity.multiplyScalar(0.98);
-
-            // Visual changes
             const lifeRatio = p.life / p.maxLife;
             if (p.type === 'dust') {
                 p.mesh.scale.setScalar(1.0 + (1.0 - lifeRatio) * 2.0);
@@ -371,20 +251,16 @@ export class PlayerActions {
             if (this.player.ui) this.player.ui.showStatus("Not enough Chakra!", true);
             return;
         }
-
         this.player.stats.chakra -= this.selectedSkill.cost;
         if (this.player.ui) {
             this.player.ui.updateHud();
             this.player.ui.showStatus(`Casting ${this.selectedSkill.name}!`, false);
         }
-
-        // Projectile spawning
         const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
         if (game && game.inputManager) {
             const startPos = this.player.mesh.position.clone();
             startPos.y += 1.2;
             const targetPos = game.inputManager.input.mouseWorldPos;
-
             if (targetPos) {
                 let projectile = null;
                 if (this.selectedSkill.id === 'fireball') {
@@ -392,14 +268,13 @@ export class PlayerActions {
                 } else if (this.selectedSkill.id === 'icebolt') {
                     projectile = new IceboltProjectile(this.player.scene, startPos, targetPos, this.player);
                 }
-
                 if (projectile) {
                     game.projectiles.push(projectile);
                 }
             }
         }
-
-        this.player.animator.playInteract();
+        this.player.isInteracting = true;
+        this.player.interactTimer = 0;
         import('../../utils/audio_manager.js').then(({ audioManager }) => {
             audioManager.play('whoosh', 0.8);
         });
@@ -476,31 +351,11 @@ export class PlayerActions {
 
         if (closestHorse) {
             this.mount(closestHorse);
+            this.player.isInteracting = true;
+            this.player.interactTimer = 0;
             return true;
         }
         return false;
-    }
-
-    mount(horse) {
-        this.mountedHorse = horse;
-        horse.state = 'mounted';
-        horse.mountedPlayer = this.player;
-        if (this.player.ui) this.player.ui.showStatus("Mounted Horse", false);
-    }
-
-    dismount() {
-        if (!this.mountedHorse) return;
-        
-        const horse = this.mountedHorse;
-        horse.state = 'idle';
-        horse.mountedPlayer = null;
-        horse.timer = 2.0;
-        
-        this.mountedHorse = null;
-        if (this.player.ui) this.player.ui.showStatus("Dismounted Horse", false);
-        
-        const side = new THREE.Vector3(1, 0, 0).applyQuaternion(this.player.mesh.quaternion);
-        this.player.playerPhysics.position.addScaledVector(side, 1.5 * SCALE_FACTOR);
     }
 
     tryHarvest() {
@@ -541,7 +396,8 @@ export class PlayerActions {
                 if (this.player.ui) {
                     this.player.ui.updateHotbar();
                 }
-                this.player.animator.playPickup();
+                this.player.isInteracting = true;
+                this.player.interactTimer = 0;
                 return true;
             }
         }
@@ -561,12 +417,32 @@ export class PlayerActions {
                         };
                         this.player.inventory.addItem(berryItem, 7);
                         if (this.player.ui) this.player.ui.updateHotbar();
-                        this.player.animator.playPickup();
+                        this.player.isInteracting = true;
+                        this.player.interactTimer = 0;
                         return true;
                     }
                 }
             }
         }
         return false;
+    }
+
+    mount(horse) {
+        this.mountedHorse = horse;
+        horse.state = 'mounted';
+        horse.mountedPlayer = this.player;
+        if (this.player.ui) this.player.ui.showStatus("Mounted Horse", false);
+    }
+
+    dismount() {
+        if (!this.mountedHorse) return;
+        const horse = this.mountedHorse;
+        horse.state = 'idle';
+        horse.mountedPlayer = null;
+        horse.timer = 2.0;
+        this.mountedHorse = null;
+        if (this.player.ui) this.player.ui.showStatus("Dismounted Horse", false);
+        const side = new THREE.Vector3(1, 0, 0).applyQuaternion(this.player.mesh.quaternion);
+        this.player.mesh.position.addScaledVector(side, 1.5 * SCALE_FACTOR);
     }
 }

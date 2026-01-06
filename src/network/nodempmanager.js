@@ -88,9 +88,6 @@ export class NodeMPManager {
             if (this.game.chat) {
                 this.game.chat.addMessage("System", "You have been disconnected from the server.");
             }
-            if (this.game.player && this.game.player.ui) {
-                this.game.player.ui.showStatus("Disconnected from server", true);
-            }
         };
 
         this.socket.onDisconnected = (data) => {
@@ -285,10 +282,13 @@ class RemotePlayer {
         // Performance: reuse objects
         this._targetPos = new THREE.Vector3();
 
-        const { mesh, parts } = createPlayerMesh({ ...characterData, name: username });
+        const { mesh, parts, model } = createPlayerMesh({ ...characterData, name: username });
         this.mesh = mesh;
         this.parts = parts;
+        this.model = model;
         this.scene.add(this.mesh);
+
+        this.config = { ...characterData, name: username };
 
         // Attach gear
         attachUnderwear(parts);
@@ -400,25 +400,28 @@ class RemotePlayer {
             this._lastWeapon = weaponType;
         }
 
-        // Sync animation - throttling this slightly since animations don't need 60-144Hz sync
+        // Sync animation
         this.animator.animate(
             delta,
-            this.targetState.isMoving,
-            this.targetState.isRunning,
+            this.targetState.moving,
+            this.targetState.running,
             this.animator.isPickingUp,
             this.targetState.isDead,
-            false, // isJumping (multiplayer simplified)
-            'none', // jumpPhase
-            0, // jumpTimer
-            0, // jumpVelocity
-            false, // isLedgeGrabbing
-            0, // ledgeGrabTime
-            0, // recoverTimer
-            false, // isDragged
-            'hips', // draggedPartName
-            new THREE.Vector3(), // dragVelocity
-            0, // deathTime (procedural death handled by state)
-            null // deathVariation
+            false, // isJumping
+            'none', 
+            0, 
+            0, 
+            false, 
+            0, 
+            0, 
+            false, 
+            'hips', 
+            new THREE.Vector3(), 
+            0, 
+            null,
+            false,
+            this.targetState.sideMove || 0,
+            this.targetState.moving ? 1.0 : 0.0 // Approximate forward
         );
     }
 
