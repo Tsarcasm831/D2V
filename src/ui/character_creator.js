@@ -11,6 +11,7 @@ export class CharacterCreator {
         this.previewContainer = document.getElementById('creator-preview');
         this.currentPreviewMesh = null;
         this.currentPreviewParts = null;
+        this.currentPreviewModel = null;
         this.createPlayerMeshFn = null;
         this.attachShortsFn = null;
         this.attachUnderwearFn = null;
@@ -21,6 +22,7 @@ export class CharacterCreator {
         this.previousMouseX = 0;
         this.animator = null;
         this.isDebugHitbox = false;
+        this.isAxeEquipped = false;
         this.lastUpdateTime = performance.now();
         this.animationState = {
             isMoving: false,
@@ -232,8 +234,29 @@ export class CharacterCreator {
         });
 
         // Animation buttons
+        const setAnimToggleState = (btn, isActive) => {
+            if (!btn) return;
+            btn.classList.toggle('active', !!isActive);
+        };
+
         const animButtons = [
-            { id: 'btn-anim-walk', action: () => { this.animationState.isMoving = !this.animationState.isMoving; } },
+            { 
+                id: 'btn-anim-walk',
+                isToggle: true,
+                action: (btn) => {
+                    this.animationState.isMoving = !this.animationState.isMoving;
+                    setAnimToggleState(btn, this.animationState.isMoving);
+                }
+            },
+            {
+                id: 'btn-equip-axe',
+                isToggle: true,
+                action: (btn) => {
+                    this.isAxeEquipped = !this.isAxeEquipped;
+                    setAnimToggleState(btn, this.isAxeEquipped);
+                    this.updatePreview();
+                }
+            },
             { id: 'btn-anim-punch', action: () => { if (this.animator) this.animator.playPunch(); } },
             { id: 'btn-anim-axe', action: () => { if (this.animator) this.animator.playAxeSwing(); } },
             { id: 'btn-anim-jump', action: () => { 
@@ -252,8 +275,15 @@ export class CharacterCreator {
             if (btn) {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    cfg.action();
+                    cfg.action(btn);
                 });
+                if (cfg.isToggle) {
+                    if (cfg.id === 'btn-anim-walk') {
+                        setAnimToggleState(btn, this.animationState.isMoving);
+                    } else if (cfg.id === 'btn-equip-axe') {
+                        setAnimToggleState(btn, this.isAxeEquipped);
+                    }
+                }
             }
         });
 
@@ -369,7 +399,11 @@ export class CharacterCreator {
         if (!this.createPlayerMeshFn) return;
         
         const charData = this.getCharacterData();
-        const { mesh, parts } = this.createPlayerMeshFn(charData);
+        const previewConfig = {
+            ...charData,
+            selectedItem: this.isAxeEquipped ? 'Axe' : null
+        };
+        const { mesh, parts, model } = this.createPlayerMeshFn(previewConfig);
 
         if (this.currentPreviewMesh) {
             this.previewRotation = this.currentPreviewMesh.rotation.y;
@@ -378,6 +412,7 @@ export class CharacterCreator {
 
         this.currentPreviewMesh = mesh;
         this.currentPreviewParts = parts;
+        this.currentPreviewModel = model;
         this.currentPreviewMesh.position.y = 0;
         this.currentPreviewMesh.rotation.y = this.previewRotation;
 
@@ -444,6 +479,7 @@ export class CharacterCreator {
 
         this.previewScene.add(this.currentPreviewMesh);
         this.animator = new PlayerAnimator(parts);
+        this.animator.setHolding(this.isAxeEquipped);
         this.updatePreviewDebug();
     }
 

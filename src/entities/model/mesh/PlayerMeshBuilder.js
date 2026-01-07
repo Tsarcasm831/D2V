@@ -157,7 +157,7 @@ export class PlayerMeshBuilder {
 
         // 7. Mounts
         const rightHandMount = new THREE.Group();
-        rightHandMount.position.set(0, -0.07, 0.04);
+        rightHandMount.position.set(0, -0.07, -0.04);
         rightHandMount.rotation.set(-Math.PI / 2, 0, 0);
         rightHand.add(rightHandMount);
 

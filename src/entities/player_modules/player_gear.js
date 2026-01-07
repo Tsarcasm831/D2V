@@ -32,7 +32,7 @@ export class PlayerGear {
 
         // Held items / Hands
         this.rightHand = new THREE.Group();
-        this.rightHand.position.set(0, -0.07, 0.04);
+        this.rightHand.position.set(0, -0.07, -0.04);
         this.rightHand.rotation.set(-Math.PI / 2, 0, 0);
         
         if (parts.rightHandMount) {

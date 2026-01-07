@@ -510,60 +510,193 @@ export function attachHood(parts) {
 }
 
 export function attachLeatherGloves(parts) {
-    const gloveRadius = 0.085, gloveLen = 0.18;
-    const cuffGeo = new THREE.CylinderGeometry(gloveRadius, gloveRadius, gloveLen, 12);
-    
-    // Palm and Finger dimensions to match player_mesh.js
-    const pR = 0.056, pL = 0.045; // Slightly larger than hand
-    const palmGeo = new THREE.CapsuleGeometry(pR, pL, 4, 8);
-    const fR = 0.022, fL = 0.055; // Slightly larger than fingers
-    const fingerGeo = new THREE.CapsuleGeometry(fR, fL, 4, 8);
+    const gloveScale = 1.25;
+    const cuffTopR = 0.07 * gloveScale;
+    const cuffBotR = 0.06 * gloveScale;
+    const cuffLen = 0.16 * gloveScale;
+    const cuffGeo = new THREE.CylinderGeometry(cuffTopR, cuffBotR, cuffLen, 12);
+
+    // Palm and finger shells aligned to HandBuilder proportions.
+    const fingerScale = 1.08;
+    const palmW = 0.089 * gloveScale;
+    const palmH = 0.094 * gloveScale;
+    const palmD = 0.038 * gloveScale;
+    const palmGeo = new THREE.BoxGeometry(palmW, palmH, palmD);
+    const fingerLengths = [0.08, 0.09, 0.085, 0.065].map((len) => len * gloveScale * fingerScale);
+    const fingerRadius = 0.0115 * gloveScale * fingerScale;
+    const gloveOutlineScale = 1.06;
+    const fingerOutlineScale = 1.04;
+
+    const buildFingerSegmentGeo = (segmentLen, radius) => {
+        const capLen = Math.max(0.001, segmentLen - radius * 2);
+        const geo = new THREE.CapsuleGeometry(radius, capLen, 4, 8);
+        const actualLen = capLen + radius * 2;
+        geo.translate(0, -actualLen / 2, 0);
+        return geo;
+    };
+
+    const addOutline = (mesh, scale = gloveOutlineScale) => {
+        const o = new THREE.Mesh(mesh.geometry, OUTLINE_MAT);
+        o.scale.copy(mesh.scale || new THREE.Vector3(1, 1, 1)).multiplyScalar(scale);
+        mesh.add(o);
+    };
+
+    const addFingerShell = (targetMesh, fallbackDims, radiusPad, lengthPad, flattenZ = 0.92) => {
+        if (!targetMesh) return null;
+        const params = targetMesh.geometry && targetMesh.geometry.parameters ? targetMesh.geometry.parameters : {};
+        const width = (typeof params.width === 'number' ? params.width : fallbackDims.width) * gloveScale * fingerScale;
+        const height = (typeof params.height === 'number' ? params.height : fallbackDims.height) * gloveScale * fingerScale;
+        const depth = (typeof params.depth === 'number' ? params.depth : fallbackDims.depth) * gloveScale * fingerScale;
+        const radius = Math.max(width, depth) * 0.5 + radiusPad;
+        const length = height + lengthPad;
+        const shellGeo = buildFingerSegmentGeo(length, radius);
+        const shell = new THREE.Mesh(shellGeo, LEATHER_MAT);
+        shell.castShadow = true;
+        shell.scale.set(1, 1, flattenZ);
+        targetMesh.add(shell);
+        addOutline(shell, fingerOutlineScale);
+        return shell;
+    };
+
+    const findFingerTargets = (handPart) => {
+        const fingers = [];
+        let thumb = null;
+        if (!handPart) return { fingers, thumb };
+
+        handPart.children.forEach((child) => {
+            if (!child || !child.isGroup) return;
+            const prox = child.children.find((c) => c.name === 'proximal');
+            if (!prox) return;
+            const dist = prox.children.find((c) => c.name === 'distal');
+            if (!dist) return;
+            const isThumb = child.position.y > -0.06;
+            const entry = { group: child, prox, dist };
+            if (isThumb) {
+                thumb = entry;
+            } else {
+                fingers.push(entry);
+            }
+        });
+
+        return { fingers, thumb };
+    };
 
     const attachGlove = (foreArmPart, handPart, isLeft) => {
+        if (!foreArmPart || !handPart) return null;
         const gloveGroup = new THREE.Group();
         foreArmPart.add(gloveGroup);
 
         // 1. Cuff (on forearm)
         const cuff = new THREE.Mesh(cuffGeo, LEATHER_MAT);
-        cuff.position.y = -0.15;
+        const wristY = -0.30;
+        const cuffLower = wristY + 0.01;
+        cuff.position.y = cuffLower + cuffLen / 2;
         gloveGroup.add(cuff);
         
-        const cuffO = new THREE.Mesh(cuffGeo, OUTLINE_MAT);
-        cuffO.scale.setScalar(1.1);
-        cuff.add(cuffO);
+        addOutline(cuff, 1.08);
 
         // 2. Palm (on hand)
         const palm = new THREE.Mesh(palmGeo, LEATHER_MAT);
-        palm.rotation.z = Math.PI / 2;
-        palm.scale.set(1.5, 1, 1); 
-        palm.position.y = -0.06;
+        palm.position.y = -0.045;
         handPart.add(palm);
 
-        const palmO = new THREE.Mesh(palmGeo, OUTLINE_MAT);
-        palmO.scale.setScalar(1.1);
-        palm.add(palmO);
+        addOutline(palm, 1.05);
 
-        // 3. Fingers
-        for(let i=0; i<4; i++) {
-            const finger = new THREE.Mesh(fingerGeo, LEATHER_MAT);
-            finger.position.set((i-1.5)*0.032, -0.14, 0.025); 
-            handPart.add(finger);
+        // 3. Wrist band to blend cuff into the palm
+        const wristGeo = new THREE.CapsuleGeometry(0.055 * gloveScale, 0.03 * gloveScale, 4, 8);
+        const wrist = new THREE.Mesh(wristGeo, LEATHER_MAT);
+        wrist.position.y = -0.02;
+        handPart.add(wrist);
 
-            const fingerO = new THREE.Mesh(fingerGeo, OUTLINE_MAT);
-            fingerO.scale.setScalar(1.1);
-            finger.add(fingerO);
+        addOutline(wrist, 1.05);
+
+        // 4. Fingers (proximal + distal shells), follow actual finger joints when available.
+        const sideMult = isLeft ? -1 : 1;
+        const targets = findFingerTargets(handPart);
+        if (targets.fingers.length >= 4 && targets.thumb) {
+            targets.fingers.forEach((finger, i) => {
+                const pLen = fingerLengths[i] * 0.55;
+                const dLen = fingerLengths[i] * 0.45;
+                addFingerShell(
+                    finger.prox,
+                    { width: 0.018, height: pLen, depth: 0.02 },
+                    0.002,
+                    0.001,
+                    0.92
+                );
+                addFingerShell(
+                    finger.dist,
+                    { width: 0.018 * 0.85, height: dLen, depth: 0.02 * 0.85 },
+                    0.0015,
+                    0.001,
+                    0.9
+                );
+            });
+
+            addFingerShell(
+                targets.thumb.prox,
+                { width: 0.024, height: 0.045, depth: 0.024 },
+                0.002,
+                0.001,
+                0.9
+            );
+            addFingerShell(
+                targets.thumb.dist,
+                { width: 0.02, height: 0.035, depth: 0.02 },
+                0.0015,
+                0.001,
+                0.9
+            );
+        } else {
+            const startX = 0.03 * gloveScale * sideMult;
+            const spacing = 0.022 * gloveScale * sideMult;
+
+            for (let i = 0; i < 4; i++) {
+                const fingerGroup = new THREE.Group();
+                const xPos = startX - (i * spacing);
+                fingerGroup.position.set(xPos, -0.09, 0);
+                fingerGroup.position.y += Math.abs(i - 1.5) * -0.005;
+                handPart.add(fingerGroup);
+
+                const pLen = fingerLengths[i] * 0.55;
+                const dLen = fingerLengths[i] * 0.45;
+
+                const pGeo = buildFingerSegmentGeo(pLen, fingerRadius);
+                const prox = new THREE.Mesh(pGeo, LEATHER_MAT);
+                prox.castShadow = true;
+                fingerGroup.add(prox);
+                addOutline(prox, fingerOutlineScale);
+
+                const dGeo = buildFingerSegmentGeo(dLen, fingerRadius * 0.9);
+                const dist = new THREE.Mesh(dGeo, LEATHER_MAT);
+                dist.position.y = -pLen;
+                dist.castShadow = true;
+                fingerGroup.add(dist);
+                addOutline(dist, fingerOutlineScale);
+            }
+
+            // 5. Thumb (proximal + distal shells)
+            const thumbGroup = new THREE.Group();
+            thumbGroup.position.set(0.05 * sideMult, -0.03, 0.01);
+            thumbGroup.rotation.z = 0.5 * sideMult;
+            thumbGroup.rotation.y = -0.5 * sideMult;
+            handPart.add(thumbGroup);
+
+            const tLen1 = 0.045;
+            const tLen2 = 0.035;
+            const tGeo1 = buildFingerSegmentGeo(tLen1, fingerRadius * 1.1);
+            const tProx = new THREE.Mesh(tGeo1, LEATHER_MAT);
+            tProx.castShadow = true;
+            thumbGroup.add(tProx);
+            addOutline(tProx, fingerOutlineScale);
+
+            const tGeo2 = buildFingerSegmentGeo(tLen2, fingerRadius);
+            const tDist = new THREE.Mesh(tGeo2, LEATHER_MAT);
+            tDist.position.y = -tLen1;
+            tDist.castShadow = true;
+            thumbGroup.add(tDist);
+            addOutline(tDist, fingerOutlineScale);
         }
-
-        // 4. Thumb (Visualizing from image, usually at an angle)
-        const thumb = new THREE.Mesh(fingerGeo, LEATHER_MAT);
-        thumb.position.set(isLeft ? -0.07 : 0.07, -0.08, 0.045);
-        thumb.rotation.z = isLeft ? 2.5 : -2.5;
-        thumb.scale.setScalar(1.1); // Ensure it fully covers the thumb
-        handPart.add(thumb);
-
-        const thumbO = new THREE.Mesh(fingerGeo, OUTLINE_MAT);
-        thumbO.scale.setScalar(1.2);
-        thumb.add(thumbO);
 
         return gloveGroup;
     };
