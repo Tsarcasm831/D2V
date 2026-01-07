@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PlayerMaterials } from './PlayerMaterials.js';
 import { PlayerEquipment } from './PlayerEquipment.js';
 import { PlayerMeshBuilder } from './mesh/PlayerMeshBuilder.js';
+import { HairBuilder } from './mesh/HairBuilder.js';
 
 export class PlayerModel {
     constructor(config = {}) {
@@ -20,10 +21,15 @@ export class PlayerModel {
         this.eyelids = build.arrays.eyelids;
         this.rightFingers = build.arrays.rightFingers;
         this.rightThumb = build.arrays.rightThumb;
+        this.leftFingers = build.arrays.leftFingers;
+        this.leftThumb = build.arrays.leftThumb;
         this.buttockCheeks = build.arrays.buttockCheeks;
 
         this.equippedMeshes = {};
         this.currentHeldItem = null;
+
+        this.lastHairHash = '';
+        this.updateHair(config);
     }
 
     applyOutfit(outfit, skinColor) {
@@ -43,11 +49,19 @@ export class PlayerModel {
         PlayerEquipment.updateArmor(equipment, this.parts, this.equippedMeshes);
     }
 
-    sync(config) {
+    updateHair(config) {
+        const hash = `${config.hairStyle}_${config.headScale}`;
+        if (hash === this.lastHairHash) return;
+        this.lastHairHash = hash;
+        HairBuilder.build(this.parts, config, this.materials.hair);
+    }
+
+    sync(config, isCombatStance = false) {
         const lerp = THREE.MathUtils.lerp;
         const damp = 0.15; 
 
         this.materials.sync(config);
+        this.applyOutfit(config.outfit, config.skinColor);
         
         const isFemale = config.bodyType === 'female';
         const isNaked = config.outfit === 'naked';
@@ -73,7 +87,7 @@ export class PlayerModel {
             if (this.parts.buttocks) {
                 this.parts.buttocks.visible = true;
                 const bs = config.buttScale || 1.0;
-                this.parts.buttocks.scale.set(1 * bs, 1 * bs, 1 * bs);
+                this.parts.buttocks.scale.setScalar(bs);
             }
             this.parts.chest.visible = true;
             this.parts.maleChest.visible = false;
@@ -82,8 +96,6 @@ export class PlayerModel {
             hipScale = 1.0;
             baseLegSpacing = 0.12;
             if (this.parts.buttocks) {
-                const bs = config.buttScale || 1.0;
-                this.parts.buttocks.scale.set(0.8 * bs, 0.8 * bs, 0.3 * bs);
                 this.parts.buttocks.visible = false; 
             }
             this.parts.chest.visible = false;
@@ -92,6 +104,14 @@ export class PlayerModel {
 
         this.parts.topCap.scale.set(shoulderScale, 0.8, shoulderScale);
         this.parts.pelvis.scale.set(hipScale, 1, hipScale);
+        if (this.parts.topCap) {
+            if (!this.parts.topCap.userData.baseScale) {
+                this.parts.topCap.userData.baseScale = this.parts.topCap.scale.clone();
+            } else {
+                this.parts.topCap.userData.baseScale.copy(this.parts.topCap.scale);
+            }
+            this.parts.topCap.userData.baseY = this.parts.topCap.position.y;
+        }
 
         // 3. Limb Positioning
         const legX = baseLegSpacing * tW; 
@@ -167,39 +187,45 @@ export class PlayerModel {
         this.pupils.forEach(p => p.scale.setScalar(config.pupilScale || 1.0));
         this.heelGroups.forEach(hg => { hg.scale.setScalar(config.heelScale || 1.218); hg.scale.y *= (config.heelHeight || 1.0); });
         this.forefootGroups.forEach(fg => fg.scale.set(config.footWidth || 1.0, 1, config.footLength || 1.0));
-        this.toeUnits.forEach((u, i) => u.position.x = ((i % 5) - 2) * 0.035 * (config.toeSpread || 1.0));
+        this.toeUnits.forEach((u, i) => {
+            if (u.userData && u.userData.initialX !== undefined) {
+                u.position.x = u.userData.initialX * (config.toeSpread || 1.0);
+                return;
+            }
+            u.position.x = ((i % 5) - 2) * 0.035 * (config.toeSpread || 1.0);
+        });
 
         // Update Hand Pose (Fist formation)
         const isHolding = !!config.selectedItem;
-        const baseCurl = isHolding ? 1.6 : 0.1; 
-        
-        this.rightFingers.forEach((fGroup, i) => {
-             const curl = baseCurl + (isHolding ? i * 0.1 : i * 0.05);
-             const prox = fGroup.children.find(c => c.name === 'proximal');
-             if (prox) {
-                 prox.rotation.x = lerp(prox.rotation.x, curl, damp);
-                 const dist = prox.children.find(c => c.name === 'distal');
-                 if (dist) {
-                     dist.rotation.x = lerp(dist.rotation.x, curl * 1.1, damp);
-                 }
-             }
-        });
-
-        if (this.rightThumb) {
-            const prox = this.rightThumb.children.find(c => c.name === 'proximal');
-            if (prox) {
-                 const tZ = isHolding ? -0.4 : 0;
-                 const tX = isHolding ? 0.6 : 0.1;
-                 
-                 prox.rotation.z = lerp(prox.rotation.z, tZ, damp); 
-                 prox.rotation.x = lerp(prox.rotation.x, tX, damp);
-                 
-                 const dist = prox.children.find(c => c.name === 'distal');
-                 if (dist) {
-                     dist.rotation.x = lerp(dist.rotation.x, isHolding ? 1.2 : 0.1, damp);
-                 }
+        const updateHand = (fingers, thumb, isLeft) => {
+            if (!fingers) return;
+            const shouldFist = isLeft ? isCombatStance : (isHolding || isCombatStance);
+            const baseCurl = shouldFist ? 1.6 : 0.1;
+            fingers.forEach((fGroup, i) => {
+                const curl = baseCurl + (shouldFist ? i * 0.1 : i * 0.05);
+                const prox = fGroup.children.find(c => c.name === 'proximal');
+                if (prox) {
+                    prox.rotation.x = lerp(prox.rotation.x, curl, damp);
+                    const dist = prox.children.find(c => c.name === 'distal');
+                    if (dist) dist.rotation.x = lerp(dist.rotation.x, curl * 1.1, damp);
+                }
+            });
+            if (thumb) {
+                const prox = thumb.children.find(c => c.name === 'proximal');
+                if (prox) {
+                    prox.rotation.x = lerp(prox.rotation.x, shouldFist ? 0.6 : 0.1, damp);
+                    const tZBase = shouldFist ? -0.2 : 0;
+                    prox.rotation.z = lerp(prox.rotation.z, isLeft ? -tZBase : tZBase, damp);
+                    const dist = prox.children.find(c => c.name === 'distal');
+                    if (dist) dist.rotation.x = lerp(dist.rotation.x, shouldFist ? 1.2 : 0.1, damp);
+                }
             }
-        }
+        };
+
+        updateHand(this.rightFingers, this.rightThumb, false);
+        updateHand(this.leftFingers, this.leftThumb, true);
+
+        this.updateHair(config);
 
         this.updateEquipment(config.equipment || {});
         this.updateHeldItem(config.selectedItem);

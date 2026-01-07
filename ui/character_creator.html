@@ -15,6 +15,7 @@
             <div class="creator-tab active" data-tab="body">BODY</div>
             <div class="creator-tab" data-tab="outfit">OUTFIT</div>
             <div class="creator-tab" data-tab="gear">GEAR</div>
+            <div class="creator-tab" data-tab="equipment">EQUIPMENT</div>
         </div>
 
         <div id="body-tab" class="tab-content active">
@@ -26,194 +27,224 @@
                 <div class="creator-label">EYE COLOR</div>
                 <input type="color" id="eye-color" class="creator-input" value="#333333">
             </div>
-            <div class="creator-section">
-                <div class="creator-label">SCALES</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Head</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="head-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
-                    <span id="head-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Width</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="torso-width" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="torso-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Height</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="torso-height" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
-                    <span id="torso-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Arms</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="arm-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
-                    <span id="arm-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Legs</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="leg-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
-                    <span id="leg-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-            </div>
-            <div class="creator-section">
-                <div class="creator-label">NECK</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Thickness</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="neck-thickness" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
-                    <span id="neck-thickness-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Height</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="neck-height" min="0.3" max="1.2" step="0.05" value="0.95" style="flex:1">
-                    <span id="neck-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.95</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Rotation</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="neck-rotation" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="neck-rotation-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Tilt</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="neck-tilt" min="-0.2" max="0.2" step="0.01" value="0.0" style="flex:1">
-                    <span id="neck-tilt-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+            <div class="creator-section dropdown" data-dropdown="scales">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">SCALES</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Head</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="head-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                        <span id="head-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Width</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="torso-width" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="torso-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Torso Height</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="torso-height" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                        <span id="torso-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Arms</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="arm-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                        <span id="arm-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Legs</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="leg-scale" min="0.8" max="1.2" step="0.05" value="1.0" style="flex:1">
+                        <span id="leg-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
                 </div>
             </div>
-            <div class="creator-section">
-                <div class="creator-label">FACE</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Size</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="chin-size" min="0.3" max="1.2" step="0.05" value="0.7" style="flex:1">
-                    <span id="chin-size-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.7</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Length</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="chin-length" min="0.6" max="1.4" step="0.05" value="1.0" style="flex:1">
-                    <span id="chin-length-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Height</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="chin-height" min="-0.1" max="0.1" step="0.01" value="-0.04" style="flex:1">
-                    <span id="chin-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.04</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Forward</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="chin-forward" min="0.0" max="0.1" step="0.01" value="0.03" style="flex:1">
-                    <span id="chin-forward-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.03</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Iris Scale</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="iris-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="iris-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Pupil Scale</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="pupil-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="pupil-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+            <div class="creator-section dropdown" data-dropdown="neck">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">NECK</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Thickness</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="neck-thickness" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+                        <span id="neck-thickness-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Height</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="neck-height" min="0.3" max="1.2" step="0.05" value="0.95" style="flex:1">
+                        <span id="neck-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.95</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Rotation</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="neck-rotation" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="neck-rotation-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Tilt</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="neck-tilt" min="-0.2" max="0.2" step="0.01" value="0.0" style="flex:1">
+                        <span id="neck-tilt-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
                 </div>
             </div>
-            <div class="creator-section">
-                <div class="creator-label">FEET</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Foot Width</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="foot-width" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="foot-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Foot Length</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="foot-length" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="foot-length-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Heel Scale</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="heel-scale" min="0.8" max="1.5" step="0.05" value="1.218" style="flex:1">
-                    <span id="heel-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.22</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Heel Height</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="heel-height" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="heel-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Toe Spread</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="toe-spread" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                    <span id="toe-spread-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+            <div class="creator-section dropdown" data-dropdown="face">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">FACE</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Size</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="chin-size" min="0.3" max="1.2" step="0.05" value="0.7" style="flex:1">
+                        <span id="chin-size-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.7</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Length</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="chin-length" min="0.6" max="1.4" step="0.05" value="1.0" style="flex:1">
+                        <span id="chin-length-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Height</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="chin-height" min="-0.1" max="0.1" step="0.01" value="-0.04" style="flex:1">
+                        <span id="chin-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.04</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Chin Forward</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="chin-forward" min="0.0" max="0.1" step="0.01" value="0.03" style="flex:1">
+                        <span id="chin-forward-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.03</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Iris Scale</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="iris-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="iris-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Pupil Scale</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="pupil-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="pupil-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
                 </div>
             </div>
-            <div class="creator-section">
-                <div class="creator-label">BODY</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Scale</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="butt-scale" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
-                    <span id="butt-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+            <div class="creator-section dropdown" data-dropdown="feet">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">FEET</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Foot Width</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="foot-width" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="foot-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Foot Length</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="foot-length" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="foot-length-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Heel Scale</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="heel-scale" min="0.8" max="1.5" step="0.05" value="1.218" style="flex:1">
+                        <span id="heel-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.22</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Heel Height</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="heel-height" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="heel-height-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Toe Spread</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="toe-spread" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
+                        <span id="toe-spread-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
                 </div>
             </div>
-            <div class="creator-section" id="cloak-position-section" style="display: none;">
-                <div class="creator-label">CLOAK POSITION</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Cape</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-cape-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-cape-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+            <div class="creator-section dropdown" data-dropdown="body">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">BODY</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Scale</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="butt-scale" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+                        <span id="butt-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                    </div>
                 </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-cape-y" min="-0.3" max="0.3" step="0.01" value="0.09" style="flex:1">
-                    <span id="cloak-cape-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.09</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-cape-z" min="-0.3" max="0.3" step="0.01" value="-0.10" style="flex:1">
-                    <span id="cloak-cape-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.10</span>
-                </div>
+            </div>
+            <div class="creator-section dropdown" id="cloak-position-section" data-dropdown="cloak" style="display: none;">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">CLOAK POSITION</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Cape</div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-cape-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-cape-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-cape-y" min="-0.3" max="0.3" step="0.01" value="0.09" style="flex:1">
+                        <span id="cloak-cape-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.09</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-cape-z" min="-0.3" max="0.3" step="0.01" value="-0.10" style="flex:1">
+                        <span id="cloak-cape-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.10</span>
+                    </div>
 
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 10px;">Yoke</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-yoke-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-yoke-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-yoke-y" min="-0.3" max="0.3" step="0.01" value="0.06" style="flex:1">
-                    <span id="cloak-yoke-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.06</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-yoke-z" min="-0.3" max="0.3" step="0.01" value="-0.04" style="flex:1">
-                    <span id="cloak-yoke-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.04</span>
-                </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 10px;">Yoke</div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-yoke-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-yoke-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-yoke-y" min="-0.3" max="0.3" step="0.01" value="0.06" style="flex:1">
+                        <span id="cloak-yoke-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.06</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-yoke-z" min="-0.3" max="0.3" step="0.01" value="-0.04" style="flex:1">
+                        <span id="cloak-yoke-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.04</span>
+                    </div>
 
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 10px;">Collar</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-collar-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-collar-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-collar-y" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-collar-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-collar-z" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-collar-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 10px;">Collar</div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-collar-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-collar-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-collar-y" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-collar-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-collar-z" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-collar-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
 
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 10px;">Clasp</div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-clasp-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-clasp-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-clasp-y" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-clasp-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
-                </div>
-                <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="range" id="cloak-clasp-z" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
-                    <span id="cloak-clasp-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 10px;">Clasp</div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">X Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-clasp-x" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-clasp-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Y Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-clasp-y" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-clasp-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Z Offset</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="cloak-clasp-z" min="-0.3" max="0.3" step="0.01" value="0.0" style="flex:1">
+                        <span id="cloak-clasp-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.0</span>
+                    </div>
                 </div>
             </div>
             <div class="creator-section">
@@ -307,6 +338,40 @@
                 <div class="gear-item" id="gear-pants">
                     <img src="assets/gear/black_pants.png" class="gear-icon-img">
                     <span class="gear-name">Pants</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="equipment-tab" class="tab-content">
+            <div class="creator-label">WEAPONS & TOOLS</div>
+            <div class="gear-grid equipment-grid">
+                <div class="gear-item" id="equipment-axe" data-item="Axe">
+                    <img src="assets/icons/axe_icon.png" class="gear-icon-img">
+                    <span class="gear-name">Axe</span>
+                </div>
+                <div class="gear-item" id="equipment-sword" data-item="Sword">
+                    <img src="assets/icons/sword_icon.png" class="gear-icon-img">
+                    <span class="gear-name">Sword</span>
+                </div>
+                <div class="gear-item" id="equipment-pickaxe" data-item="Pickaxe">
+                    <img src="assets/icons/pickaxe_icon.png" class="gear-icon-img">
+                    <span class="gear-name">Pickaxe</span>
+                </div>
+                <div class="gear-item" id="equipment-club" data-item="Club">
+                    <img src="assets/icons/club_icon.png" class="gear-icon-img">
+                    <span class="gear-name">Club</span>
+                </div>
+                <div class="gear-item" id="equipment-bow" data-item="Bow">
+                    <img src="assets/gear/bow.png" class="gear-icon-img">
+                    <span class="gear-name">Bow</span>
+                </div>
+                <div class="gear-item" id="equipment-dagger" data-item="Dagger">
+                    <img src="assets/gear/iron-dagger.png" class="gear-icon-img">
+                    <span class="gear-name">Dagger</span>
+                </div>
+                <div class="gear-item" id="equipment-kunai" data-item="Kunai">
+                    <img src="assets/gear/kunai.png" class="gear-icon-img">
+                    <span class="gear-name">Kunai</span>
                 </div>
             </div>
         </div>

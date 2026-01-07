@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { PlayerAnimator as ModularAnimator } from './model/PlayerAnimator.js';
 
 export class PlayerAnimator {
-    constructor(parts) {
+    constructor(parts, model = null) {
         this.modularAnimator = new ModularAnimator();
         this.parts = parts;
+        this.model = model;
         this.isPickingUp = false;
         this.pickUpTime = 0;
         this.isInteracting = false;
@@ -17,6 +18,7 @@ export class PlayerAnimator {
         this.isBlinking = false;
         this.walkTime = 0;
         this._isHolding = false;
+        this.isCombatStance = false;
     }
 
     setHolding(isHolding) {
@@ -49,8 +51,9 @@ export class PlayerAnimator {
 
     animate(delta, isMoving, isRunning, isPickingUp, isDead, isJumping, jumpPhase, jumpTimer, jumpVelocity, isLedgeGrabbing, ledgeGrabTime, recoverTimer, isDragged, draggedPartName, dragVelocity, deathTime, deathVariation, isMovingBackwards, strafe = 0, forward = 0) {
         // Map the existing animate call to the new modular animator
+        const model = this.model || { parts: this.parts, eyelids: this.parts.eyelids || [] };
         const playerState = {
-            model: { parts: this.parts, eyelids: this.parts.eyelids || [] },
+            model,
             config: { 
                 legScale: this.parts.hips?.scale.y || 1.0,
                 selectedItem: this._isHolding,
@@ -77,7 +80,8 @@ export class PlayerAnimator {
             dragVelocity: dragVelocity,
             blinkTimer: this.blinkTimer || 0,
             isBlinking: this.isBlinking || false,
-            walkTime: this.walkTime || 0
+            walkTime: this.walkTime || 0,
+            isCombatStance: this.isCombatStance
         };
 
         const input = {

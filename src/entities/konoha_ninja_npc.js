@@ -49,7 +49,7 @@ export class KonohaNinjaNPC {
         
         // No boots as requested (so they are barefoot or just have the base foot mesh)
 
-        this.animator = new PlayerAnimator(this.parts);
+        this.animator = new PlayerAnimator(this.parts, this.model);
         
         const levelCenter = (shard && shard.worldManager && shard.worldManager.levelCenter) ? shard.worldManager.levelCenter : new THREE.Vector3(0, 0, 0);
         const dist = pos.distanceTo(levelCenter);

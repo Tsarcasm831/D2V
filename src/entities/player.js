@@ -25,7 +25,7 @@ export class Player {
         this.mesh.rotation.y = Math.PI; 
         this.scene.add(this.mesh);
         
-        this.animator = new PlayerAnimator(parts);
+        this.animator = new PlayerAnimator(parts, model);
         this.playerPhysics = new PlayerPhysics(this);
         
         // State Properties
@@ -247,6 +247,17 @@ export class Player {
         if (this.actions) this.actions.summon();
     }
 
+    toggleCombat() {
+        if (this.actions && this.actions.toggleCombat) {
+            this.actions.toggleCombat();
+            this.isCombat = !!this.actions.isCombat;
+        } else {
+            this.isCombat = !this.isCombat;
+        }
+        if (this.ui) this.ui.updateHotbar();
+        return this.isCombat;
+    }
+
     toggleInvulnerability() {
         if (this.actions) return this.actions.toggleInvulnerability();
         return false;
@@ -280,7 +291,8 @@ export class Player {
             this.lastEquipmentState = eqKey;
         }
 
-        this.model.sync(this.config);
+        const isCombatStance = !!(this.actions && this.actions.isCombat);
+        this.model.sync(this.config, isCombatStance);
     }
 
     updateCloth(delta) {
@@ -348,6 +360,7 @@ export class Player {
 
         if (this.animator) {
             const isMoving = input.x !== 0 || input.y !== 0;
+            this.animator.isCombatStance = !!(this.actions && this.actions.isCombat);
             this.animator.animate(delta, isMoving, input.run, this.isPickingUp, this.isDead, this.isJumping, '', 0, this.jumpVelocity, this.isLedgeGrabbing, this.ledgeGrabTime, this.recoverTimer, this.isDragged, this.draggedPartName, this.dragVelocity, this.deathTime, this.deathVariation, false, input.x, input.y);
         }
 

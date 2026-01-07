@@ -17,12 +17,16 @@ export class CharacterCreator {
         this.attachUnderwearFn = null;
         this.attachShirtFn = null;
         this.gearFns = {};
+        this.equipmentPreviewFns = null;
         this.previewRotation = 0;
         this.isDragging = false;
         this.previousMouseX = 0;
         this.animator = null;
         this.isDebugHitbox = false;
         this.isAxeEquipped = false;
+        this.activeTab = 'body';
+        this.selectedEquipmentItem = 'Axe';
+        this.equipmentItems = [];
         this.lastUpdateTime = performance.now();
         this.animationState = {
             isMoving: false,
@@ -58,6 +62,14 @@ export class CharacterCreator {
         this.previewCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
         this.previewCamera.position.set(0, 1.5, 4.5);
         this.previewCamera.lookAt(0, 1.0, 0);
+        this.previewCameraDefaults = {
+            position: this.previewCamera.position.clone(),
+            target: new THREE.Vector3(0, 1.0, 0)
+        };
+        this.previewCameraEquipment = {
+            position: new THREE.Vector3(0, 0.9, 3.2),
+            target: new THREE.Vector3(0, 0.2, 0)
+        };
 
         this.previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         this.previewRenderer.setSize(width, height);
@@ -88,13 +100,27 @@ export class CharacterCreator {
             { attachShorts },
             { attachUnderwear },
             { attachShirt },
-            gear
+            gear,
+            { createAxe },
+            { createSword },
+            { createPickaxe },
+            { createClub },
+            { createBow },
+            { createDagger },
+            { createKunai }
         ] = await Promise.all([
             import('../entities/player_mesh.js'),
             import('../items/shorts.js'),
             import('../items/underwear.js'),
             import('../items/shirt.js'),
-            import('../items/gear.js')
+            import('../items/gear.js'),
+            import('../items/axe.js'),
+            import('../items/sword.js'),
+            import('../items/pickaxe.js'),
+            import('../items/club.js'),
+            import('../items/bow.js'),
+            import('../items/dagger.js'),
+            import('../items/kunai.js')
         ]);
 
         this.createPlayerMeshFn = createPlayerMesh;
@@ -102,6 +128,15 @@ export class CharacterCreator {
         this.attachUnderwearFn = attachUnderwear;
         this.attachShirtFn = attachShirt;
         this.gearFns = gear;
+        this.equipmentPreviewFns = {
+            Axe: createAxe,
+            Sword: createSword,
+            Pickaxe: createPickaxe,
+            Club: createClub,
+            Bow: createBow,
+            Dagger: createDagger,
+            Kunai: createKunai
+        };
         this.updatePreview();
     }
 
@@ -202,6 +237,26 @@ export class CharacterCreator {
                 contents.forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById(`${target}-tab`).classList.add('active');
+                this.activeTab = target;
+                this.updatePreview();
+            });
+        });
+
+        // Dropdowns (start hidden)
+        const dropdowns = document.querySelectorAll('.creator-section.dropdown');
+        dropdowns.forEach(section => {
+            const content = section.querySelector('.dropdown-content');
+            const header = section.querySelector('.dropdown-header');
+            if (!content || !header) return;
+
+            content.style.display = 'none';
+            header.addEventListener('click', () => {
+                const isOpen = content.style.display === 'block';
+                content.style.display = isOpen ? 'none' : 'block';
+                const caret = section.querySelector('.dropdown-caret');
+                if (caret) {
+                    caret.textContent = isOpen ? '▼' : '▲';
+                }
             });
         });
 
@@ -232,6 +287,22 @@ export class CharacterCreator {
                 this.updatePreview();
             });
         });
+
+        // Equipment previews
+        this.equipmentItems = Array.from(document.querySelectorAll('.equipment-grid .gear-item'));
+        this.equipmentItems.forEach(item => {
+            const itemName = item.dataset.item;
+            if (!itemName) return;
+            item.addEventListener('click', () => {
+                this.setEquipmentSelection(itemName);
+                if (this.activeTab === 'equipment') {
+                    this.updatePreview();
+                }
+            });
+        });
+        if (this.equipmentItems.length) {
+            this.setEquipmentSelection(this.selectedEquipmentItem);
+        }
 
         // Animation buttons
         const setAnimToggleState = (btn, isActive) => {
@@ -323,6 +394,105 @@ export class CharacterCreator {
         section.style.display = enabled ? 'block' : 'none';
     }
 
+    setEquipmentSelection(itemName) {
+        this.selectedEquipmentItem = itemName;
+        this.equipmentItems.forEach(item => {
+            item.classList.toggle('active', item.dataset.item === itemName);
+        });
+    }
+
+    setPreviewCamera(mode) {
+        const preset = mode === 'equipment' ? this.previewCameraEquipment : this.previewCameraDefaults;
+        if (!preset) return;
+        this.previewCamera.position.copy(preset.position);
+        this.previewCamera.lookAt(preset.target);
+    }
+
+    replacePreviewMesh(mesh, parts = null, model = null) {
+        if (this.currentPreviewMesh) {
+            this.previewRotation = this.currentPreviewMesh.rotation.y;
+            this.previewScene.remove(this.currentPreviewMesh);
+        }
+
+        this.currentPreviewMesh = mesh;
+        this.currentPreviewParts = parts;
+        this.currentPreviewModel = model;
+        this.currentPreviewMesh.rotation.y = this.previewRotation;
+        this.previewScene.add(this.currentPreviewMesh);
+    }
+
+    updateEquipmentPreview() {
+        if (!this.equipmentPreviewFns) return;
+
+        const itemName = this.selectedEquipmentItem || 'Axe';
+        const createFn = this.equipmentPreviewFns[itemName];
+        if (!createFn) return;
+
+        this.setPreviewCamera('equipment');
+        const mesh = createFn();
+        this.prepareEquipmentPreview(mesh);
+        this.replacePreviewMesh(mesh);
+        this.currentPreviewParts = null;
+        this.currentPreviewModel = null;
+        this.animator = null;
+    }
+
+    prepareEquipmentPreview(mesh) {
+        mesh.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(mesh);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        mesh.position.sub(center);
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0) {
+            const scale = 1.6 / maxDim;
+            mesh.scale.setScalar(scale);
+        }
+
+        mesh.updateMatrixWorld(true);
+        const scaledBox = new THREE.Box3().setFromObject(mesh);
+        mesh.position.y -= scaledBox.min.y + 0.05;
+    }
+
+    attachEquipmentAxeToHand(parts, model) {
+        const createAxe = this.equipmentPreviewFns?.Axe;
+        if (!createAxe || !parts?.rightHandMount) return;
+
+        if (model?.equippedMeshes?.heldItem) {
+            parts.rightHandMount.remove(model.equippedMeshes.heldItem);
+            model.equippedMeshes.heldItem = null;
+        }
+
+        const heldGroup = new THREE.Group();
+        heldGroup.rotation.set(Math.PI, 0, 0);
+
+        const axe = createAxe();
+        const baseHandleLength = 0.9 * SCALE_FACTOR;
+        const targetHandleLength = 0.65;
+        const scale = targetHandleLength / baseHandleLength;
+        const handleOffset = 0.15;
+
+        axe.scale.setScalar(scale);
+        axe.rotation.z = -Math.PI / 2;
+        axe.rotateY(-Math.PI / 2);
+        axe.position.x = handleOffset - (baseHandleLength * 0.5 * scale);
+
+        axe.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+            }
+        });
+
+        heldGroup.add(axe);
+        parts.rightHandMount.add(heldGroup);
+
+        if (model?.equippedMeshes) {
+            model.equippedMeshes.heldItem = heldGroup;
+        }
+    }
+
     getCharacterData() {
         const getRangeValue = (id) => {
             const element = document.getElementById(id);
@@ -396,25 +566,25 @@ export class CharacterCreator {
     }
 
     updatePreview() {
+        if (this.activeTab === 'equipment') {
+            this.updateEquipmentPreview();
+            return;
+        }
         if (!this.createPlayerMeshFn) return;
         
+        this.setPreviewCamera('character');
         const charData = this.getCharacterData();
         const previewConfig = {
             ...charData,
             selectedItem: this.isAxeEquipped ? 'Axe' : null
         };
         const { mesh, parts, model } = this.createPlayerMeshFn(previewConfig);
-
-        if (this.currentPreviewMesh) {
-            this.previewRotation = this.currentPreviewMesh.rotation.y;
-            this.previewScene.remove(this.currentPreviewMesh);
+        if (this.isAxeEquipped) {
+            this.attachEquipmentAxeToHand(parts, model);
         }
 
-        this.currentPreviewMesh = mesh;
-        this.currentPreviewParts = parts;
-        this.currentPreviewModel = model;
+        this.replacePreviewMesh(mesh, parts, model);
         this.currentPreviewMesh.position.y = 0;
-        this.currentPreviewMesh.rotation.y = this.previewRotation;
 
         // Apply outfit materials directly if needed, or rely on createPlayerMesh initialization
         if (charData.outfit !== 'naked' && parts.materials) {
@@ -477,8 +647,7 @@ export class CharacterCreator {
             }
         });
 
-        this.previewScene.add(this.currentPreviewMesh);
-        this.animator = new PlayerAnimator(parts);
+        this.animator = new PlayerAnimator(parts, model);
         this.animator.setHolding(this.isAxeEquipped);
         this.updatePreviewDebug();
     }

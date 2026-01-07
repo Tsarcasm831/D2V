@@ -138,7 +138,7 @@ export function attachShirt(parts, config = {}) {
         armPart.add(sleeve);
 
         // Sleeve top joint (Shoulder)
-        const sJointGeo = new THREE.SphereGeometry(sleeveRadius, 12, 12);
+        const sJointGeo = new THREE.SphereGeometry(sleeveRadius * 0.5, 12, 12);
         const sJoint = new THREE.Mesh(sJointGeo, shirtMat);
         sleeve.add(sJoint);
         sJoint.position.y = sleeveLen / 2;

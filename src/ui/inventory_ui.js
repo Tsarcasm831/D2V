@@ -534,7 +534,7 @@ export class InventoryUI {
       }
     });
 
-    this.previewAnimator = new PlayerAnimator(parts);
+    this.previewAnimator = new PlayerAnimator(parts, model);
   }
 
   startPreviewAnimation() {
@@ -998,5 +998,4 @@ export class InventoryUI {
     wrapper.onclick = (e) => e.stopPropagation();
   }
 }
-
 

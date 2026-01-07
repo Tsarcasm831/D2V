@@ -5,7 +5,7 @@ export class SkinningAction {
     static animate(player, parts, dt, damp) {
         const t = player.skinningTimer;
         const lerp = THREE.MathUtils.lerp;
-        const baseHeight = 0.94 * (player.config.legScale || 1.0);
+        const baseHeight = 0.89 * (player.config.legScale || 1.0);
         const crouchHeight = baseHeight * 0.45;
         const crouchDamp = damp * 5;
 

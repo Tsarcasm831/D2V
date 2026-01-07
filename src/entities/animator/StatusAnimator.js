@@ -24,7 +24,7 @@ export class StatusAnimator {
         const dropProgress = Math.min(t / impactTime, 1.0);
         const gravityCurve = dropProgress * dropProgress; 
         
-        const baseHeight = 0.94 * (player.config.legScale || 1.0);
+        const baseHeight = 0.89 * (player.config.legScale || 1.0);
         const groundHeight = 0.22 * (player.config.legScale || 1.0); 
         
         let targetY = lerp(baseHeight, groundHeight, gravityCurve);
@@ -122,7 +122,7 @@ export class StatusAnimator {
         const gravStr = 1.2 * recoveryAlpha;
         const damp = 5 * dt;
         const lerp = THREE.MathUtils.lerp;
-        const baseHeight = 0.94 * (player.config.legScale || 1.0);
+        const baseHeight = 0.89 * (player.config.legScale || 1.0);
 
         parts.hips.rotation.x = lerp(parts.hips.rotation.x, -localDrag.z * 1.5 + (localDown.z * gravStr * 0.5), damp);
         parts.hips.rotation.z = lerp(parts.hips.rotation.z, localDrag.x * 1.5 - (localDown.x * gravStr * 0.5), damp);

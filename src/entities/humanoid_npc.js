@@ -29,7 +29,7 @@ export class HumanoidNPC {
 
         this.setupClothing();
         this.addLevelLabel();
-        this.animator = new PlayerAnimator(this.parts);
+        this.animator = new PlayerAnimator(this.parts, this.model);
 
         this.velocity = new THREE.Vector3();
         this.wanderAngle = Math.random() * Math.PI * 2;

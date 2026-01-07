@@ -308,7 +308,7 @@ class RemotePlayer {
             if (characterData.gear.cloak) gear.attachCloak(parts, characterData.cloakOffsets);
         }
 
-        this.animator = new PlayerAnimator(parts);
+        this.animator = new PlayerAnimator(parts, model);
 
         // Weapons
         this.weapons = {

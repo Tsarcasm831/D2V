@@ -6,7 +6,7 @@ export class PunchAction {
         const t = player.punchTimer;
         const lerp = THREE.MathUtils.lerp;
         const punchDamp = 25 * dt;
-        const baseHeight = 0.94 * (player.config.legScale || 1.0);
+        const baseHeight = 0.89 * (player.config.legScale || 1.0);
 
         const applyFist = (isRight, curlAmount) => {
             const model = player.model;

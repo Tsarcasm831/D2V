@@ -22,7 +22,7 @@ export class QuestGiver extends NPC {
         this.scene.add(this.group);
 
         this.setupAppearance();
-        this.animator = new PlayerAnimator(this.parts);
+        this.animator = new PlayerAnimator(this.parts, this.model);
         
         this.name = "Quest Giver";
         this.portrait = "assets/icons/admin_shirt_icon.png";
