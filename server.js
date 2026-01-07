@@ -6,9 +6,17 @@ import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const HOST = process.env.HOST || '0.0.0.0';
 const PORT = process.env.PORT || 3001;
 const TICK_RATE = 20;
 const MAX_PLAYERS_PER_ROOM = 4; // Increased from 2 to 4 to allow more overhead during testing and re-joins
+const RATE_LIMITS = {
+    connections: { windowMs: 60_000, max: 30 },
+    messages: { windowMs: 10_000, max: 300 }
+};
+const INACTIVITY_TIMEOUT_MS = Number.parseInt(process.env.INACTIVITY_TIMEOUT_MS, 10) || 15 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = Number.parseInt(process.env.HEARTBEAT_INTERVAL_MS, 10) || 30_000;
+const CLEANUP_DELAY_MS = 1000;
 
 // Mime types for static file serving
 const MIME_TYPES = {
@@ -94,6 +102,8 @@ const wss = new WebSocketServer({ server });
 
 const SINGLE_ROOM_CODE = 'Alpha';
 const rooms = new Map();
+const connectionRate = new Map();
+const messageRate = new Map();
 
 // Initialize the single room immediately
 rooms.set(SINGLE_ROOM_CODE, {
@@ -101,24 +111,101 @@ rooms.set(SINGLE_ROOM_CODE, {
     seed: Math.floor(Math.random() * 1000000)
 });
 
-server.listen(PORT, () => {
-    console.log(`WebSocket server started on port ${PORT} [Build: ${new Date().toISOString()}]`);
+server.listen(PORT, HOST, () => {
+    console.log(`WebSocket server started on http://${HOST}:${PORT} [Build: ${new Date().toISOString()}]`);
+});
+
+const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((client) => {
+        if (client.readyState !== 1) {
+            return;
+        }
+        if (client.isAlive === false) {
+            client.terminate();
+            return;
+        }
+        client.isAlive = false;
+        client.ping();
+    });
+}, HEARTBEAT_INTERVAL_MS);
+
+wss.on('close', () => {
+    clearInterval(heartbeatInterval);
 });
 
 function getRoom() {
     return rooms.get(SINGLE_ROOM_CODE);
 }
 
-wss.on('connection', (ws) => {
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.socket?.remoteAddress || 'unknown';
+}
+
+function isRateLimited(map, key, limit) {
+    const now = Date.now();
+    const entry = map.get(key);
+    if (!entry || now > entry.resetAt) {
+        map.set(key, { count: 1, resetAt: now + limit.windowMs });
+        return false;
+    }
+    entry.count += 1;
+    return entry.count > limit.max;
+}
+
+function safeSend(ws, message) {
+    if (ws.readyState === 1) {
+        ws.send(JSON.stringify(message));
+        return true;
+    }
+    return false;
+}
+
+function notifyDisconnect(ws, reason, code = 1000) {
+    safeSend(ws, { type: 'disconnected', reason });
+    if (ws.readyState === 0 || ws.readyState === 1) {
+        ws.close(code, reason);
+    }
+}
+
+wss.on('connection', (ws, req) => {
+    const clientIp = getClientIp(req);
+    if (isRateLimited(connectionRate, clientIp, RATE_LIMITS.connections)) {
+        console.warn(`[RateLimit] Connection limit exceeded for ${clientIp}`);
+        notifyDisconnect(ws, 'rate_limit', 1008);
+        return;
+    }
+
     const playerId = randomUUID();
+    const messageRateKey = playerId;
     let currentRoomCode = null;
     let username = "Traveler";
 
-    console.log(`Player ${playerId} connected`);
+    ws.isAlive = true;
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+    ws.on('error', (error) => {
+        console.warn(`[WebSocket] Error for ${playerId}: ${error.message}`);
+    });
+
+    console.log(`Player ${playerId} connected from ${clientIp}`);
 
     ws.on('message', (message) => {
+        if (isRateLimited(messageRate, messageRateKey, RATE_LIMITS.messages)) {
+            console.warn(`[RateLimit] Message limit exceeded for player ${playerId}`);
+            notifyDisconnect(ws, 'rate_limit', 1008);
+            return;
+        }
         try {
-            const data = JSON.parse(message);
+            const payload = typeof message === 'string' ? message : message.toString('utf8');
+            const data = JSON.parse(payload);
+            if (!data || typeof data !== 'object') {
+                return;
+            }
             if (data.type !== 'input' && Math.random() < 0.1) {
                 console.log(`[Message] From ${playerId}: ${data.type}`);
             }
@@ -145,13 +232,25 @@ wss.on('connection', (ws) => {
         }
     });
 
+    function markPlayerSeen() {
+        if (!currentRoomCode) return;
+        const room = rooms.get(currentRoomCode);
+        if (!room) return;
+        const playerState = room.players.get(playerId);
+        if (playerState) {
+            playerState.lastSeen = Date.now();
+        }
+    }
+
     function handleChat(data) {
         if (!currentRoomCode) return;
+        markPlayerSeen();
+        const text = typeof data.text === 'string' ? data.text : '';
         broadcastToRoom(currentRoomCode, {
             type: 'event',
             kind: 'chat',
             username: username,
-            text: data.text
+            text: text
         }, playerId); // Don't send back to self (sender already added it locally)
     }
 
@@ -233,12 +332,13 @@ wss.on('connection', (ws) => {
             playerState.sideMove = data.sideMove;
             playerState.isDead = data.isDead;
             playerState.weapon = data.weapon;
-            playerState.lastSeen = Date.now();
+            markPlayerSeen();
         }
     }
 
     function handleAttack() {
         if (!currentRoomCode) return;
+        markPlayerSeen();
         broadcastToRoom(currentRoomCode, {
             type: 'event',
             kind: 'attack',
@@ -248,6 +348,7 @@ wss.on('connection', (ws) => {
 
     function handlePlaceBuilding(data) {
         if (!currentRoomCode) return;
+        markPlayerSeen();
         // Server-authoritative relay
         broadcastToRoom(currentRoomCode, {
             type: 'event',
@@ -266,9 +367,11 @@ wss.on('connection', (ws) => {
         }); // Broadcast to everyone including sender
     }
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
         const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] Socket closed for player ${playerId} (${username})`);
+        const reasonText = reason ? reason.toString() : 'unknown';
+        console.log(`[${timestamp}] Socket closed for player ${playerId} (${username}) code=${code} reason=${reasonText}`);
+        messageRate.delete(messageRateKey);
         
         // Use a short delay before cleanup to allow for rapid reconnects
         // which might use the same playerId or username.
@@ -288,7 +391,7 @@ wss.on('connection', (ws) => {
                     }
                 }
             }
-        }, 1000);
+        }, CLEANUP_DELAY_MS);
     });
 });
 
@@ -317,17 +420,12 @@ setInterval(() => {
         const playersData = {};
         room.players.forEach((p, id) => {
             // Basic timeout cleanup if needed
-            // Increased to 90 seconds to account for long initial loading/map caching
-            if (now - p.lastSeen > 90000) {
+            // Increased to allow longer idle sessions before cleanup.
+            if (now - p.lastSeen > INACTIVITY_TIMEOUT_MS) {
                 console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) timed out (last seen ${now - p.lastSeen}ms ago)`);
                 
                 // Inform the player they are being disconnected for inactivity
-                if (p.ws.readyState === 1) {
-                    p.ws.send(JSON.stringify({
-                        type: 'disconnected',
-                        reason: 'inactivity'
-                    }));
-                }
+                notifyDisconnect(p.ws, 'inactivity');
 
                 // Use the same delayed cleanup logic as socket close
                 setTimeout(() => {
@@ -339,8 +437,7 @@ setInterval(() => {
                             console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) removed due to timeout.`);
                         }
                     }
-                }, 1000);
-                p.ws.close();
+                }, CLEANUP_DELAY_MS);
                 return;
             }
 

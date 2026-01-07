@@ -1,7 +1,17 @@
 <div id="menu-background"></div>
 <canvas id="menu-snow-canvas"></canvas>
 
-<div id="main-menu" class="menu-screen">
+<div id="password-screen" class="menu-screen">
+    <div class="menu-logo">FROZEN STEPPES</div>
+    <div class="password-panel">
+        <div class="password-title">ACCESS REQUIRED</div>
+        <input id="password-input" type="password" placeholder="Enter password" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+        <div id="password-error" class="password-error" style="display: none;"></div>
+        <div id="password-submit" class="btn">ENTER</div>
+    </div>
+</div>
+
+<div id="main-menu" class="menu-screen" style="display: none;">
     <div class="menu-logo">FROZEN STEPPES</div>
     <div id="start-game-btn" class="btn">ENTER WORLD</div>
     <div id="fullworld-btn" class="btn">FULLWORLD</div>

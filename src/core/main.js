@@ -5,13 +5,14 @@ import { UILoader } from '../ui/ui_loader.js';
 import { FullWorld } from '../ui/fullworld.js';
 
 let fullWorld = null;
+const MENU_PASSWORD = 'ltwelcome1';
 
 async function init() {
     const uiLoader = new UILoader();
     await uiLoader.loadAll();
     
     initMenuSnow();
-    showMainMenu();
+    showPasswordScreen();
 }
 
 function initMenuSnow() {
@@ -43,7 +44,8 @@ function initMenuSnow() {
     }
 
     function animate() {
-        const menuVisible = document.getElementById('main-menu').style.display !== 'none' || 
+        const menuVisible = document.getElementById('password-screen').style.display !== 'none' ||
+                            document.getElementById('main-menu').style.display !== 'none' || 
                             document.getElementById('options-menu').style.display !== 'none' ||
                             document.getElementById('server-selection').style.display !== 'none';
         
@@ -251,11 +253,13 @@ export async function startLoadingSequence(characterData, roomCode, isTravelling
 
 
 function showMainMenu() {
+    const passwordScreen = document.getElementById('password-screen');
     const mainMenu = document.getElementById('main-menu');
     const startBtn = document.getElementById('start-game-btn');
     const fullworldBtn = document.getElementById('fullworld-btn');
     const optionsBtn = document.getElementById('options-btn');
     
+    if (passwordScreen) passwordScreen.style.display = 'none';
     if (mainMenu) mainMenu.style.display = 'flex';
     
     if (startBtn) {
@@ -277,6 +281,56 @@ function showMainMenu() {
         optionsBtn.onclick = () => {
             if (mainMenu) mainMenu.style.display = 'none';
             showOptionsMenu();
+        };
+    }
+}
+
+function showPasswordScreen() {
+    const passwordScreen = document.getElementById('password-screen');
+    const passwordInput = document.getElementById('password-input');
+    const passwordSubmit = document.getElementById('password-submit');
+    const passwordError = document.getElementById('password-error');
+
+    if (passwordScreen) passwordScreen.style.display = 'flex';
+    if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+    if (passwordError) {
+        passwordError.textContent = '';
+        passwordError.style.display = 'none';
+    }
+
+    const validatePassword = () => {
+        if (!passwordInput) return;
+        const entered = passwordInput.value.trim();
+        if (entered === MENU_PASSWORD) {
+            if (passwordScreen) passwordScreen.style.display = 'none';
+            if (passwordError) {
+                passwordError.textContent = '';
+                passwordError.style.display = 'none';
+            }
+            showMainMenu();
+        } else {
+            if (passwordError) {
+                passwordError.textContent = 'Incorrect password.';
+                passwordError.style.display = 'block';
+            }
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+    };
+
+    if (passwordSubmit) {
+        passwordSubmit.onclick = validatePassword;
+    }
+
+    if (passwordInput) {
+        passwordInput.onkeydown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                validatePassword();
+            }
         };
     }
 }

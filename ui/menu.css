@@ -86,6 +86,62 @@
     background: transparent;
 }
 
+#password-screen {
+    background: transparent;
+}
+
+.password-panel {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 360px;
+}
+
+.password-title {
+    font-size: 16px;
+    letter-spacing: 4px;
+    font-weight: 700;
+    color: #cfe9ff;
+    text-shadow: 0 0 12px rgba(0, 170, 255, 0.35);
+}
+
+#password-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(5, 10, 20, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: #fff;
+    text-align: center;
+    letter-spacing: 3px;
+    font-size: 16px;
+    outline: none;
+}
+
+#password-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(0, 170, 255, 0.35);
+}
+
+.password-error {
+    color: #ff6b6b;
+    font-size: 13px;
+    min-height: 16px;
+    letter-spacing: 1px;
+}
+
+@media (max-width: 600px) {
+    .password-panel {
+        width: 85%;
+        padding: 24px 20px;
+    }
+}
+
 #death-screen {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(40, 0, 0, 0.7); display: none;
