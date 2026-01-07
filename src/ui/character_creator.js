@@ -23,7 +23,7 @@ export class CharacterCreator {
         this.previousMouseX = 0;
         this.animator = null;
         this.isDebugHitbox = false;
-        this.isAxeEquipped = false;
+        this.equippedWeapon = null;
         this.activeTab = 'body';
         this.selectedEquipmentItem = 'Axe';
         this.equipmentItems = [];
@@ -319,15 +319,6 @@ export class CharacterCreator {
                     setAnimToggleState(btn, this.animationState.isMoving);
                 }
             },
-            {
-                id: 'btn-equip-axe',
-                isToggle: true,
-                action: (btn) => {
-                    this.isAxeEquipped = !this.isAxeEquipped;
-                    setAnimToggleState(btn, this.isAxeEquipped);
-                    this.updatePreview();
-                }
-            },
             { id: 'btn-anim-punch', action: () => { if (this.animator) this.animator.playPunch(); } },
             { id: 'btn-anim-axe', action: () => { if (this.animator) this.animator.playAxeSwing(); } },
             { id: 'btn-anim-jump', action: () => { 
@@ -351,12 +342,19 @@ export class CharacterCreator {
                 if (cfg.isToggle) {
                     if (cfg.id === 'btn-anim-walk') {
                         setAnimToggleState(btn, this.animationState.isMoving);
-                    } else if (cfg.id === 'btn-equip-axe') {
-                        setAnimToggleState(btn, this.isAxeEquipped);
                     }
                 }
             }
         });
+
+        const weaponSelect = document.getElementById('equip-weapon-select');
+        if (weaponSelect) {
+            weaponSelect.addEventListener('change', () => {
+                const selection = weaponSelect.value;
+                this.equippedWeapon = selection ? selection : null;
+                this.updatePreview();
+            });
+        }
 
         // Start Journey
         document.getElementById('start-journey').onclick = () => {
@@ -456,9 +454,9 @@ export class CharacterCreator {
         mesh.position.y -= scaledBox.min.y + 0.05;
     }
 
-    attachEquipmentAxeToHand(parts, model) {
-        const createAxe = this.equipmentPreviewFns?.Axe;
-        if (!createAxe || !parts?.rightHandMount) return;
+    attachEquipmentToHand(itemName, parts, model) {
+        const createFn = this.equipmentPreviewFns?.[itemName];
+        if (!createFn || !parts?.rightHandMount) return;
 
         if (model?.equippedMeshes?.heldItem) {
             parts.rightHandMount.remove(model.equippedMeshes.heldItem);
@@ -468,24 +466,51 @@ export class CharacterCreator {
         const heldGroup = new THREE.Group();
         heldGroup.rotation.set(Math.PI, 0, 0);
 
-        const axe = createAxe();
-        const baseHandleLength = 0.9 * SCALE_FACTOR;
-        const targetHandleLength = 0.65;
-        const scale = targetHandleLength / baseHandleLength;
-        const handleOffset = 0.15;
+        const mesh = createFn();
+        const gripConfigs = {
+            Axe: { baseHandleLength: 0.9, targetHandleLength: 0.65, gripOffset: 0.15 },
+            Sword: { baseHandleLength: 0.25, targetHandleLength: 0.3, gripOffset: 0.05 },
+            Pickaxe: { baseHandleLength: 0.9, targetHandleLength: 0.65, gripOffset: 0.15 },
+            Club: { baseHandleLength: 0.4, targetHandleLength: 0.45, gripOffset: 0.1 },
+            Dagger: { baseHandleLength: 0.15, targetHandleLength: 0.22, gripOffset: 0.04 },
+            Kunai: { baseHandleLength: 0.15, targetHandleLength: 0.22, gripOffset: 0.04 },
+            Bow: { scale: 0.9, position: { x: 0.08, y: 0.02, z: 0.02 }, preserveRotation: true }
+        };
+        const config = gripConfigs[itemName] || {};
 
-        axe.scale.setScalar(scale);
-        axe.rotation.z = -Math.PI / 2;
-        axe.rotateY(-Math.PI / 2);
-        axe.position.x = handleOffset - (baseHandleLength * 0.5 * scale);
+        if (config.baseHandleLength) {
+            const baseHandleLength = config.baseHandleLength * SCALE_FACTOR;
+            const targetHandleLength = config.targetHandleLength || config.baseHandleLength;
+            const scale = targetHandleLength / baseHandleLength;
+            const gripOffset = config.gripOffset ?? 0.1;
 
-        axe.traverse(child => {
+            mesh.scale.setScalar(scale);
+            mesh.rotation.z = -Math.PI / 2;
+            mesh.rotateY(-Math.PI / 2);
+            mesh.position.x = gripOffset - (baseHandleLength * 0.5 * scale);
+        } else {
+            if (!config.preserveRotation) {
+                mesh.rotation.z = -Math.PI / 2;
+                mesh.rotateY(-Math.PI / 2);
+            }
+            if (config.scale) {
+                mesh.scale.setScalar(config.scale);
+            }
+        }
+
+        if (config.position) {
+            mesh.position.x += config.position.x || 0;
+            mesh.position.y += config.position.y || 0;
+            mesh.position.z += config.position.z || 0;
+        }
+
+        mesh.traverse(child => {
             if (child.isMesh) {
                 child.castShadow = true;
             }
         });
 
-        heldGroup.add(axe);
+        heldGroup.add(mesh);
         parts.rightHandMount.add(heldGroup);
 
         if (model?.equippedMeshes) {
@@ -576,11 +601,11 @@ export class CharacterCreator {
         const charData = this.getCharacterData();
         const previewConfig = {
             ...charData,
-            selectedItem: this.isAxeEquipped ? 'Axe' : null
+            selectedItem: this.equippedWeapon || null
         };
         const { mesh, parts, model } = this.createPlayerMeshFn(previewConfig);
-        if (this.isAxeEquipped) {
-            this.attachEquipmentAxeToHand(parts, model);
+        if (this.equippedWeapon) {
+            this.attachEquipmentToHand(this.equippedWeapon, parts, model);
         }
 
         this.replacePreviewMesh(mesh, parts, model);
@@ -648,7 +673,7 @@ export class CharacterCreator {
         });
 
         this.animator = new PlayerAnimator(parts, model);
-        this.animator.setHolding(this.isAxeEquipped);
+        this.animator.setHolding(!!this.equippedWeapon);
         this.updatePreviewDebug();
     }
 
