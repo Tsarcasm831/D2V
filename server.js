@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
-import { createServer } from 'http';
+import { createServer, request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
 import { readFile } from 'fs/promises';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
@@ -17,6 +18,17 @@ const RATE_LIMITS = {
 const INACTIVITY_TIMEOUT_MS = Number.parseInt(process.env.INACTIVITY_TIMEOUT_MS, 10) || 15 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = Number.parseInt(process.env.HEARTBEAT_INTERVAL_MS, 10) || 30_000;
 const CLEANUP_DELAY_MS = 1000;
+const ESM_ORIGIN = process.env.ESM_ORIGIN || 'https://esm.sh';
+const ESM_REDIRECT_LIMIT = 4;
+const ESM_PROXY_HEADERS = [
+    'content-type',
+    'cache-control',
+    'etag',
+    'last-modified',
+    'content-encoding',
+    'vary',
+    'content-length'
+];
 
 // Mime types for static file serving
 const MIME_TYPES = {
@@ -31,6 +43,87 @@ const MIME_TYPES = {
     '.wav': 'audio/wav',
     '.mp3': 'audio/mpeg',
     '.ico': 'image/x-icon'
+};
+
+const shouldProxyEsmPath = (pathname) => {
+    if (pathname.startsWith('/esm/')) {
+        return true;
+    }
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length === 0) {
+        return false;
+    }
+    if (segments[0].includes('@')) {
+        return true;
+    }
+    if (segments[0].startsWith('@') && segments[1]?.includes('@')) {
+        return true;
+    }
+    return false;
+};
+
+const buildUpstreamUrl = (pathname, search) => {
+    let upstreamPath = pathname.startsWith('/esm/')
+        ? pathname.slice('/esm/'.length)
+        : pathname.replace(/^\/+/, '');
+    try {
+        upstreamPath = decodeURIComponent(upstreamPath);
+    } catch {
+        // Keep the raw path if it is not valid percent-encoding.
+    }
+    const origin = ESM_ORIGIN.replace(/\/$/, '');
+    return `${origin}/${encodeURI(upstreamPath)}${search}`;
+};
+
+const proxyEsmModule = (res, upstreamUrl, redirectsLeft = ESM_REDIRECT_LIMIT) => {
+    const targetUrl = new URL(upstreamUrl);
+    const requestFn = targetUrl.protocol === 'https:' ? httpsRequest : httpRequest;
+    const upstreamRequest = requestFn(
+        targetUrl,
+        {
+            method: 'GET',
+            headers: {
+                Accept: 'application/javascript, text/javascript, */*',
+                'User-Agent': 'D2V-ESM-Proxy'
+            }
+        },
+        (upstreamResponse) => {
+            const statusCode = upstreamResponse.statusCode || 502;
+            const redirectLocation = upstreamResponse.headers.location;
+
+            if (statusCode >= 300 && statusCode < 400 && redirectLocation) {
+                if (redirectsLeft <= 0) {
+                    upstreamResponse.resume();
+                    res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+                    res.end('ESM redirect limit exceeded');
+                    return;
+                }
+
+                const nextUrl = new URL(redirectLocation, targetUrl).toString();
+                upstreamResponse.resume();
+                proxyEsmModule(res, nextUrl, redirectsLeft - 1);
+                return;
+            }
+
+            const headers = {};
+            for (const headerName of ESM_PROXY_HEADERS) {
+                const headerValue = upstreamResponse.headers[headerName];
+                if (headerValue) {
+                    headers[headerName] = headerValue;
+                }
+            }
+            res.writeHead(statusCode, headers);
+            upstreamResponse.pipe(res);
+        }
+    );
+
+    upstreamRequest.on('error', (error) => {
+        console.error(`[HTTP] ESM proxy failed: ${error.message}`);
+        res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Upstream module fetch failed');
+    });
+
+    upstreamRequest.end();
 };
 
 const server = createServer(async (req, res) => {
@@ -67,6 +160,20 @@ const server = createServer(async (req, res) => {
         });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(roomData));
+        return;
+    }
+
+    if (shouldProxyEsmPath(pathname)) {
+        const upstreamPath = pathname.startsWith('/esm/')
+            ? pathname.slice('/esm/'.length)
+            : pathname.replace(/^\/+/, '');
+        if (!upstreamPath) {
+            res.writeHead(400);
+            res.end('Missing ESM module path');
+            return;
+        }
+        const upstreamUrl = buildUpstreamUrl(pathname, url.search);
+        proxyEsmModule(res, upstreamUrl);
         return;
     }
 

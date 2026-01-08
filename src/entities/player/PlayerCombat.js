@@ -24,6 +24,16 @@ export class PlayerCombat {
             player.isPunch = true;
             player.punchTimer = 0;
             player.comboChain = 1;
+            if (player.animator) {
+                if (typeof player.animator.playPunch === 'function') {
+                    player.animator.playPunch();
+                } else {
+                    player.animator.isPunch = true;
+                    player.animator.punchTimer = 0;
+                    player.animator.isAxeSwing = false;
+                    player.animator.axeSwingTimer = 0;
+                }
+            }
         }
     }
 
@@ -32,6 +42,16 @@ export class PlayerCombat {
             player.isAxeSwing = true;
             player.axeSwingTimer = 0;
             player.hasHit = false; 
+            if (player.animator) {
+                if (typeof player.animator.playAxeSwing === 'function') {
+                    player.animator.playAxeSwing();
+                } else {
+                    player.animator.isAxeSwing = true;
+                    player.animator.axeSwingTimer = 0;
+                    player.animator.isPunch = false;
+                    player.animator.punchTimer = 0;
+                }
+            }
         }
     }
 

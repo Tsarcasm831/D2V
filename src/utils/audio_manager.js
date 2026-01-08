@@ -2,22 +2,61 @@ import * as THREE from 'three';
 
 class AudioManager {
     constructor() {
-        this.context = new (window.AudioContext || window.webkitAudioContext)();
+        this.context = null;
         this.buffers = new Map();
+        this.pendingBuffers = new Map();
         this.enabled = true;
+        this._unlocked = false;
         
         // Volume controls
         this.masterVolume = parseFloat(localStorage.getItem('masterVolume')) || 0.8;
         this.musicVolume = parseFloat(localStorage.getItem('musicVolume')) || 0.5;
         
+        this.masterGain = null;
+    }
+
+    _ensureContext() {
+        if (this.context) return;
+        this.context = new (window.AudioContext || window.webkitAudioContext)();
         this.masterGain = this.context.createGain();
         this.masterGain.gain.value = this.masterVolume;
         this.masterGain.connect(this.context.destination);
+        this._decodePending();
+    }
+
+    async _decodePending() {
+        if (!this.context || this.pendingBuffers.size === 0) return;
+        const pending = Array.from(this.pendingBuffers.entries());
+        this.pendingBuffers.clear();
+        await Promise.all(pending.map(async ([name, buffer]) => {
+            try {
+                const audioBuffer = await this.context.decodeAudioData(buffer);
+                this.buffers.set(name, audioBuffer);
+            } catch (e) {
+                console.error(`Failed to decode audio: ${name}`, e);
+            }
+        }));
+    }
+
+    unlock() {
+        if (this._unlocked) {
+            if (this.context && this.context.state === 'suspended') {
+                this.context.resume();
+            }
+            return;
+        }
+        this._unlocked = true;
+        this._ensureContext();
+        if (this.context && this.context.state === 'suspended') {
+            this.context.resume();
+        }
     }
 
     setMasterVolume(value) {
         this.masterVolume = value;
-        this.masterGain.gain.setTargetAtTime(value, this.context.currentTime, 0.05);
+        if (this.masterGain && this.context) {
+            this.masterGain.gain.setTargetAtTime(value, this.context.currentTime, 0.05);
+        }
         localStorage.setItem('masterVolume', value);
     }
 
@@ -31,6 +70,10 @@ class AudioManager {
         try {
             const response = await fetch(url);
             const arrayBuffer = await response.arrayBuffer();
+            if (!this.context) {
+                this.pendingBuffers.set(name, arrayBuffer);
+                return;
+            }
             const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
             this.buffers.set(name, audioBuffer);
         } catch (e) {
@@ -39,7 +82,8 @@ class AudioManager {
     }
 
     play(name, volume = 0.5, pitch = 1.0) {
-        if (!this.enabled) return;
+        if (!this.enabled || !this._unlocked) return;
+        if (!this.context) this._ensureContext();
         const buffer = this.buffers.get(name);
         if (!buffer) return;
 
@@ -67,19 +111,13 @@ export const audioManager = new AudioManager();
 
 // Ensure AudioContext is resumed after first user interaction to fix autoplay errors
 window.addEventListener('mousedown', () => {
-    if (audioManager.context.state === 'suspended') {
-        audioManager.context.resume();
-    }
-}, { once: true });
+    audioManager.unlock();
+}, { once: true, capture: true });
 
 window.addEventListener('touchstart', () => {
-    if (audioManager.context.state === 'suspended') {
-        audioManager.context.resume();
-    }
-}, { once: true });
+    audioManager.unlock();
+}, { once: true, capture: true });
 
 window.addEventListener('keydown', () => {
-    if (audioManager.context.state === 'suspended') {
-        audioManager.context.resume();
-    }
-}, { once: true });
+    audioManager.unlock();
+}, { once: true, capture: true });

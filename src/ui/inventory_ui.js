@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "https://esm.sh/@google/genai@^1.34.0";
 import * as THREE from 'three';
 import { createPlayerMesh } from '../entities/player_mesh.js';
 import { PlayerAnimator } from '../entities/player_animator.js';
@@ -103,13 +102,6 @@ export class InventoryUI {
     this.lastUpdateTime = performance.now();
     this.animationFrameId = null;
     
-    this.ai = this.initAI();
-  }
-
-  initAI() {
-    const metaEnv = window.importMetaEnv || {};
-    const apiKey = metaEnv.GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || '';
-    return apiKey ? new GoogleGenAI(apiKey) : null;
   }
 
   init() {
@@ -203,29 +195,6 @@ export class InventoryUI {
       || null;
   }
 
-  async generateItemLore(itemName, itemType) {
-    if (!this.ai) return 'The origin of this artifact is lost to time.';
-    try {
-      const model = this.ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Write a short, atmospheric, dark fantasy lore snippet (max 30 words) for an RPG item called "${itemName}" which is a "${itemType}". Make it sound cryptic and ancient.`;
-      const result = await model.generateContent(prompt);
-      return result.response.text().trim();
-    } catch (error) {
-      console.error('Gemini Lore Error:', error);
-      return 'The origin of this artifact is lost to time.';
-    }
-  }
-
-  async handleGenerateLore(item) {
-    if (item.lore) return;
-    const lore = await this.generateItemLore(item.name, item.type);
-    this.state.items = this.state.items.map((entry) => entry.id === item.id ? { ...entry, lore } : entry);
-    if (this.state.tooltipItemId === item.id) {
-      this.showTooltip(this.getItemById(item.id), this.state.tooltipX, this.state.tooltipY);
-    } else {
-      this.render();
-    }
-  }
 
   handleEquip(itemId) {
     if (this.player.inventory.equipById(itemId)) {
@@ -998,4 +967,3 @@ export class InventoryUI {
     wrapper.onclick = (e) => e.stopPropagation();
   }
 }
-

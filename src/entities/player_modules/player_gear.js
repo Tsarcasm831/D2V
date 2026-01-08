@@ -19,6 +19,16 @@ export class PlayerGear {
         this.rightHand = null;
     }
 
+    mapHeldItem(item) {
+        if (!item) return null;
+        const raw = (item.meshName || item.name || item.type || '').toLowerCase();
+        if (raw.includes('pickaxe')) return 'Pickaxe';
+        if (raw.includes('axe')) return 'Axe';
+        if (raw.includes('sword')) return 'Sword';
+        if (raw.includes('dagger') || raw.includes('knife') || raw.includes('kunai')) return 'Knife';
+        return null;
+    }
+
     init(parts, characterData) {
         this.parts = parts;
         
@@ -69,12 +79,17 @@ export class PlayerGear {
         const slot = this.player.inventory.selectedSlot;
         const item = this.player.inventory.hotbar[slot];
         
-        const itemName = item ? (item.type === 'weapon' || item.type === 'tool' ? item.name : item.type) : null;
+        const itemName = this.mapHeldItem(item);
         
         // Delegate to modular PlayerEquipment
         if (this.player.model) {
             this.player.model.updateHeldItem(itemName);
             this.heldItem = this.player.model.currentHeldItem;
+        }
+
+        // Keep config in sync so later sync() calls don't clear the hand
+        if (this.player.config) {
+            this.player.config.selectedItem = itemName;
         }
 
         // If no weapon is held, stop any ongoing swing animations

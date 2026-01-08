@@ -22,11 +22,8 @@ export class NodeMPManager {
         this._tempVec = new THREE.Vector3();
         this._tempQuat = new THREE.Quaternion();
         
-        // Use wss for production if needed, or ws for local dev
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const host = isLocal ? 'localhost:3001' : window.location.host + '/ws';
-        this.socket = new GameSocket(`${protocol}//${host}`);
+        // Derive the WebSocket URL from the current origin to avoid hardcoded hosts.
+        this.socket = new GameSocket(this.getSocketUrl());
         
         this.remotePlayers = new Map(); // clientId -> RemotePlayer instance
         this.lastUpdate = 0;
@@ -113,16 +110,19 @@ export class NodeMPManager {
                     window.location.reload(true); // Force reload from server
                 }
             }
+            if (data.reason !== 'inactivity') {
+                const reason = data.reason ? `Disconnected: ${data.reason}` : "You have been disconnected from the server.";
+                if (this.game.chat) {
+                    this.game.chat.addMessage("System", reason);
+                }
+            }
         };
 
         // Connect
         try {
             const username = characterData.name || localStorage.getItem('username') || 'Traveler';
             
-            // Derive host from current window location to ensure we match the serving port (e.g. 3001)
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host; // This includes the port if present (e.g. localhost:3001)
-            this.socket.url = `${protocol}//${host}`;
+            this.socket.url = this.getSocketUrl();
             
             console.log(`Connecting to server: ${this.socket.url} for room: ${roomCode}`);
             await this.socket.connect(roomCode, username, characterData);
@@ -131,6 +131,12 @@ export class NodeMPManager {
             alert("Connection error: Unable to join server.");
             window.location.reload();
         }
+    }
+
+    getSocketUrl() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host; // Includes port when present (e.g. localhost:3001)
+        return `${protocol}//${host}`;
     }
 
     syncRemotePlayers(playersData) {

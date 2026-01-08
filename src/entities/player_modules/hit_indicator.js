@@ -14,27 +14,24 @@ export class HitIndicator {
     }
 
     _addToScene() {
-        // Try multiple ways to find the scene
-        const game = this.player.game || (this.player.worldManager ? this.player.worldManager.game : null) || window.game;
-        
-        if (game && game.scene) {
-            game.scene.add(this.mesh);
-            console.log("HitIndicator: Successfully added to game.scene");
+        const scene = this.player.scene
+            || (this.player.game && this.player.game.scene)
+            || (this.player.worldManager ? this.player.worldManager.scene : null)
+            || (window.gameInstance ? window.gameInstance.scene : null)
+            || (window.game ? window.game.scene : null);
+
+        if (scene) {
+            if (!this.mesh.parent) {
+                scene.add(this.mesh);
+            }
             return true;
         }
 
-        // Persistent retry
-        if (!this._sceneRetryInterval) {
-            console.warn("HitIndicator: Scene not found, starting persistent retry...");
-            this._sceneRetryInterval = setInterval(() => {
-                const g = this.player.game || (this.player.worldManager ? this.player.worldManager.game : null) || window.game;
-                if (g && g.scene) {
-                    g.scene.add(this.mesh);
-                    console.log("HitIndicator: Added to scene via retry");
-                    clearInterval(this._sceneRetryInterval);
-                    this._sceneRetryInterval = null;
-                }
-            }, 1000);
+        if (!this._sceneRetryTimeout) {
+            this._sceneRetryTimeout = setTimeout(() => {
+                this._sceneRetryTimeout = null;
+                this._addToScene();
+            }, 250);
         }
         return false;
     }

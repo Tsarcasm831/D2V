@@ -8,6 +8,7 @@ export class PlayerInventory {
         // Initial hotbar items
         this.hotbar[1] = { id: 'start-axe', name: 'Iron Axe', type: 'tool', icon: 'assets/icons/axe_icon.png', slot: 'main_hand', count: 1 };
         this.hotbar[2] = { id: 'start-pickaxe', name: 'Iron Pickaxe', type: 'tool', icon: 'assets/icons/pickaxe_icon.png', slot: 'main_hand', count: 1 };
+        this.hotbar[3] = { id: 'start-sword', name: 'Iron Sword', type: 'weapon', icon: 'assets/icons/sword_icon.png', slot: 'main_hand', count: 1 };
         
         // Starting items
         this.storage[0] = { id: 'start-armor', name: 'Armor Vest', type: 'vest', icon: 'assets/gear/vest.png', slot: 'vest', meshName: 'Vest', count: 1 };
@@ -17,7 +18,7 @@ export class PlayerInventory {
         this.storage[4] = { id: 'start-gloves', name: "Assassin's Gloves", type: 'clothing', icon: 'assets/gear/leather_gloves.png', slot: 'gloves', count: 1 };
         this.storage[5] = { id: 'start-boots', name: 'Leather Boots', type: 'clothing', icon: 'assets/gear/leather_boots.png', slot: 'boots', count: 1 };
         this.storage[6] = { id: 'start-pants', name: 'Black Pants', type: 'clothing', icon: 'assets/gear/black_pants.png', slot: 'pants', count: 1 };
-        this.storage[7] = { id: 'start-sword', name: 'Iron Sword', type: 'weapon', icon: 'assets/icons/sword_icon.png', slot: 'main_hand', count: 1 };
+        this.storage[7] = null;
         this.storage[8] = { id: 'start-wood', name: 'Wood', type: 'material', icon: 'assets/icons/wood_log_icon.png', count: 50 };
         this.storage[9] = { id: 'start-stone', name: 'Stone', type: 'material', icon: 'assets/icons/wall_icon.png', count: 50 };
         this.storage[10] = { id: 'start-gold', name: 'Gold Coin', type: 'currency', icon: 'assets/icons/gold_coin.png', count: 100 };

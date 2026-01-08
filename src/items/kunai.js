@@ -27,7 +27,6 @@ export function createKunai() {
     const ringGeo = new THREE.TorusGeometry(0.03 * SCALE_FACTOR, 0.01 * SCALE_FACTOR, 8, 16);
     const ring = new THREE.Mesh(ringGeo, handleMat);
     ring.position.y = -0.05 * SCALE_FACTOR;
-    ring.rotation.x = Math.PI / 2;
     group.add(ring);
 
     return group;

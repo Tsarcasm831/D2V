@@ -45,10 +45,10 @@ export class HeadBuilder {
                 vertex.y += f * 0.005;
             }
 
-            if (Math.abs(x) < 0.035 && y > -0.08 && y < 0.05 && z > 0.15) {
-                const yDist = Math.abs(y - (-0.03));
-                const yFactor = Math.max(0, 1.0 - (yDist / 0.07));
-                const xFactor = Math.max(0, 1.0 - (Math.abs(x) / 0.035));
+            if (Math.abs(x) < 0.04 && y > -0.15 && y < 0.05 && z > 0.15) {
+                const yDist = Math.abs(y - (-0.05));
+                const yFactor = Math.max(0, 1.0 - (yDist / 0.12));
+                const xFactor = Math.max(0, 1.0 - (Math.abs(x) / 0.04));
                 vertex.z += 0.02 * xFactor * yFactor * yFactor;
             }
             posAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
@@ -84,9 +84,9 @@ export class HeadBuilder {
             if (z > 0) {
                 const taper = 1.0 - (zRel * 0.45);
                 jVec.x *= taper;
-                if (y < 0.02) {
-                    const zFactor = Math.max(0, zRel - 0.2);
-                    jVec.z += zFactor * 0.025;
+                if (y < 0.1) {
+                    const zFactor = Math.max(0, zRel - 0.1);
+                    jVec.z += zFactor * 0.035;
                 }
             }
             if (y < -jawRadius * 0.5) { jVec.y += ((-jawRadius * 0.5) - y) * 0.5; }

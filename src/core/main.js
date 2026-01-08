@@ -6,6 +6,7 @@ import { FullWorld } from '../ui/fullworld.js';
 
 let fullWorld = null;
 const MENU_PASSWORD = 'ltwelcome1';
+const MENU_PASSWORD_CACHE_KEY = `menu_password_ok_${MENU_PASSWORD}`;
 
 async function init() {
     const uiLoader = new UILoader();
@@ -286,6 +287,11 @@ function showMainMenu() {
 }
 
 function showPasswordScreen() {
+    if (localStorage.getItem(MENU_PASSWORD_CACHE_KEY) === '1') {
+        showMainMenu();
+        return;
+    }
+
     const passwordScreen = document.getElementById('password-screen');
     const passwordInput = document.getElementById('password-input');
     const passwordSubmit = document.getElementById('password-submit');
@@ -305,6 +311,7 @@ function showPasswordScreen() {
         if (!passwordInput) return;
         const entered = passwordInput.value.trim();
         if (entered === MENU_PASSWORD) {
+            localStorage.setItem(MENU_PASSWORD_CACHE_KEY, '1');
             if (passwordScreen) passwordScreen.style.display = 'none';
             if (passwordError) {
                 passwordError.textContent = '';
@@ -519,4 +526,8 @@ function startGame(characterData, roomCode = 'Alpha') {
 }
 
 window.showMainMenu = showMainMenu;
-init();
+if (document.readyState === 'complete') {
+    init();
+} else {
+    window.addEventListener('load', init, { once: true });
+}

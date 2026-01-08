@@ -22,6 +22,12 @@ export class CharacterCreator {
         this.isDragging = false;
         this.previousMouseX = 0;
         this.animator = null;
+        this.previewZoomDelta = 0;
+        this.previewZoomMin = 1.5;
+        this.previewZoomMax = 8.0;
+        this.previewCameraMode = 'character';
+        this.previewCameraTarget = new THREE.Vector3(0, 1.0, 0);
+        this.baseCameraDistance = 0;
         this.isDebugHitbox = false;
         this.equippedWeapon = null;
         this.activeTab = 'body';
@@ -47,6 +53,11 @@ export class CharacterCreator {
             deathVariation: null
         };
 
+        // Hair defaults (no UI yet)
+        const fallbackPreset = BODY_PRESETS.average || {};
+        this.hairStyle = fallbackPreset.hairStyle || 'crew';
+        this.hairColor = fallbackPreset.hairColor || '#3e2723';
+
         this.setupScene();
         this.setupEventListeners();
         this.loadModules();
@@ -62,6 +73,7 @@ export class CharacterCreator {
         this.previewCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
         this.previewCamera.position.set(0, 1.5, 4.5);
         this.previewCamera.lookAt(0, 1.0, 0);
+        this.baseCameraDistance = this.previewCamera.position.distanceTo(this.previewCameraTarget);
         this.previewCameraDefaults = {
             position: this.previewCamera.position.clone(),
             target: new THREE.Vector3(0, 1.0, 0)
@@ -143,7 +155,7 @@ export class CharacterCreator {
     setupEventListeners() {
         // Input changes with number display updates
         const inputs = [
-            'body-type', 'player-name', 'skin-color', 'eye-color', 'shirt-color', 'shirt-pattern', 
+            'body-type', 'player-name', 'skin-color', 'torso-color-enabled', 'torso-color', 'eye-color', 'shirt-color', 'shirt-pattern', 
             'head-scale', 'torso-width', 'torso-height', 'arm-scale', 'leg-scale',
             'neck-thickness', 'neck-height', 'neck-rotation', 'neck-tilt',
             'chin-size', 'chin-length', 'chin-height', 'chin-forward', 'iris-scale', 'pupil-scale',
@@ -170,6 +182,12 @@ export class CharacterCreator {
                         valueElement.textContent = value.toFixed(2);
                     }
                 }
+                if (element.id === 'torso-color-enabled') {
+                    const torsoColorInput = document.getElementById('torso-color');
+                    if (torsoColorInput) {
+                        torsoColorInput.disabled = !element.checked;
+                    }
+                }
                 this.updatePreview();
             };
             
@@ -184,11 +202,30 @@ export class CharacterCreator {
             }
         });
 
+        const torsoColorToggle = document.getElementById('torso-color-enabled');
+        const torsoColorInput = document.getElementById('torso-color');
+        if (torsoColorToggle && torsoColorInput) {
+            torsoColorInput.disabled = !torsoColorToggle.checked;
+        }
+
         // Rotation
         this.previewContainer.addEventListener('mousedown', (e) => {
             this.isDragging = true;
             this.previousMouseX = e.clientX;
         });
+
+        // Zoom (scroll wheel)
+        this.previewContainer.addEventListener('wheel', (e) => {
+            if (this.creator.style.display === 'none') return;
+            if (!this.previewCameraTarget) return;
+            e.preventDefault();
+            const zoomStep = 0.4;
+            this.previewZoomDelta += e.deltaY > 0 ? zoomStep : -zoomStep;
+            const minDelta = this.previewZoomMin - this.baseCameraDistance;
+            const maxDelta = this.previewZoomMax - this.baseCameraDistance;
+            this.previewZoomDelta = Math.max(minDelta, Math.min(maxDelta, this.previewZoomDelta));
+            this.applyPreviewZoom();
+        }, { passive: false });
 
         window.addEventListener('mousemove', (e) => {
             if (!this.isDragging || !this.currentPreviewMesh) return;
@@ -238,6 +275,7 @@ export class CharacterCreator {
                 tab.classList.add('active');
                 document.getElementById(`${target}-tab`).classList.add('active');
                 this.activeTab = target;
+                this.updateAnimControlsVisibility();
                 this.updatePreview();
             });
         });
@@ -383,6 +421,17 @@ export class CharacterCreator {
         });
 
         this.updateCloakControlsVisibility();
+        this.updateAnimControlsVisibility();
+    }
+
+    updateAnimControlsVisibility() {
+        const controls = document.querySelector('.anim-controls');
+        if (!controls) return;
+        const animButtons = controls.querySelectorAll('.anim-btn');
+        const shouldHide = this.activeTab === 'equipment';
+        animButtons.forEach(btn => {
+            btn.style.display = shouldHide ? 'none' : '';
+        });
     }
 
     updateCloakControlsVisibility() {
@@ -402,8 +451,21 @@ export class CharacterCreator {
     setPreviewCamera(mode) {
         const preset = mode === 'equipment' ? this.previewCameraEquipment : this.previewCameraDefaults;
         if (!preset) return;
+        this.previewCameraMode = mode;
+        this.previewCameraTarget = preset.target.clone();
+        this.baseCameraDistance = preset.position.distanceTo(this.previewCameraTarget);
         this.previewCamera.position.copy(preset.position);
         this.previewCamera.lookAt(preset.target);
+        this.applyPreviewZoom();
+    }
+
+    applyPreviewZoom() {
+        if (!this.previewCameraTarget) return;
+        const dir = new THREE.Vector3().subVectors(this.previewCamera.position, this.previewCameraTarget).normalize();
+        let distance = this.baseCameraDistance + this.previewZoomDelta;
+        distance = Math.max(this.previewZoomMin, Math.min(this.previewZoomMax, distance));
+        this.previewCamera.position.copy(dir.multiplyScalar(distance).add(this.previewCameraTarget));
+        this.previewCamera.lookAt(this.previewCameraTarget);
     }
 
     replacePreviewMesh(mesh, parts = null, model = null) {
@@ -452,6 +514,7 @@ export class CharacterCreator {
         mesh.updateMatrixWorld(true);
         const scaledBox = new THREE.Box3().setFromObject(mesh);
         mesh.position.y -= scaledBox.min.y + 0.05;
+        mesh.position.y -= 0.2;
     }
 
     attachEquipmentToHand(itemName, parts, model) {
@@ -528,7 +591,12 @@ export class CharacterCreator {
             bodyType: document.getElementById('body-type').value,
             name: document.getElementById('player-name').value || 'Traveler',
             skinColor: document.getElementById('skin-color').value,
+            torsoColor: document.getElementById('torso-color-enabled').checked
+                ? document.getElementById('torso-color').value
+                : null,
             eyeColor: document.getElementById('eye-color').value,
+            hairStyle: this.hairStyle,
+            hairColor: this.hairColor,
             shirtColor: document.getElementById('shirt-color').value,
             shirtPattern: document.getElementById('shirt-pattern').value,
             headScale: parseFloat(document.getElementById('head-scale').value),

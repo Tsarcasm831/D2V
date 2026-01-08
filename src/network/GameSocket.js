@@ -12,12 +12,18 @@ export class GameSocket {
         this.onSnapshot = null;
         this.onEvent = null;
         this.onRoomFull = null;
+        this.onDisconnect = null;
+        this.onDisconnected = null;
         this.isConnected = false;
+        this._closedByClient = false;
+        this._receivedDisconnect = false;
     }
 
     connect(room = 'default', username = 'Traveler', character = {}) {
         return new Promise((resolve, reject) => {
             console.log(`Connecting to ${this.url}...`);
+            this._closedByClient = false;
+            this._receivedDisconnect = false;
             this.ws = new WebSocket(this.url);
 
             this.ws.onopen = () => {
@@ -44,7 +50,9 @@ export class GameSocket {
             this.ws.onclose = () => {
                 this.isConnected = false;
                 console.log("WebSocket disconnected.");
-                if (this.onDisconnect) this.onDisconnect();
+                if (!this._closedByClient && !this._receivedDisconnect && this.onDisconnect) {
+                    this.onDisconnect();
+                }
             };
 
             this.ws.onerror = (err) => {
@@ -73,6 +81,11 @@ export class GameSocket {
                 break;
             case 'disconnected':
                 console.warn("[GameSocket] Disconnected by server:", data.reason);
+                this.isConnected = false;
+                this._receivedDisconnect = true;
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.close();
+                }
                 if (this.onDisconnected) this.onDisconnected(data);
                 break;
             case 'event':
@@ -84,13 +97,17 @@ export class GameSocket {
     send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
-        } else if (this.ws) {
-            console.warn(`Attempted to send message on socket with state ${this.ws.readyState}:`, data.type);
+            return true;
+        } else if (this.ws && (this.ws.readyState === WebSocket.CLOSING || this.ws.readyState === WebSocket.CLOSED)) {
+            this.isConnected = false;
         }
+        return false;
     }
 
     disconnect() {
         if (this.ws) {
+            this._closedByClient = true;
+            this.isConnected = false;
             this.ws.close();
         }
     }

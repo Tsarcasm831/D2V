@@ -32,12 +32,27 @@ export function createDagger() {
     group.add(blade);
 
     // Tip
-    const tip = new THREE.Mesh(
-        new THREE.ConeGeometry(0.025 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 4),
-        metalMat
-    );
-    tip.position.y = handleHeight + bladeHeight + 0.03 * SCALE_FACTOR;
-    tip.rotation.y = Math.PI / 4;
+    const tipHeight = 0.1 * SCALE_FACTOR;
+    const tipGeo = new THREE.BoxGeometry(0.05 * SCALE_FACTOR, tipHeight, 0.015 * SCALE_FACTOR);
+    const pos = tipGeo.attributes.position;
+    const arr = pos.array;
+    const halfH = tipHeight / 2;
+
+    for (let i = 0; i < arr.length; i += 3) {
+        const y = arr[i + 1];
+        if (y > 0) {
+            const t = THREE.MathUtils.clamp((y + halfH) / tipHeight, 0, 1);
+            const scale = THREE.MathUtils.lerp(1, 0.04, t);
+            arr[i] *= scale;
+            arr[i + 2] *= scale;
+        }
+    }
+
+    pos.needsUpdate = true;
+    tipGeo.computeVertexNormals();
+
+    const tip = new THREE.Mesh(tipGeo, metalMat);
+    tip.position.y = handleHeight + bladeHeight + tipHeight / 2;
     group.add(tip);
 
     // Pommel
