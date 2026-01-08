@@ -121,7 +121,7 @@ export class FullWorld {
     setupEventListeners() {
         const backBtn = document.getElementById('fullworld-back');
         if (backBtn) {
-            backBtn.onclick = () => this.hide();
+            backBtn.onclick = () => this.closeToMenu();
         }
 
         this.canvas.addEventListener('mousedown', (e) => {
@@ -278,6 +278,12 @@ export class FullWorld {
 
     hide() {
         this.container.style.display = 'none';
+    }
+
+    closeToMenu() {
+        this.hide();
+        const mainMenu = document.getElementById('main-menu');
+        if (mainMenu) mainMenu.style.display = 'flex';
     }
 
     draw() {
