@@ -1,0 +1,5 @@
+{
+  "name": "Aether Forge 3D",
+  "description": "A parametric 3D weapon builder allowing users to design swords, axes, and spears using realistic material rendering and Gemini-powered procedural generation.",
+  "requestFramePermissions": []
+}
