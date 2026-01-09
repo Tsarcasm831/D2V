@@ -635,7 +635,8 @@ export class CharacterCreator {
             buttPosX: parseFloat(document.getElementById('butt-pos-x').value),
             buttPosY: parseFloat(document.getElementById('butt-pos-y').value),
             buttPosZ: parseFloat(document.getElementById('butt-pos-z').value),
-            outfit: document.getElementById('body-type').value === 'female' ? 'naked' : 'nude', // Default based on body type
+            outfit: this.activeOutfit || (document.getElementById('body-type').value === 'female' ? 'naked' : 'nude'),
+            selectedItem: this.equippedWeapon || null,
             equipment: {
                 shirt: localStorage.getItem('admin_shirt') === 'true',
                 pants: localStorage.getItem('admin_blue-pants') === 'true',
@@ -675,9 +676,22 @@ export class CharacterCreator {
                 assassinsCap: localStorage.getItem('admin_assassins-cap') === 'true',
                 leatherBoots: localStorage.getItem('admin_leather-boots') === 'true',
                 cloak: localStorage.getItem('admin_cloak') === 'true',
-                pants: localStorage.getItem('admin_blue-pants') === 'true'
+                pants: localStorage.getItem('admin_blue-pants') === 'true',
+                shirt: localStorage.getItem('admin_shirt') === 'true'
             }
         };
+    }
+
+    setEquipmentSelection(itemName) {
+        this.selectedEquipmentItem = itemName;
+        this.equippedWeapon = itemName;
+        
+        if (this.equipmentItems) {
+            this.equipmentItems.forEach(item => {
+                const isActive = item.dataset.item === itemName;
+                item.classList.toggle('active', isActive);
+            });
+        }
     }
 
     updatePreview() {
@@ -858,6 +872,7 @@ export class CharacterCreator {
     }
 
     applyOutfitPreset(presetName) {
+        this.activeOutfit = presetName;
         const setValue = (id, value) => {
             const element = document.getElementById(id);
             if (element) {

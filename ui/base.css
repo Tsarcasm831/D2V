@@ -96,6 +96,98 @@ input[type="checkbox"] {
     vertical-align: middle;
     transition: all 0.2s;
 }
+
+/* Reset Character Modal Styles */
+.reset-confirm-container {
+    width: 400px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 0 50px rgba(0, 170, 255, 0.2);
+}
+
+.reset-confirm-header {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+}
+
+.reset-confirm-header h2 {
+    margin: 0;
+    letter-spacing: 3px;
+    color: #ff4444;
+    font-size: 24px;
+}
+
+.reset-confirm-content {
+    padding: 30px 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.warning-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.reset-confirm-content p {
+    margin: 0;
+    font-size: 16px;
+    color: white;
+}
+
+.warning-text {
+    color: #ff6666 !important;
+    font-size: 14px !important;
+    opacity: 0.9;
+}
+
+.reset-confirm-actions {
+    padding: 20px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    border-top: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.reset-confirm-actions .btn {
+    width: 140px;
+    margin: 0;
+    padding: 12px;
+    font-size: 14px;
+}
+
+.btn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: white;
+}
+
+.btn.danger {
+    background: rgba(255, 68, 68, 0.15);
+    border-color: #ff4444;
+    color: #ff4444;
+}
+
+.btn.danger:hover {
+    background: #ff4444;
+    color: white;
+    transform: scale(1.05);
+}
 input[type="checkbox"]:checked {
     background: var(--primary);
     box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);

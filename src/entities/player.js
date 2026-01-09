@@ -84,12 +84,23 @@ export class Player {
         this.actions = new PlayerActions(this);
 
         this.config = {
-            bodyType: this.bodyType,
+            bodyType: characterData.bodyType || 'male',
             bodyVariant: characterData.bodyVariant || 'average',
-            outfit: characterData.outfit || 'naked',
-            equipment: characterData.equipment || { helm: false, shoulders: false, shield: false },
+            outfit: characterData.outfit || (characterData.bodyType === 'female' ? 'naked' : 'nude'),
+            selectedItem: characterData.selectedItem || null,
+            equipment: characterData.equipment || { 
+                helm: false, 
+                shoulders: false, 
+                shield: false,
+                shirt: characterData.gear?.shirt || false,
+                pants: characterData.gear?.pants || false
+            },
             skinColor: characterData.skinColor || '#ffdbac',
             eyeColor: characterData.eyeColor || '#333333',
+            shirtColor: characterData.shirtColor || '#888888',
+            shirtPattern: characterData.shirtPattern || 'none',
+            hairStyle: characterData.hairStyle || 'crew',
+            hairColor: characterData.hairColor || '#3e2723',
             scleraColor: characterData.scleraColor || '#ffffff',
             pupilColor: characterData.pupilColor || '#000000',
             lipColor: characterData.lipColor || '#e0b094',
@@ -114,6 +125,16 @@ export class Player {
             chinHeight: characterData.chinHeight || -0.04,
             irisScale: characterData.irisScale || 1.0,
             pupilScale: characterData.pupilScale || 1.0,
+            maxillaScaleX: characterData.maxillaScaleX || 1.0,
+            upperLipWidth: characterData.upperLipWidth || 1.0,
+            noseForward: characterData.noseForward || 0.0,
+            showBrain: characterData.showBrain || false,
+            brainSize: characterData.brainSize || 1.0,
+            buttScale: characterData.buttScale || 0.9,
+            buttPosX: characterData.buttPosX || 0.0,
+            buttPosY: characterData.buttPosY || -0.05,
+            buttPosZ: characterData.buttPosZ || 0.07,
+            cloakOffsets: characterData.cloakOffsets || null,
             ...BODY_PRESETS[characterData.bodyVariant || 'average']
         };
 

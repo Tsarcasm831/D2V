@@ -68,10 +68,7 @@ export class OptionsUI {
 
         if (this.resetBtn) {
             this.resetBtn.onclick = () => {
-                if (confirm("Recreate your character? This will reload the page.")) {
-                    localStorage.removeItem('character_config');
-                    window.location.reload();
-                }
+                this.showResetCharacterModal();
             };
         }
 
@@ -114,5 +111,40 @@ export class OptionsUI {
                 this.godModeToggle.checked = !!this.game.player.godMode;
             }
         }
+    }
+
+    showResetCharacterModal() {
+        const modal = document.getElementById('reset-character-modal');
+        if (!modal) return;
+
+        modal.style.display = 'flex';
+
+        // Setup event listeners for the modal buttons
+        const cancelBtn = document.getElementById('reset-cancel-btn');
+        const confirmBtn = document.getElementById('reset-confirm-btn');
+
+        const cleanup = () => {
+            modal.style.display = 'none';
+            if (cancelBtn) cancelBtn.onclick = null;
+            if (confirmBtn) confirmBtn.onclick = null;
+        };
+
+        if (cancelBtn) {
+            cancelBtn.onclick = cleanup;
+        }
+
+        if (confirmBtn) {
+            confirmBtn.onclick = () => {
+                localStorage.removeItem('character_config');
+                window.location.reload();
+            };
+        }
+
+        // Close modal when clicking outside
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                cleanup();
+            }
+        };
     }
 }
