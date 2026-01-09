@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SCALE_FACTOR } from '../../world/world_bounds.js';
+import { logToModal } from '../../utils/logger.js';
 
 export class HitIndicator {
     constructor(player) {
@@ -136,7 +137,7 @@ export class HitIndicator {
         if (!this._logCounter) this._logCounter = 0;
         this._logCounter++;
         if (this._logCounter % 100 === 0) {
-            console.log(`HitIndicator Update: pos(${mousePos.x.toFixed(1)}, ${mousePos.y.toFixed(1)}, ${mousePos.z.toFixed(1)}), inRange: ${inRange}, dist: ${dist.toFixed(1)}`);
+            logToModal(`HitIndicator Update: pos(${mousePos.x.toFixed(1)}, ${mousePos.y.toFixed(1)}, ${mousePos.z.toFixed(1)}), inRange: ${inRange}, dist: ${dist.toFixed(1)}`);
         }
     }
 

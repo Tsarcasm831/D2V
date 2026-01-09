@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import nipplejs from 'nipplejs';
 import { SHARD_SIZE } from '../world/world_bounds.js';
+import { toggleLogModal } from '../utils/logger.js';
 
 export class InputManager {
     constructor(game) {
@@ -118,7 +119,10 @@ export class InputManager {
                 this.game.grid.visible = !this.game.grid.visible;
                 this.game.worldManager.setGridVisibility(this.game.grid.visible);
             }
-            if (key === ']') this.game.minimap.toggle();
+            if (key === ']') {
+                this.game.minimap.toggle();
+                toggleLogModal();
+            }
             if (key === '`') {
                 if (this.game.optionsUI) this.game.optionsUI.toggle();
             }

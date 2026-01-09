@@ -1,3 +1,5 @@
+import { debugLog } from '../utils/logger.js';
+
 export class UILoader {
     constructor() {
         this.components = [
@@ -12,7 +14,7 @@ export class UILoader {
     async loadAll() {
         const promises = this.components.map(path => this.loadComponent(path));
         await Promise.all(promises);
-        console.log('All UI components loaded');
+        debugLog('All UI components loaded');
     }
 
     async loadComponent(path) {

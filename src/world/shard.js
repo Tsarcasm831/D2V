@@ -982,85 +982,73 @@ export class Shard {
         const isSpawnArea = Math.abs(this.gridX) <= 1 && Math.abs(this.gridZ) <= 1;
 
         if (!isSpawnArea) {
+            const pickFaunaPos = () => {
+                for (let attempt = 0; attempt < 6; attempt++) {
+                    const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
+                    const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
+                    if (!this._isInsideBowl(x, z)) return { x, z };
+                }
+                return null;
+            };
+            const spawnFauna = (Ctor) => {
+                const pos = pickFaunaPos();
+                if (!pos) return;
+                const y = this.getTerrainHeight(pos.x, pos.z);
+                this.fauna.push(new Ctor(this.scene, this, new THREE.Vector3(pos.x, y, pos.z)));
+            };
+
             // 1. Deer (Avg ~1.0 per shard)
             const numDeer = rng() < 0.7 ? (rng() < 0.3 ? 2 : 1) : 0;
             for (let i = 0; i < numDeer; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Deer(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Deer);
             }
 
             // 2. Wolves (Avg ~0.5 per shard)
             const numWolves = rng() < 0.45 ? 1 : (rng() < 0.1 ? 2 : 0);
             for (let i = 0; i < numWolves; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Wolf(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Wolf);
             }
 
             // 3. Bears (Avg ~0.2 per shard)
             const numBears = rng() < 0.18 ? 1 : 0;
             for (let i = 0; i < numBears; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Bear(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Bear);
             }
 
             // 4. Pigs (Avg ~0.6 per shard)
             const numPigs = rng() < 0.5 ? 1 : (rng() < 0.1 ? 2 : 0);
             for (let i = 0; i < numPigs; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Pig(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Pig);
             }
 
             // 5. Sheep (Avg ~0.5 per shard)
             const numSheep = rng() < 0.4 ? 1 : (rng() < 0.1 ? 2 : 0);
             for (let i = 0; i < numSheep; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Sheep(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Sheep);
             }
 
             // 6. Chickens (Avg ~0.8 per shard)
             const numChickens = rng() < 0.6 ? (rng() < 0.2 ? 2 : 1) : 0;
             for (let i = 0; i < numChickens; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Chicken(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Chicken);
             }
 
             // 7. Owls (Avg ~0.4 per shard)
             const numOwls = rng() < 0.4 ? 1 : 0;
             for (let i = 0; i < numOwls; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Owl(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Owl);
             }
 
             // 8. Cows (Avg ~0.4 per shard)
             const numCows = rng() < 0.4 ? 1 : 0;
             for (let i = 0; i < numCows; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Cow(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Cow);
             }
 
             // 9. Horses (Avg ~0.3 per shard)
             const numHorses = rng() < 0.3 ? 1 : 0;
             for (let i = 0; i < numHorses; i++) {
-                const x = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetX;
-                const z = (rng() - 0.5) * SHARD_SIZE * 0.85 + this.offsetZ;
-                const y = this.getTerrainHeight(x, z);
-                this.fauna.push(new Horse(this.scene, this, new THREE.Vector3(x, y, z)));
+                spawnFauna(Horse);
             }
 
             // 10. Assassin (~2% chance per shard for ~20k total)
@@ -1138,6 +1126,36 @@ export class Shard {
         return 0;
     }
 
+    _isInsideBowl(x, z) {
+        const center = this.worldManager?.levelCenter;
+        const cx = center ? center.x : 7509.5;
+        const cz = center ? center.z : -6949.1;
+        const dx = x - cx;
+        const dz = z - cz;
+        return (dx * dx + dz * dz) < 5184.0;
+    }
+
+    _teleportFaunaOutOfBowl(fauna, pos) {
+        const center = this.worldManager?.levelCenter;
+        const cx = center ? center.x : 7509.5;
+        const cz = center ? center.z : -6949.1;
+        let dx = pos.x - cx;
+        let dz = pos.z - cz;
+        let len = Math.hypot(dx, dz);
+        if (len < 0.001) {
+            dx = 1;
+            dz = 0;
+            len = 1;
+        }
+
+        const dist = SHARD_SIZE * 50;
+        const nx = cx + (dx / len) * dist;
+        const nz = cz + (dz / len) * dist;
+        const ny = this.getTerrainHeight(nx, nz);
+        pos.set(nx, ny, nz);
+        if (fauna.velocity) fauna.velocity.set(0, 0, 0);
+    }
+
     update(delta, player, isGridVisible = false) {
         if (!player || !player.mesh) return;
         const playerPos = player.mesh.position;
@@ -1178,7 +1196,12 @@ export class Shard {
             const mesh = f.group || f.mesh;
             if (!mesh) continue;
             const fPos = mesh.position;
-            const distSq = fPos.distanceToSquared(playerPos);
+            let distSq = fPos.distanceToSquared(playerPos);
+
+            if (this._isInsideBowl(fPos.x, fPos.z)) {
+                this._teleportFaunaOutOfBowl(f, fPos);
+                distSq = fPos.distanceToSquared(playerPos);
+            }
 
             if (distSq < 900) { // Within 30m
                 f.update(delta, player);

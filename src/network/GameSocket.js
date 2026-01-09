@@ -1,3 +1,5 @@
+import { debugLog } from '../utils/logger.js';
+
 /**
  * GameSocket.js
  * A simple wrapper around the browser WebSocket API for the game.
@@ -21,14 +23,14 @@ export class GameSocket {
 
     connect(room = 'default', username = 'Traveler', character = {}) {
         return new Promise((resolve, reject) => {
-            console.log(`Connecting to ${this.url}...`);
+            debugLog(`Connecting to ${this.url}...`);
             this._closedByClient = false;
             this._receivedDisconnect = false;
             this.ws = new WebSocket(this.url);
 
             this.ws.onopen = () => {
                 this.isConnected = true;
-                console.log("WebSocket connected. Joining room:", room);
+                debugLog("WebSocket connected. Joining room:", room);
                 this.send({
                     type: 'join',
                     room: room,
@@ -49,7 +51,7 @@ export class GameSocket {
 
             this.ws.onclose = () => {
                 this.isConnected = false;
-                console.log("WebSocket disconnected.");
+                debugLog("WebSocket disconnected.");
                 if (!this._closedByClient && !this._receivedDisconnect && this.onDisconnect) {
                     this.onDisconnect();
                 }
@@ -69,7 +71,7 @@ export class GameSocket {
             case 'welcome':
                 this.clientId = data.id;
                 this.roomCode = data.room;
-                console.log(`[GameSocket] Welcome received. ClientId: ${this.clientId}, Room: ${this.roomCode}`);
+                debugLog(`[GameSocket] Welcome received. ClientId: ${this.clientId}, Room: ${this.roomCode}`);
                 if (this.onWelcome) this.onWelcome(data);
                 break;
             case 'roomFull':

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { generateWeaponConfig } from '../services/geminiService';
 import { WeaponConfig } from '../types';
 
@@ -9,10 +9,14 @@ interface AIPanelProps {
 
 export const AIPanel: React.FC<AIPanelProps> = ({ onConfigGenerated, onLoadingState }) => {
   const [prompt, setPrompt] = useState('');
+  const hasGemini = useMemo(
+    () => !!(process.env.GEMINI_API_KEY || process.env.API_KEY),
+    []
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || !hasGemini) return;
 
     onLoadingState(true);
     const config = await generateWeaponConfig(prompt);

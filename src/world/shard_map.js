@@ -352,8 +352,16 @@ export class ShardMap {
         
         if (this.worldManager?.worldMask?.cities) {
             this.worldManager.worldMask.cities.forEach(city => {
-                const cx = (city.worldX - px) * effectiveScale;
-                const cz = (city.worldZ - pz) * effectiveScale;
+                let markerX = city.worldX;
+                let markerZ = city.worldZ;
+                if (city.id === 'poi-center-bowl-yurei' || (city.name || '').toLowerCase().includes('center of the bowl')) {
+                    const center = this.worldManager.levelCenter;
+                    markerX = center?.x ?? markerX;
+                    markerZ = center?.z ?? markerZ;
+                }
+
+                const cx = (markerX - px) * effectiveScale;
+                const cz = (markerZ - pz) * effectiveScale;
                 
                 ctx.save();
                 const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;

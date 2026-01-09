@@ -1,5 +1,6 @@
 import { getSeededRandom, getShardSeed } from '../utils/seeded_random.js';
 import { SHARD_SIZE, WORLD_SEED, WORLD_SHARD_LIMIT } from './world_bounds.js';
+import { debugLog } from '../utils/logger.js';
 
 export class TownManager {
     constructor(worldManager) {
@@ -55,7 +56,7 @@ export class TownManager {
                 this.shardToTown.set(`${sx},${sz}`, townId);
             }
         }
-        console.log(`TownManager: Generated ${this.towns.size} towns.`);
+        debugLog(`TownManager: Generated ${this.towns.size} towns.`);
     }
 
     generateTownData(sx, sz, id, rng) {

@@ -3,6 +3,7 @@ import { Game } from './game.js';
 import { CharacterCreator } from '../ui/character_creator.js';
 import { UILoader } from '../ui/ui_loader.js';
 import { FullWorld } from '../ui/fullworld.js';
+import { debugLog, debugWarn } from '../utils/logger.js';
 
 let fullWorld = null;
 const MENU_PASSWORD = 'ltwelcome1';
@@ -294,6 +295,7 @@ function showPasswordScreen() {
 
     const passwordScreen = document.getElementById('password-screen');
     const passwordInput = document.getElementById('password-input');
+    const passwordForm = document.getElementById('password-form');
     const passwordSubmit = document.getElementById('password-submit');
     const passwordError = document.getElementById('password-error');
 
@@ -330,6 +332,13 @@ function showPasswordScreen() {
 
     if (passwordSubmit) {
         passwordSubmit.onclick = validatePassword;
+    }
+
+    if (passwordForm) {
+        passwordForm.onsubmit = (event) => {
+            event.preventDefault();
+            validatePassword();
+        };
     }
 
     if (passwordInput) {
@@ -441,7 +450,7 @@ async function showServerSelection() {
         // Since we are serving the game from the same server, just use relative path
         const serverUrl = '/rooms';
         
-        console.log(`Fetching server list from: ${serverUrl}`);
+        debugLog(`Fetching server list from: ${serverUrl}`);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); 
@@ -452,12 +461,12 @@ async function showServerSelection() {
             clearTimeout(timeoutId);
             if (response.ok) {
                 rooms = await response.json();
-                console.log('Received rooms data:', rooms);
+                debugLog('Received rooms data:', rooms);
             } else {
-                console.warn(`Server discovery returned status: ${response.status}`);
+                debugWarn(`Server discovery returned status: ${response.status}`);
             }
         } catch (fetchErr) {
-            console.warn("Primary fetch failed, using fallback display rooms", fetchErr);
+            debugWarn("Primary fetch failed, using fallback display rooms", fetchErr);
         }
         
         // Ensure only Realm Alpha exists
@@ -486,19 +495,19 @@ async function showServerSelection() {
 
                 if (!isFull) {
                     item.addEventListener('click', () => {
-                        console.log(`Server item clicked: ${roomCode}`);
+                        debugLog(`Server item clicked: ${roomCode}`);
                         if (serverSelection) serverSelection.style.display = 'none';
                         
                         // Defer start of loading sequence to avoid blocking click handler
                         setTimeout(() => {
                             const savedChar = localStorage.getItem('character_config');
                             if (savedChar) {
-                                console.log('Loading existing character...');
+                                debugLog('Loading existing character...');
                                 startLoadingSequence(JSON.parse(savedChar), roomCode);
                             } else {
-                                console.log('Opening character creator...');
+                                debugLog('Opening character creator...');
                                 const creator = new CharacterCreator((charData) => {
-                                    console.log('Character created, starting loading sequence...');
+                                    debugLog('Character created, starting loading sequence...');
                                     localStorage.setItem('character_config', JSON.stringify(charData));
                                     startLoadingSequence(charData, roomCode);
                                 });

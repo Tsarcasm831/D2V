@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SCALE_FACTOR } from '../world/world_bounds.js';
+import { logToModal } from '../utils/logger.js';
 
 export class Building {
     constructor(scene, shard, type, pos, rotationY = 0) {
@@ -30,7 +31,7 @@ export class Building {
         }
 
         this.scene.add(this.group);
-        console.log(`Building: Added ${this.type} to scene ${this.scene.uuid} at`, this.group.position);
+        logToModal(`Building: Added ${this.type} to scene ${this.scene.uuid} at ${this.group.position.x.toFixed(1)}, ${this.group.position.y.toFixed(1)}, ${this.group.position.z.toFixed(1)}`);
 
         this.setupMesh();
         this.setupCollision();

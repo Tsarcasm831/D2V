@@ -23,6 +23,7 @@ import { ParticleManager } from '../systems/particle_manager.js';
 import { MagicSystem } from '../systems/magic_system.js';
 import { QuestManager } from '../systems/quest_manager.js';
 import { AchievementManager } from '../systems/achievement_manager.js';
+import { debugLog } from '../utils/logger.js';
 
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
@@ -64,9 +65,8 @@ export class Game {
 
         // Enforce default spawn immediately after player creation
         // (Final spawn enforcement happens after land load in initAfterLoading)
-        const SPAWN_X = 1501;
-        const SPAWN_Z = -1393;
-        this.player.teleport(SPAWN_X, SPAWN_Z);
+        const spawn = this.worldManager.levelCenter;
+        this.player.teleport(spawn.x, spawn.z);
 
         this.buildManager = new BuildManager(this);
         this.weatherManager = new WeatherManager(this);
@@ -176,7 +176,7 @@ export class Game {
 
     toggleBloom(enabled) {
         // Placeholder for post-processing bloom toggle
-        console.log("Bloom toggled:", enabled);
+        debugLog("Bloom toggled:", enabled);
     }
 
     async initAfterLoading() {
@@ -186,10 +186,9 @@ export class Game {
         await this.worldManager.loadLand(Land23);
 
         // Enforce explicit spawn after land load
-        const SPAWN_X = 1501;
-        const SPAWN_Z = -1393;
         if (this.player) {
-            this.player.teleport(SPAWN_X, SPAWN_Z);
+            const spawn = this.worldManager.levelCenter;
+            this.player.teleport(spawn.x, spawn.z);
         }
 
         // Initial world generation sweep
@@ -260,7 +259,7 @@ export class Game {
                 pos.y = this.worldManager.getTerrainHeight(pos.x, pos.z);
                 const building = new Building(this.scene, shard, type, pos);
                 shard.resources.push(building);
-                console.log(`Spawned ${type} at ${pos.x}, ${pos.z}`);
+                debugLog(`Spawned ${type} at ${pos.x}, ${pos.z}`);
             } else {
                 console.warn(`Could not find shard for ${type} at ${pos.x}, ${pos.z}`);
             }
@@ -492,7 +491,7 @@ export class Game {
     }
 
     async onLandLoaded(landId) {
-        console.log(`Game: Land ${landId} loaded, updating spawns...`);
+        debugLog(`Game: Land ${landId} loaded, updating spawns...`);
         
         // 1. Force load shards around player spawn for immediate building placement
         if (this.player && this.player.mesh) {
@@ -534,7 +533,7 @@ export class Game {
     }
 
     onSeasonChanged(season) {
-        console.log(`Game: Season changed to ${season}`);
+        debugLog(`Game: Season changed to ${season}`);
         
         // Update weather weights based on season
         if (this.weatherManager) {

@@ -10,6 +10,7 @@ import { createPickaxe } from '../items/pickaxe.js';
 import { createSword } from '../items/sword.js';
 import { Building } from '../systems/buildings.js';
 import { SCALE_FACTOR } from '../world/world_bounds.js';
+import { debugLog } from '../utils/logger.js';
 
 export class NodeMPManager {
     constructor(game) {
@@ -38,7 +39,7 @@ export class NodeMPManager {
         // Setup socket callbacks
         this.socket.onWelcome = (data) => {
             this.socket.clientId = data.id; // Ensure GameSocket has the ID
-            console.log("Joined room:", data.room, "ID:", data.id, "Seed:", data.seed);
+            debugLog("Joined room:", data.room, "ID:", data.id, "Seed:", data.seed);
             // Optionally set world seed here if game supports it
             if (this.game.worldManager && typeof this.game.worldManager.setSeed === 'function') {
                 this.game.worldManager.setSeed(data.seed);
@@ -46,7 +47,7 @@ export class NodeMPManager {
         };
 
         this.socket.onSnapshot = (data) => {
-            if (Math.random() < 0.01) console.log("Received snapshot, players:", Object.keys(data.players).length);
+            if (Math.random() < 0.01) debugLog("Received snapshot, players:", Object.keys(data.players).length);
             this.syncRemotePlayers(data.players);
         };
 
@@ -101,7 +102,7 @@ export class NodeMPManager {
                 // 3. Force a hard redirect to the root URL
                 try {
                     const target = window.location.origin + window.location.pathname;
-                    console.log("[NodeMPManager] Hard redirecting to:", target);
+                    debugLog("[NodeMPManager] Hard redirecting to:", target);
                     window.location.assign(target);
                 } catch (e) {
                     console.error("[NodeMPManager] Redirect failed:", e);
@@ -122,7 +123,7 @@ export class NodeMPManager {
             
             this.socket.url = this.getSocketUrl();
             
-            console.log(`Connecting to server: ${this.socket.url} for room: ${roomCode}`);
+            debugLog(`Connecting to server: ${this.socket.url} for room: ${roomCode}`);
             await this.socket.connect(roomCode, username, characterData);
         } catch (e) {
             console.error("Failed to connect to multiplayer server:", e);
@@ -251,7 +252,7 @@ export class NodeMPManager {
         // This is called when the server confirms a building placement (for everyone)
         // Skip if this is our own building (already placed via prediction)
         if (data.ownerId === this.socket.clientId) {
-            console.log("NodeMPManager: Ignoring remote broadcast of own building placement");
+            debugLog("NodeMPManager: Ignoring remote broadcast of own building placement");
             return;
         }
 
@@ -270,7 +271,7 @@ export class NodeMPManager {
                 shard.resources.push(building);
             }
             
-            console.log(`Building ${data.type} placed by ${data.ownerId} in shard ${shardX}, ${shardZ}`);
+            debugLog(`Building ${data.type} placed by ${data.ownerId} in shard ${shardX}, ${shardZ}`);
         } else {
             console.warn(`Could not find shard ${shardX}, ${shardZ} for remote building placement`);
         }

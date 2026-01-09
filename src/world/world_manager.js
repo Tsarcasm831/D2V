@@ -4,6 +4,7 @@ import { Shard } from './shard.js';
 import { TownManager } from './town_manager.js';
 import { SHARD_SIZE, WORLD_SEED, WORLD_SHARD_LIMIT } from './world_bounds.js';
 import { WorldMask } from './world_mask.js';
+import { debugLog } from '../utils/logger.js';
 
 export class WorldManager {
     constructor(scene, game = null) {
@@ -87,7 +88,7 @@ export class WorldManager {
             };
         }
 
-        console.log(`WorldManager: Loading land ${landData.name || landData.id}`);
+        debugLog(`WorldManager: Loading land ${landData.name || landData.id}`);
 
         // 1. Clear existing shards
         for (const shard of this.activeShards.values()) {
@@ -126,14 +127,12 @@ export class WorldManager {
 
         // 5. Teleport player to saved position, city, or default
         if (window.gameInstance && window.gameInstance.player) {
-            // Explicit start position: world coords [1501, -1393] (shard 125, -117)
-            let spawnX = 1501;
-            let spawnZ = -1393;
+            const spawn = this.levelCenter;
 
             // If we ever want to keep per-land persistence, we could re-enable it here,
             // but the requirement is to always start at the specified position.
 
-            window.gameInstance.player.teleport(spawnX, spawnZ);
+            window.gameInstance.player.teleport(spawn.x, spawn.z);
         }
 
         // 6. Notify game of land change
@@ -141,7 +140,7 @@ export class WorldManager {
             window.gameInstance.onLandLoaded(landData.id);
         }
 
-        console.log(`WorldManager: Land ${landData.id} loaded.`);
+        debugLog(`WorldManager: Land ${landData.id} loaded.`);
     }
 
     async loadData() {
@@ -156,7 +155,7 @@ export class WorldManager {
             this.lootTables = loot;
             this.plantsData = plants;
             this.statsData = stats;
-            console.log('WorldManager: Data files loaded successfully');
+            debugLog('WorldManager: Data files loaded successfully');
         } catch (e) {
             console.error('WorldManager: Error loading data files', e);
         }
@@ -391,7 +390,7 @@ export class WorldManager {
                         if (dist < 100) {
                             if (!this.game.player.discoveredLocations.has(city.name)) {
                                 this.game.player.discoveredLocations.add(city.name);
-                                console.log(`Discovered: ${city.name}`);
+                                debugLog(`Discovered: ${city.name}`);
                                 if (this.game.player.discoveredLocations.size >= 3) {
                                     this.game.achievementManager?.unlock('explorer');
                                 }

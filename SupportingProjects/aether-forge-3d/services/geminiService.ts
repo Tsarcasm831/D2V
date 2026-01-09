@@ -3,11 +3,24 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { WeaponConfig, WeaponType, WeaponEffect, TextureStyle } from "../types";
 import { DEFAULT_CONFIG } from "../constants";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+let ai: GoogleGenAI | null = null;
+
+const getAi = () => {
+  if (!apiKey) return null;
+  if (!ai) ai = new GoogleGenAI({ apiKey });
+  return ai;
+};
 
 export const generateWeaponConfig = async (prompt: string): Promise<WeaponConfig | null> => {
+  const client = getAi();
+  if (!client) {
+    console.warn("Gemini API key not set; skipping AI generation.");
+    return null;
+  }
+
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate a weapon or item configuration based on this description: "${prompt}". 
       Return a JSON object fitting the schema provided. 
