@@ -4,19 +4,57 @@ import { PlayerPhysics } from './PlayerPhysics.js';
 export class PlayerCombat {
     static update(player, dt, input, obstacles, particleManager) {
         
-        // Handle Trigger Inputs
-        if (input.attack1) {
-            if (player.config.selectedItem) {
-                this.playAxeSwing(player);
-            } else {
-                this.playPunch(player);
+        const attack1Triggered = input.attack1 && !player.wasAttack1Pressed;
+        const attack2Triggered = input.attack2 && !player.wasAttack2Pressed;
+
+        // Handle Inputs
+        if (player.config.selectedItem === 'Fishing Pole') {
+            if (attack1Triggered || attack2Triggered) {
+                this.handleFishingInput(player);
+            }
+        } else {
+            if (input.attack1) {
+                if (player.config.selectedItem) {
+                    this.playAxeSwing(player);
+                } else {
+                    this.playPunch(player);
+                }
+            }
+            if (input.attack2) {
+                if (player.config.selectedItem) {
+                    this.playAxeSwing(player);
+                }
             }
         }
-        if (input.attack2) this.playAxeSwing(player);
+
+        // Update Input History
+        player.wasAttack1Pressed = !!input.attack1;
+        player.wasAttack2Pressed = !!input.attack2;
 
         // Update Timers & Logic
         this.updateAxeSwing(player, dt, obstacles, particleManager);
+        this.updateFishing(player, dt);
         this.updatePunchCombo(player, dt, input, obstacles);
+    }
+
+    static handleFishingInput(player) {
+        if (!player.isFishing) {
+            player.isFishing = true;
+            player.fishingTimer = 0;
+        } else {
+            if (player.fishingTimer > 0.8) {
+                player.isFishing = false;
+                player.fishingTimer = 0;
+            }
+        }
+    }
+
+    static updateFishing(player, dt) {
+        if (player.isFishing) {
+            player.fishingTimer += dt;
+        } else {
+            player.fishingTimer = 0;
+        }
     }
 
     static playPunch(player) {
@@ -24,16 +62,6 @@ export class PlayerCombat {
             player.isPunch = true;
             player.punchTimer = 0;
             player.comboChain = 1;
-            if (player.animator) {
-                if (typeof player.animator.playPunch === 'function') {
-                    player.animator.playPunch();
-                } else {
-                    player.animator.isPunch = true;
-                    player.animator.punchTimer = 0;
-                    player.animator.isAxeSwing = false;
-                    player.animator.axeSwingTimer = 0;
-                }
-            }
         }
     }
 
@@ -42,16 +70,6 @@ export class PlayerCombat {
             player.isAxeSwing = true;
             player.axeSwingTimer = 0;
             player.hasHit = false; 
-            if (player.animator) {
-                if (typeof player.animator.playAxeSwing === 'function') {
-                    player.animator.playAxeSwing();
-                } else {
-                    player.animator.isAxeSwing = true;
-                    player.animator.axeSwingTimer = 0;
-                    player.animator.isPunch = false;
-                    player.animator.punchTimer = 0;
-                }
-            }
         }
     }
 
@@ -77,16 +95,10 @@ export class PlayerCombat {
                 player.hasHit = true;
             }
 
-        if (player.axeSwingTimer > duration) { 
+            if (player.axeSwingTimer > duration) { 
                 player.isAxeSwing = false; 
                 player.axeSwingTimer = 0; 
                 player.hasHit = false;
-                
-                // Reset animator state if it exists
-                if (player.animator) {
-                    player.animator.isAxeSwing = false;
-                    player.animator.axeSwingTimer = 0;
-                }
             }
         }
     }
@@ -107,7 +119,7 @@ export class PlayerCombat {
                 
                 const dist = playerPos.distanceTo(obsPos);
 
-                if (dist < hitRange + 1.0) { 
+                if (dist < hitRange + 1.2) { 
                     const dirToObs = new THREE.Vector3().subVectors(obsPos, playerPos).normalize();
                     const dot = playerForward.dot(dirToObs);
 
@@ -121,18 +133,20 @@ export class PlayerCombat {
             }
         }
 
-        if (closest && minDist <= hitRange + 1.0) { 
+        if (closest && minDist <= hitRange + 1.2) { 
              const obsPos = new THREE.Vector3();
              closest.getWorldPosition(obsPos);
-             const impactPos = playerPos.clone().lerp(obsPos, 0.7);
+             
+             const impactPos = playerPos.clone().lerp(obsPos, 0.4);
              impactPos.y += 1.0; 
 
-             const matType = closest.userData?.material;
+             // Determine material and emit particles
+             const matType = closest.userData?.material || 'wood';
              
              if (matType === 'wood' && particleManager) {
-                 particleManager.emit(impactPos, 8, 'wood');
+                 particleManager.emit(impactPos, 12, 'wood');
              } else if (matType === 'stone' && particleManager) {
-                 particleManager.emit(impactPos, 5, 'stone');
+                 particleManager.emit(impactPos, 20, 'spark');
              }
         }
     }
@@ -164,10 +178,6 @@ export class PlayerCombat {
             } else {
                 player.isPunch = false;
                 player.punchTimer = 0;
-                if (player.animator) {
-                    player.animator.isPunch = false;
-                    player.animator.punchTimer = 0;
-                }
             }
         } else if (player.comboChain === 2 && t > punch2Dur) {
             if (isHolding) {
@@ -175,19 +185,11 @@ export class PlayerCombat {
             } else {
                 player.isPunch = false;
                 player.punchTimer = 0;
-                if (player.animator) {
-                    player.animator.isPunch = false;
-                    player.animator.punchTimer = 0;
-                }
             }
         } else if (player.comboChain === 3 && t > punch3Dur) {
             player.isPunch = false;
             player.comboChain = 1;
             player.punchTimer = 0;
-            if (player.animator) {
-                player.animator.isPunch = false;
-                player.animator.punchTimer = 0;
-            }
         }
     }
 }

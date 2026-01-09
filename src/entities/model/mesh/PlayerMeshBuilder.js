@@ -16,6 +16,7 @@ export class PlayerMeshBuilder {
             toeUnits: [],
             irises: [],
             pupils: [],
+            eyes: [],
             eyelids: [],
             rightFingers: [],
             rightThumb: null,

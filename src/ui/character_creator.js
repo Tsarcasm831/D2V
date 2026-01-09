@@ -13,9 +13,7 @@ export class CharacterCreator {
         this.currentPreviewParts = null;
         this.currentPreviewModel = null;
         this.createPlayerMeshFn = null;
-        this.attachShortsFn = null;
         this.attachUnderwearFn = null;
-        this.attachShirtFn = null;
         this.gearFns = {};
         this.equipmentPreviewFns = null;
         this.previewRotation = 0;
@@ -109,9 +107,7 @@ export class CharacterCreator {
     async loadModules() {
         const [
             { createPlayerMesh },
-            { attachShorts },
             { attachUnderwear },
-            { attachShirt },
             gear,
             { createAxe },
             { createSword },
@@ -122,9 +118,7 @@ export class CharacterCreator {
             { createKunai }
         ] = await Promise.all([
             import('../entities/player_mesh.js'),
-            import('../items/shorts.js'),
             import('../items/underwear.js'),
-            import('../items/shirt.js'),
             import('../items/gear.js'),
             import('../items/axe.js'),
             import('../items/sword.js'),
@@ -136,9 +130,7 @@ export class CharacterCreator {
         ]);
 
         this.createPlayerMeshFn = createPlayerMesh;
-        this.attachShortsFn = attachShorts;
         this.attachUnderwearFn = attachUnderwear;
-        this.attachShirtFn = attachShirt;
         this.gearFns = gear;
         this.equipmentPreviewFns = {
             Axe: createAxe,
@@ -158,8 +150,12 @@ export class CharacterCreator {
             'body-type', 'player-name', 'skin-color', 'torso-color-enabled', 'torso-color', 'eye-color', 'shirt-color', 'shirt-pattern', 
             'head-scale', 'torso-width', 'torso-height', 'arm-scale', 'leg-scale',
             'neck-thickness', 'neck-height', 'neck-rotation', 'neck-tilt',
-            'chin-size', 'chin-length', 'chin-height', 'chin-forward', 'iris-scale', 'pupil-scale',
+            'chin-size', 'chin-length', 'chin-height', 'chin-forward',
+            'maxilla-scale-x', 'upper-lip-width', 'nose-forward',
+            'show-brain', 'brain-size',
+            'iris-scale', 'pupil-scale',
             'foot-width', 'foot-length', 'heel-scale', 'heel-height', 'toe-spread', 'butt-scale',
+            'butt-pos-x', 'butt-pos-y', 'butt-pos-z',
             'cloak-cape-x', 'cloak-cape-y', 'cloak-cape-z',
             'cloak-yoke-x', 'cloak-yoke-y', 'cloak-yoke-z',
             'cloak-collar-x', 'cloak-collar-y', 'cloak-collar-z',
@@ -299,10 +295,11 @@ export class CharacterCreator {
         });
 
         // Gear
-        const gearItems = ['gear-shirt', 'gear-shorts', 'gear-vest', 'gear-leather-armor', 'gear-headband', 'gear-leather-gloves', 'gear-leather-hunters-cap', 'gear-assassins-cap', 'gear-leather-boots', 'gear-cloak', 'gear-pants'];
+        const gearItems = ['gear-shirt', 'gear-shorts', 'gear-vest', 'gear-leather-armor', 'gear-headband', 'gear-leather-gloves', 'gear-leather-hunters-cap', 'gear-assassins-cap', 'gear-leather-boots', 'gear-cloak', 'gear-blue-pants'];
         gearItems.forEach(id => {
             const itemName = id.replace('gear-', '');
             const element = document.getElementById(id);
+            if (!element) return;
             const isEnabled = localStorage.getItem(`admin_${itemName}`) === 'true';
             if (isEnabled) {
                 element.style.background = 'rgba(0, 170, 255, 0.2)';
@@ -324,6 +321,16 @@ export class CharacterCreator {
                 }
                 this.updatePreview();
             });
+        });
+
+        const gearItemsOld = ['vest', 'leather-armor', 'headband', 'leather-gloves', 'leather-hunters-cap', 'assassins-cap', 'leather-boots', 'cloak', 'blue-pants'];
+        gearItemsOld.forEach(item => {
+            const isEnabled = localStorage.getItem(`admin_${item}`) === 'true';
+            if (isEnabled) {
+                if (this.gearFns[`attach${item.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`]) {
+                    // This section might be redundant now that updateShirt/updatePants handle it
+                }
+            }
         });
 
         // Equipment previews
@@ -614,13 +621,28 @@ export class CharacterCreator {
             chinForward: parseFloat(document.getElementById('chin-forward').value),
             irisScale: parseFloat(document.getElementById('iris-scale').value),
             pupilScale: parseFloat(document.getElementById('pupil-scale').value),
+            maxillaScaleX: parseFloat(document.getElementById('maxilla-scale-x').value),
+            upperLipWidth: parseFloat(document.getElementById('upper-lip-width').value),
+            noseForward: parseFloat(document.getElementById('nose-forward').value),
+            showBrain: document.getElementById('show-brain').checked,
+            brainSize: parseFloat(document.getElementById('brain-size').value),
             footWidth: parseFloat(document.getElementById('foot-width').value),
             footLength: parseFloat(document.getElementById('foot-length').value),
             heelScale: parseFloat(document.getElementById('heel-scale').value),
             heelHeight: parseFloat(document.getElementById('heel-height').value),
             toeSpread: parseFloat(document.getElementById('toe-spread').value),
             buttScale: parseFloat(document.getElementById('butt-scale').value),
-            outfit: 'nude',
+            buttPosX: parseFloat(document.getElementById('butt-pos-x').value),
+            buttPosY: parseFloat(document.getElementById('butt-pos-y').value),
+            buttPosZ: parseFloat(document.getElementById('butt-pos-z').value),
+            outfit: document.getElementById('body-type').value === 'female' ? 'naked' : 'nude', // Default based on body type
+            equipment: {
+                shirt: localStorage.getItem('admin_shirt') === 'true',
+                pants: localStorage.getItem('admin_blue-pants') === 'true',
+                helm: localStorage.getItem('admin_headband') === 'true' || localStorage.getItem('admin_assassins-cap') === 'true' || localStorage.getItem('admin_leather-hunters-cap') === 'true',
+                shoulders: localStorage.getItem('admin_leather-armor') === 'true',
+                shield: localStorage.getItem('admin_shield') === 'true'
+            },
             toggleUnderwear: document.getElementById('toggle-underwear').checked,
             cloakOffsets: {
                 cape: {
@@ -653,7 +675,7 @@ export class CharacterCreator {
                 assassinsCap: localStorage.getItem('admin_assassins-cap') === 'true',
                 leatherBoots: localStorage.getItem('admin_leather-boots') === 'true',
                 cloak: localStorage.getItem('admin_cloak') === 'true',
-                pants: localStorage.getItem('admin_pants') === 'true'
+                pants: localStorage.getItem('admin_blue-pants') === 'true'
             }
         };
     }
@@ -678,6 +700,11 @@ export class CharacterCreator {
 
         this.replacePreviewMesh(mesh, parts, model);
         this.currentPreviewMesh.position.y = 0;
+
+        // Force a sync to apply all procedural scaling
+        if (model && model.sync) {
+            model.sync(previewConfig);
+        }
 
         // Apply outfit materials directly if needed, or rely on createPlayerMesh initialization
         if (charData.outfit !== 'naked' && parts.materials) {
@@ -708,23 +735,12 @@ export class CharacterCreator {
             if (mats.boots) mats.boots.color.setHex(bootsColor);
         }
 
-        // Existing item attachment logic (shorts/shirt/gear)
-        const gearShirtEnabled = localStorage.getItem('admin_shirt') === 'true';
-        const gearShortsEnabled = localStorage.getItem('admin_shorts') === 'true';
-
         // Handle individual clothing toggles
         if (this.attachUnderwearFn && charData.toggleUnderwear) {
             this.attachUnderwearFn(parts);
         }
-        // Handle gear shirt/shorts
-        if (this.attachShortsFn && gearShortsEnabled) {
-            this.attachShortsFn(parts, charData);
-        }
-        if (this.attachShirtFn && gearShirtEnabled) {
-            this.attachShirtFn(parts, charData);
-        }
 
-        const gearItems = ['vest', 'leather-armor', 'headband', 'leather-gloves', 'leather-hunters-cap', 'assassins-cap', 'leather-boots', 'cloak', 'pants'];
+        const gearItems = ['vest', 'leather-armor', 'headband', 'leather-gloves', 'leather-hunters-cap', 'assassins-cap', 'leather-boots', 'cloak', 'blue-pants'];
         gearItems.forEach(item => {
             const isEnabled = localStorage.getItem(`admin_${item}`) === 'true';
             if (isEnabled) {
@@ -910,7 +926,10 @@ export class CharacterCreator {
         setValue('heel-scale', preset.heelScale || 1.218);
         setValue('heel-height', preset.heelHeight || 1.0);
         setValue('toe-spread', preset.toeSpread || 1.0);
-        setValue('butt-scale', preset.buttScale || 1.0);
+        setValue('butt-scale', preset.buttScale || 0.85);
+        setValue('butt-pos-x', preset.buttPosX || 0.0);
+        setValue('butt-pos-y', preset.buttPosY || 0.0);
+        setValue('butt-pos-z', preset.buttPosZ || 0.0);
         
         // Apply colors if present
         if (preset.shirtColor) {

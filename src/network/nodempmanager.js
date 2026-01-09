@@ -3,8 +3,6 @@ import { GameSocket } from './GameSocket.js';
 import { createPlayerMesh } from '../entities/player_mesh.js';
 import { PlayerAnimator } from '../entities/player_animator.js';
 import { attachUnderwear } from '../items/underwear.js';
-import { attachShorts } from '../items/shorts.js';
-import { attachShirt } from '../items/shirt.js';
 import * as gear from '../items/gear.js';
 import { createAxe } from '../items/axe.js';
 import { createClub } from '../items/club.js';
@@ -298,8 +296,6 @@ class RemotePlayer {
 
         // Attach gear
         attachUnderwear(parts);
-        attachShorts(parts);
-        attachShirt(parts, { ...characterData, name: username });
 
         // Attach gear if present in characterData
         if (characterData.gear) {

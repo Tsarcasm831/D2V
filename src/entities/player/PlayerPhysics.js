@@ -95,7 +95,7 @@ export class PlayerPhysics {
             let rotDiff = targetRotation - player.mesh.rotation.y;
             while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
             while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-            player.mesh.rotation.y += rotDiff * (player.turnSpeed || 5) * dt;
+            player.mesh.rotation.y += rotDiff * (player.turnSpeed || 10) * dt;
 
             // Handle movement when facing hit indicator
             if (isMoving && !player.isPickingUp && !player.isSkinning) {
@@ -125,7 +125,7 @@ export class PlayerPhysics {
             let rotDiff = targetRotation - player.mesh.rotation.y;
             while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
             while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-            player.mesh.rotation.y += rotDiff * (player.turnSpeed || 5) * dt;
+            player.mesh.rotation.y += rotDiff * (player.turnSpeed || 10) * dt;
 
             const inputLen = Math.sqrt(input.x * input.x + input.y * input.y);
             const normX = input.x / inputLen;

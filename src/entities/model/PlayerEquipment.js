@@ -6,6 +6,7 @@ import { buildKnife } from './equipment/held/knife.js';
 import { createHelm } from './equipment/armor/helm.js';
 import { createShoulders } from './equipment/armor/shoulders.js';
 import { createShield } from './equipment/armor/shield.js';
+import * as gear from '../../items/gear.js';
 
 export class PlayerEquipment {
     static updateHeldItem(
@@ -49,7 +50,7 @@ export class PlayerEquipment {
     }
 
     static updateArmor(equipment, parts, equippedMeshes) {
-        const { helm, shoulders, shield } = equipment;
+        const { helm, shoulders, shield, vest, leatherArmor } = equipment;
         if (helm && !equippedMeshes.helm) {
             const h = createHelm();
             parts.headMount.add(h);
@@ -79,6 +80,21 @@ export class PlayerEquipment {
         } else if (!shield && equippedMeshes.shield) {
             parts.leftShieldMount.remove(equippedMeshes.shield);
             delete equippedMeshes.shield;
+        }
+
+        if (vest && !equippedMeshes.vest) {
+            equippedMeshes.vest = gear.attachVest(parts);
+        } else if (!vest && equippedMeshes.vest) {
+            if (equippedMeshes.vest.parent) equippedMeshes.vest.parent.remove(equippedMeshes.vest);
+            delete equippedMeshes.vest;
+        }
+
+        if (leatherArmor && !equippedMeshes.leatherArmor) {
+            const res = gear.attachLeatherArmor(parts);
+            equippedMeshes.leatherArmor = res.armorGroup;
+        } else if (!leatherArmor && equippedMeshes.leatherArmor) {
+            if (equippedMeshes.leatherArmor.parent) equippedMeshes.leatherArmor.parent.remove(equippedMeshes.leatherArmor);
+            delete equippedMeshes.leatherArmor;
         }
     }
 }

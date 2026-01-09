@@ -37,7 +37,7 @@ export class AssetLoader {
         const gearImages = [
             'assets/gear/vest.png', 'assets/gear/leather_armor.png', 'assets/gear/assassins_cloak.png',
             'assets/gear/ninja_headband.png', 'assets/gear/hunters_cap.png', 'assets/gear/assassins_cowl.png',
-            'assets/gear/leather_gloves.png', 'assets/gear/leather_boots.png', 'assets/gear/black_pants.png'
+            'assets/gear/leather_gloves.png', 'assets/gear/leather_boots.png'
         ];
         
         const allImages = [...this.images, ...gearImages];

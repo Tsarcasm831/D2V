@@ -112,15 +112,51 @@
                         <input type="range" id="chin-forward" min="0.0" max="0.1" step="0.01" value="0.03" style="flex:1">
                         <span id="chin-forward-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.03</span>
                     </div>
-                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Iris Scale</div>
+                    
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 8px;">Maxilla Scale</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="range" id="iris-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                        <span id="iris-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                        <input type="range" id="maxilla-scale-x" min="0.5" max="1.5" step="0.01" value="0.95" style="flex:1">
+                        <span id="maxilla-scale-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.95</span>
+                    </div>
+
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 8px;">Lips Width</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="upper-lip-width" min="0.5" max="1.5" step="0.01" value="0.75" style="flex:1">
+                        <span id="upper-lip-width-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.75</span>
+                    </div>
+
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 8px;">Nose Forward</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="nose-forward" min="-0.1" max="0.1" step="0.01" value="-0.02" style="flex:1">
+                        <span id="nose-forward-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">-0.02</span>
+                    </div>
+
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6; margin-top: 8px;">Iris Scale</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="iris-scale" min="0.2" max="1.0" step="0.01" value="0.50" style="flex:1">
+                        <span id="iris-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.50</span>
                     </div>
                     <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Pupil Scale</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="range" id="pupil-scale" min="0.8" max="1.3" step="0.05" value="1.0" style="flex:1">
-                        <span id="pupil-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                        <input type="range" id="pupil-scale" min="0.1" max="0.8" step="0.01" value="0.40" style="flex:1">
+                        <span id="pupil-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.40</span>
+                    </div>
+                </div>
+            </div>
+            <div class="creator-section dropdown" data-dropdown="brain">
+                <button class="dropdown-header" type="button">
+                    <span class="creator-label">BRAIN</span>
+                    <span class="dropdown-caret">▼</span>
+                </button>
+                <div class="dropdown-content">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 6px;">
+                        <input type="checkbox" id="show-brain" style="margin: 0;">
+                        <span style="font-size: 12px; opacity: 0.8;">Visible</span>
+                    </label>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Size</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="brain-size" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+                        <span id="brain-size-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
                     </div>
                 </div>
             </div>
@@ -175,8 +211,23 @@
                     </div>
                     <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Scale</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="range" id="butt-scale" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
-                        <span id="butt-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">1.0</span>
+                        <input type="range" id="butt-scale" min="0.5" max="1.5" step="0.05" value="0.85" style="flex:1">
+                        <span id="butt-scale-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.85</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Position X</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="butt-pos-x" min="-0.1" max="0.1" step="0.01" value="0.0" style="flex:1">
+                        <span id="butt-pos-x-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.00</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Position Y</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="butt-pos-y" min="-0.2" max="0.2" step="0.01" value="0.0" style="flex:1">
+                        <span id="butt-pos-y-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.00</span>
+                    </div>
+                    <div class="creator-label" style="font-size: 10px; opacity: 0.6;">Butt Position Z</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="butt-pos-z" min="-0.2" max="0.2" step="0.01" value="0.0" style="flex:1">
+                        <span id="butt-pos-z-value" style="font-size: 10px; opacity: 0.8; min-width: 35px;">0.00</span>
                     </div>
                 </div>
             </div>
@@ -343,8 +394,8 @@
                     <img src="assets/gear/leather_boots.png" class="gear-icon-img">
                     <span class="gear-name">Boots</span>
                 </div>
-                <div class="gear-item" id="gear-pants">
-                    <img src="assets/gear/black_pants.png" class="gear-icon-img">
+                <div class="gear-item" id="gear-blue-pants">
+                    <img src="assets/gear/shorts.png" class="gear-icon-img">
                     <span class="gear-name">Pants</span>
                 </div>
             </div>
