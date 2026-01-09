@@ -5,9 +5,7 @@ import { createPickaxe } from '../../items/pickaxe.js';
 import { createSword } from '../../items/sword.js';
 import { createDagger } from '../../items/dagger.js';
 import { createKunai } from '../../items/kunai.js';
-import { attachShirt } from '../../items/shirt.js';
 import { attachUnderwear } from '../../items/underwear.js';
-import { attachShorts } from '../../items/shorts.js';
 import * as gear from '../../items/gear.js';
 import { SCALE_FACTOR } from '../../world/world_bounds.js';
 import { PlayerEquipment } from '../model/PlayerEquipment.js';
@@ -35,10 +33,9 @@ export class PlayerGear {
         // Initial equipment meshes from PlayerEquipment modular system
         this.equippedMeshes = this.player.model?.equippedMeshes || {};
 
-        // Clothing
+        // Underwear is currently the only non-procedural clothing part manually attached here.
+        // Shirt and Pants are handled by PlayerModel's updateShirt/updatePants logic.
         this.player.underwear = attachUnderwear(parts);
-        this.player.shorts = attachShorts(parts, characterData);
-        this.player.shirt = attachShirt(parts, characterData);
 
         // Held items / Hands
         this.rightHand = new THREE.Group();
@@ -107,9 +104,11 @@ export class PlayerGear {
         // Map legacy equipment slots to modular system
         const modularEquip = {
             helm: !!equipment.HELMET,
-            shoulders: !!equipment.GLOVES || !!equipment.VEST, // Approximate
+            shoulders: !!equipment.GLOVES,
             shield: !!equipment.WEAPON_OFF && equipment.WEAPON_OFF.type === 'shield',
-            shirt: !!equipment.BODY
+            shirt: !!equipment.BODY,
+            vest: !!equipment.VEST && (equipment.VEST.id.includes('vest') || equipment.VEST.name.includes('Vest')),
+            leatherArmor: !!equipment.VEST && (equipment.VEST.id.includes('armor') || equipment.VEST.name.includes('Armor'))
         };
 
         if (this.player.model) {

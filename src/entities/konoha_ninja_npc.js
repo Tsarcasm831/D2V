@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { createPlayerMesh } from './player_mesh.js';
-import { attachShirt } from '../items/shirt.js';
 import { attachUnderwear } from '../items/underwear.js';
 import * as gear from '../items/gear.js';
 import { PlayerAnimator } from './player_animator.js';
@@ -18,7 +17,16 @@ export class KonohaNinjaNPC {
         const characterData = {
             name: name,
             bodyType: 'male',
-            skinColor: '#ffdbac'
+            skinColor: '#ffdbac',
+            shirtColor: '#ffffff',
+            outfit: 'noble', // White procedural shirt
+            equipment: {
+                shirt: true,
+                pants: true,
+                helm: false,
+                shoulders: false,
+                shield: false
+            }
         };
 
         const { mesh, parts, model } = createPlayerMesh(characterData);
@@ -28,14 +36,10 @@ export class KonohaNinjaNPC {
         this.mesh.position.copy(pos);
         this.scene.add(this.mesh);
 
-        // Attach Gear
+        // Attach Gear (Manual overrides for specific items)
         this.underwear = attachUnderwear(this.parts);
         
-        // White shirt
-        this.shirt = attachShirt(this.parts, { shirtColor: '#ffffff' });
-        
-        // Ninja gear
-        this.pants = gear.attachPants(this.parts);
+        // Ninja gear (Specific attachments)
         this.vest = gear.attachVest(this.parts);
         this.headband = gear.attachHeadband(this.parts);
         

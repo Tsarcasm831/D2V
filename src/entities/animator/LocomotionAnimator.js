@@ -282,26 +282,44 @@ export class LocomotionAnimator {
     }
 
     animateBreathing(player, parts, t, intensity) {
-        const breathPhase = Math.sin(t * 1.5);
-        const chestExpansion = 1.0 + (breathPhase * 0.04 * intensity);
-        if (parts.chest) parts.chest.scale.setScalar(chestExpansion);
-        if (parts.maleChest) {
-            parts.maleChest.scale.set(
-                chestExpansion,
-                chestExpansion,
-                1.0 + (breathPhase * 0.06 * intensity)
-            );
+        const breathFreq = 0.8;
+        const breathPhase = Math.sin(t * breathFreq);
+        
+        // Expansion Factor
+        const chestExpansion = 1.0 + (breathPhase * 0.015 * intensity);
+        const torsoBreath = 1.0 + (breathPhase * 0.01 * intensity);
+
+        // Torso Expansion to sync with shirt/shoulders
+        if (parts.torso) {
+            const baseScale = parts.torso.userData.baseScale || parts.torso.scale.clone();
+            parts.torso.userData.baseScale = baseScale;
+            parts.torso.scale.set(baseScale.x * torsoBreath, baseScale.y, baseScale.z * torsoBreath);
         }
-        if (parts.topCap) {
-            const shoulderBreath = 1.0 + (breathPhase * 0.015 * intensity);
-            if (!parts.topCap.userData.baseScale) {
-                parts.topCap.userData.baseScale = parts.topCap.scale.clone();
-            }
-            if (parts.topCap.userData.baseY === undefined) {
-                parts.topCap.userData.baseY = parts.topCap.position.y;
-            }
-            parts.topCap.scale.copy(parts.topCap.userData.baseScale).multiplyScalar(shoulderBreath);
-            parts.topCap.position.y = parts.topCap.userData.baseY + (breathPhase * 0.005 * intensity);
+
+        // Shirt follow breathing
+        const shirt = parts.shirt;
+        if (shirt && shirt.torso) {
+            const baseScale = shirt.torso.userData.baseScale || shirt.torso.scale.clone();
+            shirt.torso.userData.baseScale = baseScale;
+            // Torso shirt follows torso expansion
+            shirt.torso.scale.set(baseScale.x * torsoBreath, baseScale.y, baseScale.z * torsoBreath);
+        }
+        if (shirt && shirt.shoulders) {
+            shirt.shoulders.forEach((s) => {
+                const b = s.userData.baseScale || s.scale.clone();
+                s.userData.baseScale = b;
+                s.scale.set(b.x * chestExpansion, b.y, b.z * chestExpansion);
+            });
+        }
+        
+        if (parts.chest) {
+            parts.chest.scale.set(1.0 * chestExpansion, 1.0 * chestExpansion, 1.0);
+        }
+
+        // Male chest details (nipples/abs) are parented to maleChest which is child of torsoContainer.
+        // We need to scale them with the chest expansion.
+        if (parts.maleChest) {
+            parts.maleChest.scale.set(chestExpansion, 1.0, chestExpansion);
         }
     }
 }

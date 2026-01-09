@@ -1,14 +1,9 @@
-
 import * as THREE from 'three';
-import { PlayerConfig } from '../../../types';
 
 export class PantsBuilder {
-    static build(parts: any, config: PlayerConfig) {
-        if (!config.equipment.pants) return null;
+    static build(parts, config) {
+        if (!config.equipment || !config.equipment.pants) return null;
 
-        // Note: Unlike ShirtBuilder, we don't check for 'naked' outfit here to disable pants.
-        // If equipment.pants is TRUE, we render them (defaulting to blue jeans if naked).
-        
         const canvas = document.createElement('canvas');
         canvas.width = 512;
         canvas.height = 512;
@@ -51,7 +46,7 @@ export class PantsBuilder {
         const tex = new THREE.CanvasTexture(canvas);
         const mat = new THREE.MeshToonMaterial({ map: tex });
         
-        const meshes: THREE.Object3D[] = [];
+        const meshes = [];
         
         // Scale to sit between underwear (1.02) and shirt (~1.1)
         const s = 1.06; 
@@ -87,6 +82,29 @@ export class PantsBuilder {
             cMesh.position.y = -pelvisHeight;
             parts.pelvis.add(cMesh);
             meshes.push(cMesh);
+
+            // 1b. Buttocks Coverage (Critical for Female model)
+            const buttocks = new THREE.Group();
+            parts.pelvis.add(buttocks);
+            
+            const buttRadius = 0.125;
+            const buttGeo = new THREE.SphereGeometry(buttRadius, 16, 16);
+            
+            [-1, 1].forEach(side => {
+                const cheekGroup = new THREE.Group();
+                // Match TorsoBuilder positioning
+                cheekGroup.position.set(side * 0.075, -0.06, -0.11); 
+                cheekGroup.rotation.x = 0.2; 
+                cheekGroup.rotation.y = side * 0.25; 
+                buttocks.add(cheekGroup);
+
+                const cheek = new THREE.Mesh(buttGeo, mat);
+                // Slightly larger than the base cheek (1.06 vs 1.0) and then multiplied by pants scale 's'
+                cheek.scale.set(1.05, 1.0, 0.9);
+                cheek.scale.multiplyScalar(s);
+                cheekGroup.add(cheek);
+                meshes.push(cheek);
+            });
         }
 
         // 2. Legs

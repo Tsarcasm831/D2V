@@ -182,25 +182,37 @@ export function attachCloak(parts, offsets = {}) {
 }
 
 export function attachVest(parts) {
-    // Match torso contour and sit slightly above the shirt
-    const torsoRadiusTop = 0.315;
-    const torsoRadiusBottom = 0.275;
-    const vestLen = 0.38;
+    // Match torso dimensions with consistent padding
+    // Torso: 0.28 / 0.22
+    // Shirt: 0.30 / 0.24
+    // Vest:  0.32 / 0.26
+    const torsoRadiusTop = 0.32;
+    const torsoRadiusBottom = 0.26;
+    const vestLen = 0.48; // Slightly longer to cover the torso body
     
     const vestGroup = new THREE.Group();
-    // Shirt is at 0.41 * SCALE_FACTOR, we align vest to it
-    vestGroup.position.y = 0.41 * SCALE_FACTOR;
-    vestGroup.position.z = 0.02;
-    vestGroup.scale.set(1, 1, 0.65);
-    parts.torsoContainer.add(vestGroup);
+    vestGroup.name = 'vest';
+    // Align with torso mesh center (0.38)
+    vestGroup.position.y = 0.38 * SCALE_FACTOR;
+    vestGroup.position.z = 0.01;
+    
+    // Parenting to torso mesh ensures it follows all non-uniform scaling and animations (like breathing)
+    if (parts.torso) {
+        parts.torso.add(vestGroup);
+    } else {
+        parts.torsoContainer.add(vestGroup);
+    }
 
     // 1. MAIN BODY (Split Front)
-    const bodyGeoR = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, vestLen, 16, 1, false, Math.PI * 0.52, Math.PI * 0.95);
+    const bodyGeoR = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, vestLen, 16, 1, false, Math.PI * 0.55, Math.PI * 0.9);
+    // Apply depth scale to geometry to match torso mesh shape perfectly
+    bodyGeoR.scale(1, 1, 0.68); 
     const bodyR = new THREE.Mesh(bodyGeoR, VEST_MAT);
     bodyR.castShadow = true;
     vestGroup.add(bodyR);
 
-    const bodyGeoL = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, vestLen, 16, 1, false, Math.PI * 1.53, Math.PI * 0.95);
+    const bodyGeoL = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, vestLen, 16, 1, false, Math.PI * 1.55, Math.PI * 0.9);
+    bodyGeoL.scale(1, 1, 0.68);
     const bodyL = new THREE.Mesh(bodyGeoL, VEST_MAT);
     bodyL.castShadow = true;
     vestGroup.add(bodyL);
@@ -213,21 +225,24 @@ export function attachVest(parts) {
     });
 
     // 2. HIGH COLLAR
-    const collarRadius = torsoRadiusTop * 1.05;
+    const collarRadius = torsoRadiusTop * 1.02;
     const collarHeight = 0.12;
     // Split collar to match the front opening
     const collarGeoR = new THREE.CylinderGeometry(collarRadius, collarRadius, collarHeight, 16, 1, false, Math.PI * 0.55, Math.PI * 0.9);
+    collarGeoR.scale(1, 1, 0.68);
     const collarR = new THREE.Mesh(collarGeoR, VEST_MAT);
     collarR.position.y = vestLen / 2 + collarHeight / 2;
     vestGroup.add(collarR);
 
     const collarGeoL = new THREE.CylinderGeometry(collarRadius, collarRadius, collarHeight, 16, 1, false, Math.PI * 1.55, Math.PI * 0.9);
+    collarGeoL.scale(1, 1, 0.68);
     const collarL = new THREE.Mesh(collarGeoL, VEST_MAT);
     collarL.position.y = vestLen / 2 + collarHeight / 2;
     vestGroup.add(collarL);
 
     // Collar trim (thicker look)
     const collarTrimGeo = new THREE.TorusGeometry(collarRadius, 0.02, 8, 16, Math.PI * 1.8);
+    collarTrimGeo.scale(1, 1, 0.68);
     const collarTrim = new THREE.Mesh(collarTrimGeo, TRIM_MAT);
     collarTrim.rotation.x = Math.PI / 2;
     collarTrim.rotation.z = Math.PI * 0.1;
@@ -265,11 +280,14 @@ export function attachVest(parts) {
     const pouchGeo = new THREE.BoxGeometry(pouchWidth, pouchHeight, pouchDepth);
     const flapGeo = new THREE.BoxGeometry(pouchWidth + 0.01, 0.03, pouchDepth + 0.01);
     
+    // Position surface for pouches based on squashed depth
+    const pouchZ = (torsoRadiusTop * 0.68) + 0.02;
+
     for (let side = -1; side <= 1; side += 2) {
         for (let p = -1; p <= 1; p++) {
             const pouch = new THREE.Mesh(pouchGeo, VEST_MAT);
             // Position 3 pouches side-by-side
-            pouch.position.set((0.15 + p * 0.06) * side, -0.05, 0.28);
+            pouch.position.set((0.15 + p * 0.06) * side, -0.05, pouchZ);
             pouch.rotation.y = 0.1 * side;
             vestGroup.add(pouch);
 
@@ -288,13 +306,14 @@ export function attachVest(parts) {
     const zipperGeo = new THREE.PlaneGeometry(0.015, vestLen);
     const zipperMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
     const zipper = new THREE.Mesh(zipperGeo, zipperMat);
-    zipper.position.set(0, 0, 0.305);
+    zipper.position.set(0, 0, pouchZ + 0.005);
     vestGroup.add(zipper);
 
     // 6. THICK BOTTOM TRIM
-    const bottomTrimRadius = torsoRadiusBottom + 0.03;
+    const bottomTrimRadius = torsoRadiusBottom + 0.02;
     const bottomTrimHeight = 0.08;
     const bottomTrimGeo = new THREE.CylinderGeometry(bottomTrimRadius, bottomTrimRadius, bottomTrimHeight, 16);
+    bottomTrimGeo.scale(1, 1, 0.68);
     const bottomTrim = new THREE.Mesh(bottomTrimGeo, TRIM_MAT);
     bottomTrim.position.y = -vestLen / 2;
     vestGroup.add(bottomTrim);
@@ -308,9 +327,17 @@ export function attachVest(parts) {
 
 export function attachLeatherArmor(parts) {
     const armorGroup = new THREE.Group();
-    // Base armor is slightly higher to cover chest
+    armorGroup.name = 'leatherArmor';
+    // Align with torso mesh center
     armorGroup.position.y = 0.38 * SCALE_FACTOR;
-    parts.torsoContainer.add(armorGroup);
+    armorGroup.position.z = 0.01;
+    
+    // Parent to torso mesh for perfect animation tracking
+    if (parts.torso) {
+        parts.torso.add(armorGroup);
+    } else {
+        parts.torsoContainer.add(armorGroup);
+    }
 
     const torsoRadiusTop = 0.32, torsoRadiusBottom = 0.28;
     
@@ -323,6 +350,8 @@ export function attachLeatherArmor(parts) {
         const radiusT = cuirassRadiusTop - (i * 0.005);
         const radiusB = cuirassRadiusBottom + (0.01 - i * 0.005);
         const bandGeo = new THREE.CylinderGeometry(radiusT, radiusB, bandHeight, 16);
+        // Match torso depth scale
+        bandGeo.scale(1, 1, 0.68);
         const band = new THREE.Mesh(bandGeo, LEATHER_MAT);
         band.position.y = 0.16 - (i * 0.12); // Moved up (0.1 -> 0.16) to connect with chest plate
         band.rotation.y = i * 0.1; 
@@ -345,9 +374,12 @@ export function attachLeatherArmor(parts) {
 
     // 2. CHEST PLATE (Gorget/Breastplate top)
     const chestGeo = new THREE.SphereGeometry(cuirassRadiusTop * 1.02, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    // Align sphere depth with torso
+    chestGeo.scale(1, 1, 0.68);
     const chestPlate = new THREE.Mesh(chestGeo, LEATHER_MAT);
-    chestPlate.position.y = 0.22; // Aligned with the top of the cuirass
-    chestPlate.scale.set(1.05, 0.45, 1.15); // Much more subtle, realistic curve
+    chestPlate.position.y = 0.22; 
+    chestPlate.scale.set(1.05, 0.45, 1.15); 
+
     armorGroup.add(chestPlate);
 
     const chestO = new THREE.Mesh(chestGeo, OUTLINE_MAT);
@@ -356,6 +388,7 @@ export function attachLeatherArmor(parts) {
 
     // 3. COLLAR (High protective collar)
     const collarGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.12, 16, 1, true);
+    collarGeo.scale(1, 1, 0.68);
     const collar = new THREE.Mesh(collarGeo, DETAIL_MAT);
     collar.position.y = 0.32;
     armorGroup.add(collar);

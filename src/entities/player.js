@@ -37,6 +37,10 @@ export class Player {
         this.gravity = -30 * SCALE_FACTOR;
         this.jumpPower = 11 * SCALE_FACTOR;
 
+        // Velocity Tracking for Physics/Hair
+        this.previousPosition = new THREE.Vector3();
+        this.velocity = new THREE.Vector3();
+
         this.isDead = false;
         this.deathTime = 0;
         this.deathVariation = { side: 1, twist: 0, fallDir: 1, stumbleDir: 0 };
@@ -336,6 +340,17 @@ export class Player {
 
     update(delta, input, camera) {
         this.syncConfig();
+
+        // Calculate Velocity for effects (Hair Physics)
+        if (delta > 0 && this.mesh) {
+            this.velocity.subVectors(this.mesh.position, this.previousPosition).divideScalar(delta);
+            this.previousPosition.copy(this.mesh.position);
+        }
+
+        // Update Model Physics (e.g. Hair)
+        if (this.model && this.model.update) {
+            this.model.update(delta, this.velocity);
+        }
 
         if (this.actions && this.actions.update) {
             this.actions.update(delta);

@@ -17,7 +17,7 @@ export class PlayerInventory {
         this.storage[3] = { id: 'start-cap', name: "Hunter's Cap", type: 'clothing', icon: 'assets/gear/hunters_cap.png', slot: 'head', count: 1 };
         this.storage[4] = { id: 'start-gloves', name: "Assassin's Gloves", type: 'clothing', icon: 'assets/gear/leather_gloves.png', slot: 'gloves', count: 1 };
         this.storage[5] = { id: 'start-boots', name: 'Leather Boots', type: 'clothing', icon: 'assets/gear/leather_boots.png', slot: 'boots', count: 1 };
-        this.storage[6] = { id: 'start-pants', name: 'Black Pants', type: 'clothing', icon: 'assets/gear/black_pants.png', slot: 'pants', count: 1 };
+        this.storage[6] = { id: 'start-pants', name: 'Blue Pants', type: 'clothing', icon: 'assets/gear/shorts.png', slot: 'pants', count: 1 };
         this.storage[7] = null;
         this.storage[8] = { id: 'start-wood', name: 'Wood', type: 'material', icon: 'assets/icons/wood_log_icon.png', count: 50 };
         this.storage[9] = { id: 'start-stone', name: 'Stone', type: 'material', icon: 'assets/icons/wall_icon.png', count: 50 };

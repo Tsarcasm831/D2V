@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { createPlayerMesh } from '../entities/player_mesh.js';
 import { PlayerAnimator } from '../entities/player_animator.js';
-import { attachShorts } from '../items/shorts.js';
-import { attachShirt } from '../items/shirt.js';
 import * as gearFns from '../items/gear.js';
 
 const ItemRarity = {
@@ -483,14 +481,10 @@ export class InventoryUI {
       shirtPattern: 'none'
     };
 
-    const { mesh, parts } = createPlayerMesh(charData);
+    const { mesh, parts, model } = createPlayerMesh(charData);
     this.currentPreviewMesh = mesh;
     this.currentPreviewMesh.position.y = 0;
     this.previewScene.add(this.currentPreviewMesh);
-
-    // Attach base clothing
-    attachShorts(parts, charData);
-    attachShirt(parts, charData);
 
     // Attach currently equipped items
     const equipped = this.player.inventory.equipment;
