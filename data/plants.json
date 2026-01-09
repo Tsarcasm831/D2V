@@ -59,6 +59,28 @@
         "max": 2
       },
       "seedId": "lettuce_seeds"
+    },
+    "fire_flower": {
+      "id": "fire_flower",
+      "name": "Fire Flower",
+      "growthStages": 1,
+      "timePerStage": 0,
+      "yield": {
+        "itemId": "fire_essence",
+        "min": 1,
+        "max": 2
+      }
+    },
+    "mana_flower": {
+      "id": "mana_flower",
+      "name": "Mana Flower",
+      "growthStages": 1,
+      "timePerStage": 0,
+      "yield": {
+        "itemId": "mana_essence",
+        "min": 1,
+        "max": 2
+      }
     }
   }
 }

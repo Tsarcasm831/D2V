@@ -34,41 +34,17 @@ export class QuestGiver extends NPC {
     }
 
     setupAppearance() {
-        attachUnderwear(this.parts);
-        
-        const purpleColor = 0x8e44ad;
-        const goldColor = 0xf1c40f;
-        const outlineMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
-
-        // Purple Shirt
-        const shirtMat = new THREE.MeshToonMaterial({ color: purpleColor });
-        const torsoRadiusTop = 0.3, torsoRadiusBottomShirt = 0.26, shirtLen = 0.32;
-        const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottomShirt, shirtLen, 16);
-        const shirtTorso = new THREE.Mesh(shirtTorsoGeo, shirtMat);
-        shirtTorso.position.y = 0.41 * SCALE_FACTOR;
-        this.parts.torsoContainer.add(shirtTorso);
-
-        const sleeveRadius = 0.12, sleeveLen = 0.25;
-        const sleeveGeo = new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLen, 12);
-        const attachSleeve = (armPart) => {
-            const sleeve = new THREE.Mesh(sleeveGeo, shirtMat);
-            sleeve.position.y = -sleeveLen / 2;
-            armPart.add(sleeve);
+        const config = {
+            outfit: 'noble',
+            shirtColor: '#8e44ad',
+            bodyType: 'male',
+            equipment: {
+                shirt: true,
+                pants: true
+            }
         };
-        attachSleeve(this.parts.rightArm);
-        attachSleeve(this.parts.leftArm);
-
-        // Gold Pants/Legs
-        const pantsMat = new THREE.MeshToonMaterial({ color: goldColor });
-        const thighRadius = 0.1, legLen = 0.42;
-        const legGeo = new THREE.CylinderGeometry(thighRadius * 1.35, thighRadius * 1.25, legLen, 12);
-        const attachLeg = (thighPart) => {
-            const leg = new THREE.Mesh(legGeo, pantsMat);
-            leg.position.y = -legLen / 2 + 0.02; 
-            thighPart.add(leg);
-        };
-        attachLeg(this.parts.rightThigh);
-        attachLeg(this.parts.leftThigh);
+        this.model.sync(config);
+        if (this.animator) this.animator.setConfig(config);
     }
 
     update(delta, player) {

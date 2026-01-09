@@ -18,8 +18,14 @@ export class BerryBush {
     }
 
     setupMesh() {
-        const bushMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.8 });
-        const berryMat = new THREE.MeshStandardMaterial({ color: 0xc62828, emissive: 0x330000 });
+        const wm = this.shard.worldManager;
+        const bushMat = wm ? wm.getSharedMaterial('standard', { color: 0x1b5e20, roughness: 0.8 }) : new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.8 });
+        
+        let berryColor = 0xc62828;
+        if (this.type === 'fire_flower') berryColor = 0xff4400;
+        if (this.type === 'mana_flower') berryColor = 0x00ffff;
+        
+        const berryMat = wm ? wm.getSharedMaterial('standard', { color: berryColor, emissive: berryColor, emissiveIntensity: 0.5 }) : new THREE.MeshStandardMaterial({ color: berryColor, emissive: 0x330000 });
 
         this.berryGroup = new THREE.Group();
         this.group.add(this.berryGroup);
@@ -27,11 +33,11 @@ export class BerryBush {
         this.respawnTime = 3600 * 1000; // 1 hour in ms
         this.harvestTimestamp = 0;
 
-        // Main bush volume (using a few spheres for an organic shape)
-        const bushParts = 3;
+        // Main bush volume
+        const bushParts = this.type === 'berry_bush' ? 3 : 1;
         for (let i = 0; i < bushParts; i++) {
-            const size = (0.4 + Math.random() * 0.2) * SCALE_FACTOR;
-            const geo = new THREE.SphereGeometry(size, 8, 8);
+            const size = (this.type === 'berry_bush' ? (0.4 + Math.random() * 0.2) : (0.2 + Math.random() * 0.1)) * SCALE_FACTOR;
+            const geo = wm ? wm.getSharedGeometry('sphere', size, 8, 8) : new THREE.SphereGeometry(size, 8, 8);
             const part = new THREE.Mesh(geo, bushMat);
             part.position.set(
                 (Math.random() - 0.5) * 0.4 * SCALE_FACTOR,
@@ -42,10 +48,11 @@ export class BerryBush {
             part.layers.enable(1);
             this.group.add(part);
             
-            // Add berries to each part
-            for (let j = 0; j < 4; j++) {
+            // Add berries/flowers to each part
+            const count = this.type === 'berry_bush' ? 4 : 1;
+            for (let j = 0; j < count; j++) {
                 const berry = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.06 * SCALE_FACTOR, 4, 4),
+                    wm ? wm.getSharedGeometry('sphere', 0.06 * SCALE_FACTOR, 4, 4) : new THREE.SphereGeometry(0.06 * SCALE_FACTOR, 4, 4),
                     berryMat
                 );
                 const angle = Math.random() * Math.PI * 2;
@@ -63,6 +70,17 @@ export class BerryBush {
 
     harvest() {
         if (this.isHarvested || this.isDead) return false;
+        
+        // Trap effect for Fire Flowers
+        if (this.type === 'fire_flower' && Math.random() < 0.3) {
+            if (this.shard?.worldManager?.game?.player) {
+                this.shard.worldManager.game.player.takeDamage(10);
+                if (this.shard.worldManager.game.ui) {
+                    this.shard.worldManager.game.ui.showStatus("BOOM! Fire Flower detonated!", true);
+                }
+            }
+        }
+
         this.isHarvested = true;
         this.harvestTimestamp = Date.now();
         this.berryGroup.visible = false;

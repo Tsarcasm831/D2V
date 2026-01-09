@@ -1,12 +1,14 @@
 import * as THREE from 'three';
+import { CaveGenerator } from './cave_generator.js';
 import { Shard } from './shard.js';
 import { TownManager } from './town_manager.js';
 import { SHARD_SIZE, WORLD_SEED, WORLD_SHARD_LIMIT } from './world_bounds.js';
 import { WorldMask } from './world_mask.js';
 
 export class WorldManager {
-    constructor(scene) {
+    constructor(scene, game = null) {
         this.scene = scene;
+        this.game = game;
         const PLATEAU_X = 7509.5;
         const PLATEAU_Z = -6949.1;
         this.levelCenter = new THREE.Vector3(PLATEAU_X, 0, PLATEAU_Z);
@@ -34,6 +36,7 @@ export class WorldManager {
         };
         
         this._needsCacheUpdate = true;
+        this.caveGenerator = new CaveGenerator(this);
         this.shardQueue = []; // NEW: Queue for progressive shard loading
         
         this.heightCache = new Map(); // Cache for terrain height checks
@@ -110,20 +113,26 @@ export class WorldManager {
         // 4. Update TownManager seed
         this.townManager.initialize(this.worldMask.seed);
 
+        // 4b. Force-discover key travel points (Yureigakure + Bowl Center) so they are always available
+        if (window.gameInstance?.player) {
+            const baseDiscover = ['Yureigakure', 'Yurei', 'Center of the Bowl (Yureigakure)'];
+            if (!window.gameInstance.player.discoveredLocations) {
+                window.gameInstance.player.discoveredLocations = new Set();
+            }
+            for (const loc of baseDiscover) {
+                window.gameInstance.player.discoveredLocations.add(loc);
+            }
+        }
+
         // 5. Teleport player to saved position, city, or default
         if (window.gameInstance && window.gameInstance.player) {
-            const savedPos = window.gameInstance.landPositions[landData.id];
-            let spawnX = 0;
-            let spawnZ = 0;
-            
-            if (savedPos) {
-                spawnX = savedPos.x;
-                spawnZ = savedPos.z;
-            } else if (this.worldMask.cities && this.worldMask.cities.length > 0) {
-                spawnX = this.worldMask.cities[0].worldX;
-                spawnZ = this.worldMask.cities[0].worldZ;
-            }
-            
+            // Explicit start position: world coords [1501, -1393] (shard 125, -117)
+            let spawnX = 1501;
+            let spawnZ = -1393;
+
+            // If we ever want to keep per-land persistence, we could re-enable it here,
+            // but the requirement is to always start at the specified position.
+
             window.gameInstance.player.teleport(spawnX, spawnZ);
         }
 
@@ -366,94 +375,219 @@ export class WorldManager {
         if (ui) {
             ui.innerHTML = `Shard Coordinate: ${sx}, ${sz}`;
             
-            // Check for nearby cities from Land23
-            if (this.worldMask && this.worldMask.cities) {
-                const currentWorldX = pos.x;
-                const currentWorldZ = pos.z;
+            // Fast Travel System
+            if (this.game?.player) {
+                if (!this.game.player.discoveredLocations) {
+                    this.game.player.discoveredLocations = new Set();
+                }
                 
-                for (const city of this.worldMask.cities) {
-                    const dx = currentWorldX - city.worldX;
-                    const dz = currentWorldZ - city.worldZ;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
-                    
-                    // If within 100 units of a city, show its name
-                    if (dist < 100) {
-                        ui.innerHTML += ` | Location: <span style="color: #00aaff; font-weight: bold;">${city.name}</span>`;
-                        break;
+                // Add discovery logic
+                if (this.worldMask && this.worldMask.cities) {
+                    for (const city of this.worldMask.cities) {
+                        const dx = pos.x - city.worldX;
+                        const dz = pos.z - city.worldZ;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+                        
+                        if (dist < 100) {
+                            if (!this.game.player.discoveredLocations.has(city.name)) {
+                                this.game.player.discoveredLocations.add(city.name);
+                                console.log(`Discovered: ${city.name}`);
+                                if (this.game.player.discoveredLocations.size >= 3) {
+                                    this.game.achievementManager?.unlock('explorer');
+                                }
+                            }
+                            ui.innerHTML += ` | Location: <span style="color: #00aaff; font-weight: bold;">${city.name}</span>`;
+                        }
                     }
                 }
             }
 
             // Check if teleport buttons exist, if not create them
-            if (!document.getElementById('tp-shard-btn')) {
-                const btnContainer = document.createElement('div');
-                btnContainer.style.display = 'inline-flex';
-                btnContainer.style.gap = '10px';
-                btnContainer.style.marginLeft = '15px';
-                btnContainer.style.pointerEvents = 'auto';
-
-                const tpBtn = document.createElement('button');
-                tpBtn.id = 'tp-shard-btn';
-                tpBtn.textContent = 'TP: Shard (80, -108)';
-                tpBtn.style.padding = '4px 8px';
-                tpBtn.style.background = 'rgba(0, 170, 255, 0.3)';
-                tpBtn.style.border = '1px solid var(--primary)';
-                tpBtn.style.color = 'white';
-                tpBtn.style.cursor = 'pointer';
-                tpBtn.style.borderRadius = '4px';
-                tpBtn.style.fontSize = '12px';
-                tpBtn.onclick = async () => {
-                    if (window.gameInstance && window.gameInstance.player) {
-                        const targetX = 80 * SHARD_SIZE;
-                        const targetZ = -108 * SHARD_SIZE;
-                        window.gameInstance.player.teleport(targetX, targetZ);
-
-                        // Spawn assassin at the destination
-                        const key = `${80},${-108}`;
-                        
-                        // Ensure the shard is loaded or available
-                        let shard = this.activeShards.get(key);
-                        if (!shard) {
-                            shard = new Shard(this.scene, 80, -108, this);
-                            this.activeShards.set(key, shard);
-                            if (shard.groundMesh) this.terrainMeshes.push(shard.groundMesh);
-                            this.invalidateCache();
-                        }
-
-                        const { AssassinNPC } = await import('../entities/enemy_npc_assassin_1.js');
-                        const spawnPos = new THREE.Vector3(targetX, this.getTerrainHeight(targetX, targetZ), targetZ);
-                        const assassin = new AssassinNPC(this.scene, shard, spawnPos);
-                        shard.npcs.push(assassin);
-                        this.invalidateCache();
+            if (!document.getElementById('fast-travel-container')) {
+                const container = document.createElement('div');
+                container.id = 'fast-travel-container';
+                container.style.display = 'inline-flex';
+                container.style.gap = '10px';
+                container.style.marginLeft = '15px';
+                container.style.pointerEvents = 'auto';
+                
+                // Discovered Locations Dropdown or List
+                const ftBtn = document.createElement('button');
+                ftBtn.textContent = 'Fast Travel';
+                ftBtn.style.padding = '4px 8px';
+                ftBtn.style.background = 'rgba(0, 255, 170, 0.3)';
+                ftBtn.style.border = '1px solid #00ffaa';
+                ftBtn.style.color = 'white';
+                ftBtn.style.cursor = 'pointer';
+                ftBtn.style.borderRadius = '4px';
+                ftBtn.style.fontSize = '12px';
+                
+                ftBtn.onclick = () => {
+                    if (!this.game || !this.game.player) {
+                        console.warn('Game or player not available for fast travel');
+                        return;
                     }
-                };
-
-                const tpYureiBtn = document.createElement('button');
-                tpYureiBtn.id = 'tp-yurei-btn';
-                tpYureiBtn.textContent = 'TP: YUREI';
-                tpYureiBtn.style.padding = '4px 8px';
-                tpYureiBtn.style.background = 'rgba(170, 0, 255, 0.3)';
-                tpYureiBtn.style.border = '1px solid #aa00ff';
-                tpYureiBtn.style.color = 'white';
-                tpYureiBtn.style.cursor = 'pointer';
-                tpYureiBtn.style.borderRadius = '4px';
-                tpYureiBtn.style.fontSize = '12px';
-                tpYureiBtn.onclick = () => {
-                    if (window.gameInstance && window.gameInstance.player) {
-                        const PLATEAU_X = 7509.5;
-                        const PLATEAU_Z = -6949.1;
-                        if (this.levelCenter) {
-                            this.levelCenter.set(PLATEAU_X, 0, PLATEAU_Z);
+                    const locations = Array.from(this.game.player.discoveredLocations || []);
+                    if (locations.length === 0) {
+                        if (this.game.player.ui && this.game.player.ui.showStatus) {
+                            this.game.player.ui.showStatus("No locations discovered yet!", true);
                         }
-                        window.gameInstance.player.teleport(PLATEAU_X, PLATEAU_Z);
+                        return;
                     }
+                    
+                    this.showFastTravelMenu(locations);
                 };
-
-                btnContainer.appendChild(tpBtn);
-                btnContainer.appendChild(tpYureiBtn);
-                ui.appendChild(btnContainer);
+                
+                container.appendChild(ftBtn);
+                ui.appendChild(container);
             }
         }
+    }
+
+    showFastTravelMenu(locations) {
+        if (!this.fastTravelMenu) {
+            this.fastTravelMenu = this.createFastTravelMenu();
+            document.body.appendChild(this.fastTravelMenu.overlay);
+        }
+
+        const { overlay, listEl, messageEl } = this.fastTravelMenu;
+        listEl.innerHTML = '';
+
+        const cityMap = new Map();
+        for (const city of this.worldMask?.cities || []) {
+            cityMap.set(city.name, city);
+        }
+
+        locations.forEach(locName => {
+            const city = cityMap.get(locName);
+            if (!city) return;
+            const btn = document.createElement('button');
+            btn.textContent = city.name;
+            btn.className = 'fast-travel-option';
+            btn.onclick = () => {
+                if (this.game?.player?.discoveredLocations?.has(city.name)) {
+                    const { x: destX, z: destZ } = this.getTeleportCoords(city);
+                    this.game.player.teleport(destX, destZ);
+                    if (this.game.player.chat?.addMessage) {
+                        this.game.player.chat.addMessage(`Teleported to ${city.name}`, 'System');
+                    }
+                    if (this.game.player.ui?.showStatus) {
+                        this.game.player.ui.showStatus(`Teleported to ${city.name}`, false);
+                    }
+                } else if (this.game?.player?.ui?.showStatus) {
+                    this.game.player.ui.showStatus(`Location not discovered: ${city.name}`, true);
+                }
+                overlay.style.display = 'none';
+            };
+            listEl.appendChild(btn);
+        });
+
+        if (locations.length === 0) {
+            messageEl.textContent = 'No locations discovered yet!';
+        } else {
+            messageEl.textContent = 'Select a discovered location to travel:';
+        }
+
+        overlay.style.display = 'flex';
+    }
+
+    createFastTravelMenu() {
+        const overlay = document.createElement('div');
+        overlay.id = 'fast-travel-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0, 0, 0, 0.6)';
+        overlay.style.display = 'none';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.zIndex = '1500';
+
+        const panel = document.createElement('div');
+        panel.style.background = '#0b1220';
+        panel.style.border = '1px solid rgba(0, 255, 170, 0.4)';
+        panel.style.boxShadow = '0 0 20px rgba(0,0,0,0.6)';
+        panel.style.padding = '16px';
+        panel.style.width = '280px';
+        panel.style.borderRadius = '8px';
+        panel.style.color = 'white';
+        panel.style.fontFamily = 'monospace';
+
+        const header = document.createElement('div');
+        header.textContent = 'Fast Travel';
+        header.style.fontSize = '16px';
+        header.style.fontWeight = 'bold';
+        header.style.marginBottom = '10px';
+        header.style.color = '#00ffaa';
+
+        const messageEl = document.createElement('div');
+        messageEl.style.fontSize = '12px';
+        messageEl.style.marginBottom = '10px';
+
+        const listEl = document.createElement('div');
+        listEl.id = 'fast-travel-list';
+        listEl.style.display = 'flex';
+        listEl.style.flexDirection = 'column';
+        listEl.style.gap = '8px';
+        listEl.style.maxHeight = '220px';
+        listEl.style.overflowY = 'auto';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.style.marginTop = '12px';
+        closeBtn.style.padding = '6px 10px';
+        closeBtn.style.background = 'rgba(255,255,255,0.08)';
+        closeBtn.style.border = '1px solid rgba(255,255,255,0.15)';
+        closeBtn.style.color = 'white';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.borderRadius = '4px';
+        closeBtn.onclick = () => {
+            overlay.style.display = 'none';
+        };
+
+        panel.appendChild(header);
+        panel.appendChild(messageEl);
+        panel.appendChild(listEl);
+        panel.appendChild(closeBtn);
+        overlay.appendChild(panel);
+
+        const style = document.createElement('style');
+        style.textContent = `
+            #fast-travel-overlay .fast-travel-option {
+                padding: 8px 10px;
+                background: rgba(0, 255, 170, 0.15);
+                border: 1px solid rgba(0, 255, 170, 0.4);
+                color: white;
+                text-align: left;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background 0.15s, transform 0.1s;
+            }
+            #fast-travel-overlay .fast-travel-option:hover {
+                background: rgba(0, 255, 170, 0.25);
+                transform: translateY(-1px);
+            }
+        `;
+        document.head.appendChild(style);
+
+        return { overlay, listEl, messageEl };
+    }
+
+    getTeleportCoords(city) {
+        // Default to city world coords
+        let x = city.worldX;
+        let z = city.worldZ;
+
+        // Special handling: Center of the Bowl in Yureigakure should land at the bowl center
+        const nameLower = (city.name || '').toLowerCase();
+        if (nameLower.includes('center of the bowl') || city.id === 'poi-center-bowl-yurei') {
+            x = this.levelCenter?.x ?? 7509.5;
+            z = this.levelCenter?.z ?? -6949.1;
+        }
+
+        return { x, z };
     }
 
     getBiomeNoise(x, z, scaleOverride = null) {

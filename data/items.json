@@ -157,6 +157,8 @@
       "slot": "main_hand",
       "value": 50,
       "hotbar_able": true,
+      "durability": 500,
+      "maxDurability": 500,
       "stats": {
         "damage": 15,
         "attackSpeed": 1.2,
@@ -173,6 +175,8 @@
       "slot": "main_hand",
       "value": 40,
       "hotbar_able": true,
+      "durability": 400,
+      "maxDurability": 400,
       "stats": {
         "damage": 10,
         "woodcutting": 1.5
@@ -188,11 +192,78 @@
       "slot": "main_hand",
       "value": 40,
       "hotbar_able": true,
+      "durability": 600,
+      "maxDurability": 600,
       "stats": {
         "damage": 8,
         "mining": 1.5
       },
       "icon": "assets/icons/pickaxe_icon.png"
+    },
+    "stone_foundation": {
+      "id": "stone_foundation",
+      "name": "Stone Foundation",
+      "type": "foundation",
+      "description": "A heavy stone foundation for building.",
+      "stackable": true,
+      "maxStack": 10,
+      "value": 15,
+      "hotbar_able": false,
+      "icon": "assets/icons/foundation_icon.png"
+    },
+    "ladder": {
+      "id": "ladder",
+      "name": "Wooden Ladder",
+      "type": "ladder",
+      "description": "Allows vertical movement.",
+      "stackable": true,
+      "maxStack": 20,
+      "value": 8,
+      "hotbar_able": false,
+      "icon": "assets/icons/ladder_icon.png"
+    },
+    "spike_trap": {
+      "id": "spike_trap",
+      "name": "Spike Trap",
+      "type": "trap",
+      "description": "Deals damage to enemies that step on it.",
+      "stackable": true,
+      "maxStack": 10,
+      "value": 20,
+      "hotbar_able": false,
+      "icon": "assets/icons/trap_icon.png"
+    },
+    "wooden_shield": {
+      "id": "wooden_shield",
+      "name": "Wooden Shield",
+      "type": "shield",
+      "description": "A basic wooden shield. Blocks 50% damage.",
+      "stackable": false,
+      "slot": "off_hand",
+      "value": 20,
+      "hotbar_able": false,
+      "durability": 200,
+      "maxDurability": 200,
+      "stats": {
+        "block": 0.5
+      },
+      "icon": "assets/icons/shield_icon.png"
+    },
+    "iron_shield": {
+      "id": "iron_shield",
+      "name": "Iron Shield",
+      "type": "shield",
+      "description": "A sturdy iron shield. Blocks 75% damage.",
+      "stackable": false,
+      "slot": "off_hand",
+      "value": 60,
+      "hotbar_able": false,
+      "durability": 500,
+      "maxDurability": 500,
+      "stats": {
+        "block": 0.75
+      },
+      "icon": "assets/icons/shield_icon.png"
     },
     "armor_vest": {
       "id": "armor_vest",

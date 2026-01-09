@@ -147,7 +147,8 @@ export class CharacterCreator {
     setupEventListeners() {
         // Input changes with number display updates
         const inputs = [
-            'body-type', 'player-name', 'skin-color', 'torso-color-enabled', 'torso-color', 'eye-color', 'shirt-color', 'shirt-pattern', 
+            'body-type', 'player-name', 'skin-color', 'torso-color-enabled', 'torso-color', 'eye-color', 
+            'shirt-color', 'shirt-color-2', 'pants-color', 'shirt-pattern', 
             'head-scale', 'torso-width', 'torso-height', 'arm-scale', 'leg-scale',
             'neck-thickness', 'neck-height', 'neck-rotation', 'neck-tilt',
             'chin-size', 'chin-length', 'chin-height', 'chin-forward',
@@ -160,7 +161,7 @@ export class CharacterCreator {
             'cloak-yoke-x', 'cloak-yoke-y', 'cloak-yoke-z',
             'cloak-collar-x', 'cloak-collar-y', 'cloak-collar-z',
             'cloak-clasp-x', 'cloak-clasp-y', 'cloak-clasp-z',
-            'toggle-underwear'
+            'toggle-underwear', 'toggle-shoes'
         ];
         
         inputs.forEach(id => {
@@ -605,6 +606,8 @@ export class CharacterCreator {
             hairStyle: this.hairStyle,
             hairColor: this.hairColor,
             shirtColor: document.getElementById('shirt-color').value,
+            shirtColor2: document.getElementById('shirt-color-2').value,
+            pantsColor: document.getElementById('pants-color').value,
             shirtPattern: document.getElementById('shirt-pattern').value,
             headScale: parseFloat(document.getElementById('head-scale').value),
             torsoWidth: parseFloat(document.getElementById('torso-width').value),
@@ -635,10 +638,12 @@ export class CharacterCreator {
             buttPosX: parseFloat(document.getElementById('butt-pos-x').value),
             buttPosY: parseFloat(document.getElementById('butt-pos-y').value),
             buttPosZ: parseFloat(document.getElementById('butt-pos-z').value),
-            outfit: document.getElementById('body-type').value === 'female' ? 'naked' : 'nude', // Default based on body type
+            outfit: this.activeOutfit || (document.getElementById('body-type').value === 'female' ? 'naked' : 'nude'),
+            selectedItem: this.equippedWeapon || null,
             equipment: {
                 shirt: localStorage.getItem('admin_shirt') === 'true',
                 pants: localStorage.getItem('admin_blue-pants') === 'true',
+                shoes: document.getElementById('toggle-shoes').checked,
                 helm: localStorage.getItem('admin_headband') === 'true' || localStorage.getItem('admin_assassins-cap') === 'true' || localStorage.getItem('admin_leather-hunters-cap') === 'true',
                 shoulders: localStorage.getItem('admin_leather-armor') === 'true',
                 shield: localStorage.getItem('admin_shield') === 'true'
@@ -675,9 +680,21 @@ export class CharacterCreator {
                 assassinsCap: localStorage.getItem('admin_assassins-cap') === 'true',
                 leatherBoots: localStorage.getItem('admin_leather-boots') === 'true',
                 cloak: localStorage.getItem('admin_cloak') === 'true',
-                pants: localStorage.getItem('admin_blue-pants') === 'true'
+                pants: localStorage.getItem('admin_blue-pants') === 'true',
+                shirt: localStorage.getItem('admin_shirt') === 'true'
             }
         };
+    }
+
+    setEquipmentSelection(itemName) {
+        this.selectedEquipmentItem = itemName;
+        
+        if (this.equipmentItems) {
+            this.equipmentItems.forEach(item => {
+                const isActive = item.dataset.item === itemName;
+                item.classList.toggle('active', isActive);
+            });
+        }
     }
 
     updatePreview() {
@@ -812,6 +829,10 @@ export class CharacterCreator {
             );
         }
 
+        if (this.currentPreviewModel) {
+            this.currentPreviewModel.update(delta, new THREE.Vector3(0, 0, 0));
+        }
+
         if (this.isDebugHitbox) {
             this.updatePreviewDebug();
         }
@@ -858,6 +879,7 @@ export class CharacterCreator {
     }
 
     applyOutfitPreset(presetName) {
+        this.activeOutfit = presetName;
         const setValue = (id, value) => {
             const element = document.getElementById(id);
             if (element) {

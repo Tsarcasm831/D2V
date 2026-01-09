@@ -113,6 +113,11 @@ export class Chicken {
     takeDamage(amount, fromPos, player) {
         if (this.isDead) return;
         this.health -= amount;
+        if (this.health > 0) {
+            import('../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('chicken_distressed', 0.5);
+            });
+        }
         if (this.health <= 0) {
             this.die(fromPos, player);
         }
@@ -126,7 +131,7 @@ export class Chicken {
         this.velocity.set(dir.x * 12, 15, dir.z * 12);
 
         import('../utils/audio_manager.js').then(({ audioManager }) => {
-            audioManager.play('enemy_hit', 0.5);
+            audioManager.play('chicken_short', 0.55);
         });
 
         if (player && player.inventory) {

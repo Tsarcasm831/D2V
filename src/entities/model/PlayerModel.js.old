@@ -1,0 +1,79 @@
+import * as THREE from 'three';
+import { PlayerMaterials } from './PlayerMaterials.js';
+import { PlayerEquipment } from './PlayerEquipment.js';
+import { PlayerMeshBuilder } from './mesh/PlayerMeshBuilder.js';
+import { PlayerPartsRegistry } from './PlayerPartsRegistry.js';
+import { PlayerClothingManager } from './PlayerClothingManager.js';
+import { PlayerHairManager } from './PlayerHairManager.js';
+import { PlayerBodyScaler } from './PlayerBodyScaler.js';
+import { PlayerDebugManager } from './PlayerDebugManager.js';
+
+export class PlayerModel {
+    constructor(config = {}) {
+        this.parts = {}; // Proxy to registry.parts for compatibility with PlayerAnimator
+        this.equippedMeshes = {};
+        this.currentHeldItem = null;
+
+        this.materials = new PlayerMaterials(config);
+        
+        // Build initial mesh structure
+        const buildResult = PlayerMeshBuilder.build(this.materials, config);
+        this.group = buildResult.group;
+        
+        // Initialize Registry
+        this.registry = new PlayerPartsRegistry(buildResult);
+        this.parts = this.registry.parts;
+
+        // Initialize Managers
+        this.clothing = new PlayerClothingManager(this.registry, this.materials);
+        this.hair = new PlayerHairManager(this.registry, this.materials);
+        this.scaler = new PlayerBodyScaler(this.registry, this.materials);
+        this.debug = new PlayerDebugManager(this.registry, this.materials);
+    }
+
+    // Public for Player to access (e.g. eyes for animation)
+    get eyes() { return this.registry.eyes; }
+    get eyelids() { return this.registry.eyelids; }
+    get rightFingers() { return this.registry.rightFingers; }
+    get leftFingers() { return this.registry.leftFingers; }
+    get rightThumb() { return this.registry.rightThumb; }
+    get leftThumb() { return this.registry.leftThumb; }
+
+    update(dt, velocity) {
+        this.hair.updatePhysics(dt, velocity);
+    }
+
+    applyOutfit(outfit, skinColor) {
+        this.clothing.applyOutfit(outfit, skinColor);
+    }
+
+    updateHeldItem(itemName) {
+        this.currentHeldItem = PlayerEquipment.updateHeldItem(
+            itemName,
+            this.currentHeldItem,
+            this.parts,
+            this.equippedMeshes
+        );
+    }
+
+    updateEquipment(equipment) {
+        PlayerEquipment.updateArmor(equipment, this.parts, this.equippedMeshes);
+    }
+
+    sync(config, isCombatStance = false) {
+        this.materials.sync(config);
+        this.applyOutfit(config.outfit, config.skinColor);
+        
+        this.debug.update(config.debugHead);
+        
+        this.scaler.sync(config, isCombatStance);
+
+        this.updateEquipment(config.equipment);
+        this.updateHeldItem(config.selectedItem);
+        
+        this.clothing.update(config);
+        
+        this.hair.updateConfig(config);
+        this.hair.syncColor(config.hairColor);
+    }
+}

@@ -2,73 +2,52 @@ import * as THREE from 'three';
 import { PlayerMaterials } from './PlayerMaterials.js';
 import { PlayerEquipment } from './PlayerEquipment.js';
 import { PlayerMeshBuilder } from './mesh/PlayerMeshBuilder.js';
-import { HairBuilder } from './mesh/HairBuilder.js';
-import { ShirtBuilder } from './mesh/ShirtBuilder.js';
-import { PantsBuilder } from './mesh/PantsBuilder.js';
+import { PlayerPartsRegistry } from './PlayerPartsRegistry.js';
+import { PlayerClothingManager } from './PlayerClothingManager.js';
+import { PlayerHairManager } from './PlayerHairManager.js';
+import { PlayerBodyScaler } from './PlayerBodyScaler.js';
+import { PlayerDebugManager } from './PlayerDebugManager.js';
+import { DEFAULT_CONFIG } from '../../data/constants.js';
 
 export class PlayerModel {
-    constructor(config = {}) {
-        this.parts = {};
-        this.materials = new PlayerMaterials(config);
+    constructor(customConfig = {}) {
+        this.config = { ...DEFAULT_CONFIG, ...customConfig };
         
-        const build = PlayerMeshBuilder.build(this.materials, config);
-        this.group = build.group;
-        this.parts = build.parts;
-        
-        this.forefootGroups = build.arrays.forefootGroups;
-        this.heelGroups = build.arrays.heelGroups;
-        this.toeUnits = build.arrays.toeUnits;
-        this.irises = build.arrays.irises;
-        this.pupils = build.arrays.pupils;
-        this.eyelids = build.arrays.eyelids;
-        this.rightFingers = build.arrays.rightFingers;
-        this.rightThumb = build.arrays.rightThumb;
-        this.leftFingers = build.arrays.leftFingers;
-        this.leftThumb = build.arrays.leftThumb;
-        this.buttockCheeks = build.arrays.buttockCheeks;
-
+        this.parts = {}; // Proxy to registry.parts for compatibility with PlayerAnimator
         this.equippedMeshes = {};
         this.currentHeldItem = null;
 
-        this.lastHairHash = '';
-        this.lastShirtConfigHash = '';
-        this.lastPantsConfigHash = '';
-        this.shirtMeshes = [];
-        this.pantsMeshes = [];
+        this.materials = new PlayerMaterials(this.config);
         
-        // Hair Physics State
-        this.hairInertia = new THREE.Vector3();
-        this.hairTargetInertia = new THREE.Vector3();
+        // Build initial mesh structure
+        const buildResult = PlayerMeshBuilder.build(this.materials, this.config);
+        this.group = buildResult.group;
+        
+        // Initialize Registry
+        this.registry = new PlayerPartsRegistry(buildResult);
+        this.parts = this.registry.parts;
 
-        this.updateHair(config);
-        this.updateShirt(config);
-        this.updatePants(config);
+        // Initialize Managers
+        this.clothing = new PlayerClothingManager(this.registry, this.materials);
+        this.hair = new PlayerHairManager(this.registry, this.materials);
+        this.scaler = new PlayerBodyScaler(this.registry, this.materials);
+        this.debug = new PlayerDebugManager(this.registry, this.materials);
     }
 
+    // Public for Player to access (e.g. eyes for animation)
+    get eyes() { return this.registry.eyes; }
+    get eyelids() { return this.registry.eyelids; }
+    get rightFingers() { return this.registry.rightFingers; }
+    get leftFingers() { return this.registry.leftFingers; }
+    get rightThumb() { return this.registry.rightThumb; }
+    get leftThumb() { return this.registry.leftThumb; }
+
     update(dt, velocity) {
-        // Physics for Hair
-        if (this.parts.head) {
-             this.hairTargetInertia.copy(velocity).multiplyScalar(-0.06);
-             this.hairTargetInertia.clampLength(0, 0.15);
-             
-             const invHeadRot = new THREE.Quaternion();
-             this.parts.head.getWorldQuaternion(invHeadRot);
-             invHeadRot.invert();
-             
-             this.hairTargetInertia.applyQuaternion(invHeadRot);
-        }
-
-        const spring = 8.0 * dt;
-        this.hairInertia.lerp(this.hairTargetInertia, spring);
-
-        const hairMesh = this.parts.head?.getObjectByName('HairInstanced');
-        if (hairMesh && hairMesh.userData.uInertia) {
-            hairMesh.userData.uInertia.value.copy(this.hairInertia);
-        }
+        this.hair.updatePhysics(dt, velocity);
     }
 
     applyOutfit(outfit, skinColor) {
-        this.materials.applyOutfit(outfit, skinColor);
+        this.clothing.applyOutfit(outfit, skinColor);
     }
 
     updateHeldItem(itemName) {
@@ -84,268 +63,28 @@ export class PlayerModel {
         PlayerEquipment.updateArmor(equipment, this.parts, this.equippedMeshes);
     }
 
-    updateShirt(config) {
-        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment?.shirt}`;
-        if (hash === this.lastShirtConfigHash) return;
-        this.lastShirtConfigHash = hash;
-
-        if (this.parts.shirt) this.parts.shirt = null;
-
-        this.shirtMeshes.forEach(m => {
-            if (m.parent) m.parent.remove(m);
-            if (m.geometry) m.geometry.dispose();
-        });
-        this.shirtMeshes = [];
-
-        const result = ShirtBuilder.build(this.parts, config);
-        if (result) {
-            this.shirtMeshes = result.meshes;
-            this.parts.shirt = result.refs;
-        }
-    }
-
-    updatePants(config) {
-        const hash = `${config.outfit}_${config.equipment?.pants}`;
-        if (hash === this.lastPantsConfigHash) return;
-        this.lastPantsConfigHash = hash;
-
-        this.pantsMeshes.forEach(m => {
-            if (m.parent) m.parent.remove(m);
-            if (m.geometry) m.geometry.dispose();
-        });
-        this.pantsMeshes = [];
-
-        const meshes = PantsBuilder.build(this.parts, config);
-        if (meshes) {
-            this.pantsMeshes = meshes;
-        }
-    }
-
-    updateHair(config) {
-        const hash = `${config.hairStyle}_${config.headScale}`;
-        if (hash === this.lastHairHash) return;
-        this.lastHairHash = hash;
-        HairBuilder.build(this.parts, config, this.materials.hair);
-    }
-
-    sync(config, isCombatStance = false) {
-        const lerp = THREE.MathUtils.lerp;
-        const damp = 0.15; 
-
-        this.materials.sync(config);
-        this.applyOutfit(config.outfit, config.skinColor);
+    sync(partialConfig, isCombatStance = false) {
+        // Merge with existing config
+        this.config = { ...this.config, ...partialConfig };
         
-        const isFemale = config.bodyType === 'female';
-        const isNaked = config.outfit === 'naked';
-        const isNude = config.outfit === 'nude';
-        const isClothed = !isNaked && !isNude;
+        // Ensure equipment is merged deeply if provided partially, though typically it's a full object
+        if (partialConfig.equipment) {
+            this.config.equipment = { ...this.config.equipment, ...partialConfig.equipment };
+        }
 
-        // --- Body Proportions & Scaling ---
+        this.materials.sync(this.config);
+        this.applyOutfit(this.config.outfit, this.config.skinColor);
         
-        // 1. Torso Scaling
-        const tW = config.torsoWidth || 1.0;
-        const tH = config.torsoHeight || 1.0;
-        this.parts.torsoContainer.scale.set(tW, tH, tW);
-
-        // 2. Gender & Hip Adjustments
-        let baseLegSpacing = 0.12;
-        let hipScale = 1.0;
-        let shoulderScale = 1.0;
-
-        if (isFemale) {
-            shoulderScale = 0.85;
-            hipScale = 1.15;
-            baseLegSpacing = 0.14; 
-            if (this.parts.buttocks) {
-                this.parts.buttocks.visible = true;
-                const bs = config.buttScale || 0.90;
-                this.parts.buttocks.scale.setScalar(bs);
-
-                // Apply positioning
-                this.parts.buttocks.position.x = config.buttPosX !== undefined ? config.buttPosX : 0.00;
-                this.parts.buttocks.position.y = config.buttPosY !== undefined ? config.buttPosY : -0.05;
-                this.parts.buttocks.position.z = config.buttPosZ !== undefined ? config.buttPosZ : 0.07;
-            }
-            this.parts.chest.visible = true;
-            this.parts.maleChest.visible = false;
-        } else {
-            shoulderScale = 1.0;
-            hipScale = 1.0;
-            baseLegSpacing = 0.12;
-            if (this.parts.buttocks) {
-                this.parts.buttocks.visible = false; 
-            }
-            this.parts.chest.visible = false;
-            this.parts.maleChest.visible = !isClothed;
-        }
-
-        this.parts.topCap.scale.set(shoulderScale, 0.8, shoulderScale);
-        this.parts.pelvis.scale.set(hipScale, 1, hipScale);
-
-        // 3. Limb Positioning
-        const legX = baseLegSpacing * tW; 
-        this.parts.leftThigh.position.x = legX;
-        this.parts.rightThigh.position.x = -legX;
-
-        // 4. Limb Scaling Compensation
-        const aS = config.armScale || 1.0;
-        const invTW = 1 / tW;
-        const invTH = 1 / tH;
+        this.debug.update(this.config.debugHead);
         
-        this.parts.rightArm.scale.set(aS * invTW, aS * invTH, aS * invTW);
-        this.parts.leftArm.scale.set(aS * invTW, aS * invTH, aS * invTW);
+        this.scaler.sync(this.config, isCombatStance);
 
-        const lS = config.legScale || 1.0;
-        this.parts.rightThigh.scale.setScalar(lS);
-        this.parts.leftThigh.scale.setScalar(lS);
-
-        // 5. Neck & Head Scaling
-        const nT = config.neckThickness || 1.0;
-        const nH = config.neckHeight || 1.0;
+        this.updateEquipment(this.config.equipment);
+        this.updateHeldItem(this.config.selectedItem);
         
-        if (this.parts.neck) {
-            this.parts.neck.scale.set(nT, nH, nT);
-            this.parts.neck.position.y = 0.70 + (0.12 * nH);
-        }
-        if (this.parts.neckBase) {
-            this.parts.neckBase.scale.set(nT, 1, nT);
-        }
-
-        const hS = config.headScale || 1.0;
-        const parentScaleX = tW * nT;
-        const parentScaleY = tH * nH;
-        const safePX = parentScaleX || 1;
-        const safePY = parentScaleY || 1;
-
-        this.parts.head.scale.set(hS / safePX, hS / safePY, hS / safePX);
-
-        // Brain
-        if (this.parts.brain) {
-            this.parts.brain.visible = !!config.showBrain;
-            const bS = config.brainSize || 1.0;
-            this.parts.brain.scale.set(bS, bS, bS);
-        }
-
-        // Buttocks Material & Underwear Visibility
-        if (this.parts.buttocks && this.buttockCheeks.length > 0) {
-            this.parts.buttocks.children.forEach((container, i) => {
-                const cheek = this.buttockCheeks[i];
-                const undie = container.children.find(c => c.name === 'undie');
-                if (isClothed) {
-                    cheek.material = this.materials.pants;
-                    if (undie) undie.visible = false;
-                } else {
-                    cheek.material = this.materials.skin;
-                    if (undie) undie.visible = isNaked; 
-                }
-            });
-        }
+        this.clothing.update(this.config);
         
-        if (this.parts.underwearBottom) {
-            this.parts.underwearBottom.visible = isNaked;
-        }
-        
-        const showBra = isNaked && isFemale;
-        if (this.parts.braStrap) this.parts.braStrap.visible = showBra;
-        if (this.parts.braCups) this.parts.braCups.forEach((c) => c.visible = showBra);
-
-        // Face & Feet details
-        this.parts.jaw.scale.setScalar(config.chinSize || 0.65);
-        this.parts.jaw.position.y = -0.05 + (config.chinHeight || -0.03);
-        this.parts.jawMesh.scale.y = 0.45 * (config.chinLength || 0.95);
-        this.parts.jawMesh.position.z = 0.09 + (config.chinForward || 0.01);
-
-        // Maxilla (Upper Jaw)
-        if (this.parts.maxilla) {
-            this.parts.maxilla.scale.set(
-                config.maxillaScaleX || 0.95, 
-                config.maxillaScaleY || 1.25, 
-                config.maxillaScaleZ || 1.5
-            );
-            this.parts.maxilla.position.set(0, -0.075 + (config.maxillaOffsetY || -0.03), 0.18 + (config.maxillaOffsetZ || -0.05));
-        }
-
-        // Lips
-        if (this.parts.upperLip) {
-            this.parts.upperLip.scale.set(
-                config.upperLipWidth || 0.75, 
-                config.upperLipHeight || 0.75, 
-                0.5 * (config.upperLipThick || 1.0)
-            );
-            this.parts.upperLip.position.y = -0.028 + (config.upperLipOffsetY || 0.023);
-            this.parts.upperLip.position.z = 0.025 + (config.upperLipOffsetZ || 0.006);
-        }
-        if (this.parts.lowerLip) {
-            this.parts.lowerLip.scale.set(
-                config.lowerLipWidth || 1.0, 
-                config.lowerLipHeight || 1.0, 
-                0.5 * (config.lowerLipThick || 1.0)
-            );
-            this.parts.lowerLip.position.y = 0.035 + (config.lowerLipOffsetY || -0.1);
-            this.parts.lowerLip.position.z = 0.11 + (config.lowerLipOffsetZ || 0.112);
-        }
-
-        if (this.parts.nose?.userData.basePosition) {
-            const base = this.parts.nose.userData.basePosition;
-            this.parts.nose.position.set(
-                base.x,
-                base.y + (config.noseHeight || 0.0),
-                base.z + (config.noseForward || -0.02)
-            );
-        }
-        
-        this.irises.forEach(i => i.scale.setScalar(config.irisScale || 1.0));
-        this.pupils.forEach(p => p.scale.setScalar(config.pupilScale || 1.0));
-        this.heelGroups.forEach(hg => { hg.scale.setScalar(config.heelScale || 1.218); hg.scale.y *= (config.heelHeight || 1.0); });
-        this.forefootGroups.forEach(fg => fg.scale.set(config.footWidth || 1.0, 1, config.footLength || 1.0));
-        this.toeUnits.forEach((u, i) => {
-            if (u.userData && u.userData.initialX !== undefined) {
-                u.position.x = u.userData.initialX * (config.toeSpread || 1.0);
-                return;
-            }
-            u.position.x = ((i % 5) - 2) * 0.035 * (config.toeSpread || 1.0);
-        });
-
-        // Update Hand Pose (Fist formation)
-        const isHolding = !!config.selectedItem;
-        const updateHand = (fingers, thumb, isLeft) => {
-            if (!fingers) return;
-            const shouldFist = isLeft ? isCombatStance : (isHolding || isCombatStance);
-            const baseCurl = shouldFist ? 1.6 : 0.1;
-            fingers.forEach((fGroup, i) => {
-                const curl = baseCurl + (shouldFist ? i * 0.1 : i * 0.05);
-                const prox = fGroup.children.find(c => c.name === 'proximal');
-                if (prox) {
-                    prox.rotation.x = lerp(prox.rotation.x, curl, damp);
-                    const dist = prox.children.find(c => c.name === 'distal');
-                    if (dist) dist.rotation.x = lerp(dist.rotation.x, curl * 1.1, damp);
-                }
-            });
-            if (thumb) {
-                const prox = thumb.children.find(c => c.name === 'proximal');
-                if (prox) {
-                    prox.rotation.x = lerp(prox.rotation.x, shouldFist ? 0.6 : 0.1, damp);
-                    const tZBase = shouldFist ? -0.2 : 0;
-                    prox.rotation.z = lerp(prox.rotation.z, isLeft ? -tZBase : tZBase, damp);
-                    const dist = prox.children.find(c => c.name === 'distal');
-                    if (dist) dist.rotation.x = lerp(dist.rotation.x, shouldFist ? 1.2 : 0.1, damp);
-                }
-            }
-        };
-
-        updateHand(this.rightFingers, this.rightThumb, false);
-        updateHand(this.leftFingers, this.leftThumb, true);
-
-        this.updateHair(config);
-        this.updateShirt(config);
-        this.updatePants(config);
-        this.updateEquipment(config.equipment || {});
-        this.updateHeldItem(config.selectedItem);
-        
-        // Manual Color Sync for Hair InstancedMesh
-        const hairMesh = this.parts.head?.getObjectByName('HairInstanced');
-        if (hairMesh && hairMesh.material) {
-             hairMesh.material.color.set(config.hairColor);
-        }
+        this.hair.updateConfig(this.config);
+        this.hair.syncColor(this.config.hairColor);
     }
 }

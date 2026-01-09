@@ -6,7 +6,7 @@ export class PickupAction {
         const bend = Math.sin((player.pickUpTime / 1.2) * Math.PI);
         const lerp = THREE.MathUtils.lerp;
         const pickupDamp = damp * 2;
-        const baseHeight = 0.89 * (player.config.legScale || 1.0);
+        const baseHeight = 0.89 * player.config.legScale;
 
         parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - bend * 0.55, pickupDamp);
         parts.hips.rotation.x = lerp(parts.hips.rotation.x, bend * 0.4, pickupDamp);

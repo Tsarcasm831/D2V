@@ -7,7 +7,36 @@ export class EnvironmentManager {
         this.sky = null;
         this.sun = game.sun;
         
+        this.hazards = []; // Array of {pos, radius, type, data}
+        this._tempVec = new THREE.Vector3();
+        
         this.initSky();
+    }
+
+    registerHazard(pos, radius, type, data = {}) {
+        this.hazards.push({ pos: pos.clone(), radius, type, data });
+    }
+
+    applyHazardEffect(hazard, dt) {
+        const player = this.game.player;
+        const hazardData = this.game.worldManager?.lootTables?.loot_tables?.[`hazard_${hazard.type}`];
+        
+        if (!hazardData) return;
+
+        // Apply Damage
+        if (hazardData.damage) {
+            player.takeDamage(hazardData.damage * dt);
+        }
+
+        // Apply Status Effects (e.g., slow)
+        if (hazardData.effect === 'frozen') {
+            player.weatherSpeedMult = (player.weatherSpeedMult || 1.0) * 0.5;
+        }
+
+        // Visual Feedback
+        if (this.game.ui && Math.random() < 0.05) {
+            this.game.ui.showStatus(`WARNING: ${hazardData.description}`, true);
+        }
     }
 
     initSky() {
@@ -63,6 +92,14 @@ export class EnvironmentManager {
         
         // Use game delta for consistency
         const delta = this.game.clock ? this.game.clock.getDelta() : 0.016;
+
+        // Process Environmental Hazards
+        for (const hazard of this.hazards) {
+            const dist = playerPos.distanceTo(hazard.pos);
+            if (dist < hazard.radius) {
+                this.applyHazardEffect(hazard, delta);
+            }
+        }
         
         // Throttling day/night cycle updates slightly, but fog transitions need to be responsive
         this._envUpdateTimer = (this._envUpdateTimer || 0) + delta;

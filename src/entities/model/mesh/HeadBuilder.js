@@ -77,6 +77,7 @@ export class HeadBuilder {
             vertex.set(x, y, z);
             posAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
         }
+        // Compute normals on the full mesh to ensure smooth shading across splits
         headGeo.computeVertexNormals();
         
         // --- SPLIT CRANIUM INTO PARTS ---
@@ -108,6 +109,7 @@ export class HeadBuilder {
                 let category = 'front';
 
                 if (cent.z < -0.02) {
+                    // Split Back into 3 vertical sections
                     if (cent.y > 0.02) {
                         category = 'backTop';
                     } else if (cent.y > -0.09) {
@@ -116,10 +118,13 @@ export class HeadBuilder {
                         category = 'backBottom';
                     }
                 } else if (cent.y > 0.04) {
+                    // Combined Top section (Crown + Forehead)
                     category = 'top';
                 } else if (Math.abs(cent.x) > 0.055 && cent.y < -0.06) {
+                    // Lower cheeks only (Purple)
                     category = 'cheeksBottom';
                 } else {
+                    // Center face + Upper Cheeks (Teal)
                     category = 'front'; 
                 }
 
@@ -191,38 +196,54 @@ export class HeadBuilder {
         brain.visible = false;
         head.add(brain);
 
+        // 1. CEREBRUM (Hemispheres)
         const hemiGeo = new THREE.SphereGeometry(0.08, 48, 48);
-        hemiGeo.applyMatrix4(new THREE.Matrix4().makeScale(0.85, 1.0, 1.25)); 
+        hemiGeo.applyMatrix4(new THREE.Matrix4().makeScale(0.85, 1.0, 1.25)); // Elongate front-back
         
         const hemiPos = hemiGeo.attributes.position;
+        // Sculpt Medial Flatness & General Shape
         for(let i=0; i<hemiPos.count; i++) {
             vertex.fromBufferAttribute(hemiPos, i);
-            if (vertex.x < 0) vertex.x *= 0.15; 
+            
+            // Medial surface (facing center): Flatten x
+            if (vertex.x < 0) { 
+                vertex.x *= 0.15; // Flatten inner side
+            }
+            
+            // Temporal lobe bulge (Side-bottom)
             if (vertex.x > 0.04 && vertex.y < -0.02 && vertex.z > -0.02 && vertex.z < 0.05) {
                 vertex.x += 0.01;
                 vertex.y -= 0.01;
             }
+
+            // General waviness for base shape (large lobes)
             const d = 0.003;
             const noise = Math.sin(vertex.x*20) + Math.cos(vertex.y*15) + Math.sin(vertex.z*25);
             vertex.addScalar(noise * d);
+
             hemiPos.setXYZ(i, vertex.x, vertex.y, vertex.z);
         }
         hemiGeo.computeVertexNormals();
 
+        // Left Hemisphere
         const leftHemi = new THREE.Mesh(hemiGeo, materials.brain);
-        leftHemi.scale.set(-1, 1, 1);
-        leftHemi.position.set(0.005, 0, 0);
+        leftHemi.scale.set(-1, 1, 1); // Mirror for Left
+        leftHemi.position.set(0.005, 0, 0); // Slight gap
         brain.add(leftHemi);
 
+        // Right Hemisphere
         const rightHemi = new THREE.Mesh(hemiGeo, materials.brain);
         rightHemi.position.set(-0.005, 0, 0); 
         brain.add(rightHemi);
 
+        // 2. CEREBELLUM (Little Brain at back)
         const cerebGeo = new THREE.SphereGeometry(0.045, 32, 24);
         cerebGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.4, 0.8, 0.9));
+        // Add ridged texture via geometry noise for different look
         const cPos = cerebGeo.attributes.position;
         for(let i=0; i<cPos.count; i++) {
             vertex.fromBufferAttribute(cPos, i);
+            // Horizontal ridges typical of cerebellum
             const ridges = Math.sin(vertex.y * 80) * 0.0015;
             vertex.x += ridges * (vertex.x > 0 ? 1 : -1);
             vertex.z += ridges;
@@ -235,7 +256,9 @@ export class HeadBuilder {
         cerebellum.rotation.x = -0.2;
         brain.add(cerebellum);
 
+        // 3. BRAINSTEM
         const stemGeo = new THREE.CylinderGeometry(0.018, 0.012, 0.12, 16);
+        // Curve the stem slightly forward
         const stemPos = stemGeo.attributes.position;
         for(let i=0; i<stemPos.count; i++) {
             const y = stemPos.getY(i);
@@ -250,24 +273,34 @@ export class HeadBuilder {
         brainStem.rotation.x = 0.15;
         brain.add(brainStem);
 
+
         // === LIP HELPER ===
         const lipC = (pts, r, name) => {
             const group = new THREE.Group();
             group.name = name;
+
+            // 1. Tube Body
             const curve = new THREE.CatmullRomCurve3(pts);
             const tubeGeo = new THREE.TubeGeometry(curve, 20, r, 8, false);
             const tube = new THREE.Mesh(tubeGeo, materials.lip);
             tube.castShadow = true;
             group.add(tube);
+            
+            // 2. End Caps (Spheres) to make it solid
             const capGeo = new THREE.SphereGeometry(r, 8, 8);
+            
             const startCap = new THREE.Mesh(capGeo, materials.lip);
             startCap.position.copy(pts[0]);
             group.add(startCap);
+
             const endCap = new THREE.Mesh(capGeo, materials.lip);
             endCap.position.copy(pts[pts.length - 1]);
             group.add(endCap);
+            
+            // Default Transform
             group.scale.set(1, 1, 0.5); 
             group.rotation.x = -0.2; 
+            
             return group;
         };
 
@@ -282,6 +315,7 @@ export class HeadBuilder {
             vertex.fromBufferAttribute(mPos, i);
             let x = vertex.x, y = vertex.y, z = vertex.z;
             const nx = x / 0.06, ny = y / 0.025;
+            
             if (z > 0) z -= (x*x) * 4.0;
             if (y > 0) { const t = Math.pow(ny, 2); z -= t * 0.025; x *= (1.0 - t * 0.15); }
             if (y < 0) { const t = Math.pow(Math.abs(ny), 2); z -= t * 0.015; x *= (1.0 - t * 0.05); }
@@ -297,14 +331,18 @@ export class HeadBuilder {
         maxillaMesh.castShadow = true;
         maxilla.add(maxillaMesh);
 
+        // --- UPPER LIP ATTACHED TO MAXILLA ---
+        // Curved points to match maxilla surface (parabolic Z drop off)
         const upperLipPts = [
-            new THREE.Vector3(-0.045, -0.01, -0.035),
-            new THREE.Vector3(0, 0.004, 0.008),
-            new THREE.Vector3(0.045, -0.01, -0.035)
+            new THREE.Vector3(-0.045, -0.01, -0.035), // Curved back deeper
+            new THREE.Vector3(0, 0.004, 0.008),       // Center peak (Cupid's bow)
+            new THREE.Vector3(0.045, -0.01, -0.035)   // Curved back deeper
         ];
         const upperLip = lipC(upperLipPts, 0.006, 'upperLip');
+        // Position at bottom edge of maxilla mesh
         upperLip.position.set(0, -0.028, 0.025);
         maxilla.add(upperLip);
+
 
         // === MANDIBLE ===
         const jaw = new THREE.Group();
@@ -337,12 +375,16 @@ export class HeadBuilder {
         jawMesh.castShadow = true;
         jaw.add(jawMesh);
 
+        // --- LOWER LIP ATTACHED TO JAW ---
+        // Significantly curved to match the mandibular arch
         const lowerLipPts = [
-            new THREE.Vector3(-0.038, 0.01, -0.018),
-            new THREE.Vector3(0, -0.005, 0.012),
-            new THREE.Vector3(0.038, 0.01, -0.018)
+            new THREE.Vector3(-0.038, 0.01, -0.018), // Back corners
+            new THREE.Vector3(0, -0.005, 0.012),     // Center dip (Pout)
+            new THREE.Vector3(0.038, 0.01, -0.018)   // Back corners
         ];
         const lowerLip = lipC(lowerLipPts, 0.007, 'lowerLip');
+        // Positioned relative to Jaw Group origin (which rotates)
+        // Jaw Mesh is at (0, -0.05, 0.04). Lip needs to be above that and forward.
         lowerLip.position.set(0, 0.02, 0.12);
         jaw.add(lowerLip);
 
@@ -352,8 +394,13 @@ export class HeadBuilder {
         // === EYES ===
         const eyeRadius = 0.042;
         const eyeGeo = new THREE.SphereGeometry(eyeRadius, 32, 32);
-        // Removed rotateX(Math.PI/2) as eye tracking logic expects forward to be neutral
-        const lidGeo = new THREE.SphereGeometry(eyeRadius * 1.10, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
+        eyeGeo.rotateX(Math.PI / 2); 
+        const irisRadiusBase = eyeRadius * 0.65;
+        const irisGeo = new THREE.CircleGeometry(irisRadiusBase, 32);
+        const pupilRadiusBase = eyeRadius * 0.32;
+        const pupilGeo = new THREE.CircleGeometry(pupilRadiusBase, 32);
+        const eyelidRadius = eyeRadius * 1.10; 
+        const lidGeo = new THREE.SphereGeometry(eyelidRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
 
         for (let side of [1, -1]) {
             const eyeContainer = new THREE.Group();
@@ -363,18 +410,19 @@ export class HeadBuilder {
             eyeContainer.add(eyeball);
             arrays.eyes.push(eyeball);
 
-            const iris = new THREE.Mesh(new THREE.CircleGeometry(eyeRadius * 0.65, 32), materials.iris);
+            const iris = new THREE.Mesh(irisGeo, materials.iris);
             iris.position.z = eyeRadius + 0.001; 
             eyeball.add(iris);
             arrays.irises.push(iris); 
 
-            const pupil = new THREE.Mesh(new THREE.CircleGeometry(eyeRadius * 0.32, 32), materials.pupil);
+            const pupil = new THREE.Mesh(pupilGeo, materials.pupil);
             pupil.position.z = eyeRadius + 0.002;
             eyeball.add(pupil);
             arrays.pupils.push(pupil);
 
             const topLid = new THREE.Group();
-            topLid.add(new THREE.Mesh(lidGeo, materials.skin));
+            const topLidMesh = new THREE.Mesh(lidGeo, materials.skin);
+            topLid.add(topLidMesh);
             const botLid = new THREE.Group();
             const botLidMesh = new THREE.Mesh(lidGeo, materials.skin);
             botLidMesh.rotation.x = Math.PI;
@@ -398,6 +446,7 @@ export class HeadBuilder {
             ala.position.set(s * 0.02, -0.015, 0.01); ala.scale.set(1.2, 0.8, 1); nose.add(ala);
         });
 
+        // We return the specific lip meshes so PlayerModel can find them easily
         return { head, headMount, maxilla, jaw, jawMesh, faceGroup, nose, brain, upperLip, lowerLip };
     }
 }

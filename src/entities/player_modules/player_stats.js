@@ -87,7 +87,8 @@ export class PlayerStats {
         };
 
         // Sum up stats from equipped items
-        Object.values(this.player.inventory.equipment).forEach(item => {
+        if (this.player.inventory && this.player.inventory.equipment) {
+            Object.values(this.player.inventory.equipment).forEach(item => {
             if (item && item.stats) {
                 if (item.stats.health) gearStats.maxHealth += item.stats.health;
                 if (item.stats.maxHealth) gearStats.maxHealth += item.stats.maxHealth;
@@ -100,6 +101,7 @@ export class PlayerStats {
                 if (item.stats.critChance) gearStats.critChance += item.stats.critChance;
             }
         });
+        }
 
         // Current active weapon stats
         const activeItem = this.player.inventory.hotbar[this.player.inventory.selectedSlot];

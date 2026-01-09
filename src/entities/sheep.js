@@ -110,6 +110,11 @@ export class Sheep {
     takeDamage(amount, fromPos, player) {
         if (this.isDead) return;
         this.health -= amount;
+        if (this.health > 0) {
+            import('../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('sheep_call', 0.55);
+            });
+        }
         if (this.health <= 0) {
             this.die(fromPos, player);
         }
@@ -123,7 +128,7 @@ export class Sheep {
         this.velocity.set(dir.x * 10, 12, dir.z * 10);
 
         import('../utils/audio_manager.js').then(({ audioManager }) => {
-            audioManager.play('enemy_hit', 0.5);
+            audioManager.play('sheep_baa_short', 0.6);
         });
 
         if (player && player.inventory) {

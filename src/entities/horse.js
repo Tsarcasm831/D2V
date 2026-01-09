@@ -30,6 +30,9 @@ export class Horse {
         
         this.maxHealth = 5; // Hardy animals
         this.health = this.maxHealth;
+        this.tameProgress = 0;
+        this.isTamed = false;
+        this.favoriteFood = 'berry';
 
         this._tempVec1 = new THREE.Vector3();
         this._collisionTimer = 0;
@@ -141,6 +144,26 @@ export class Horse {
 
     takeDamage(amount, fromPos, player) {
         if (this.isDead) return;
+        
+        // Taming logic
+        if (player && !this.isTamed) {
+            const heldItem = player.inventory?.hotbar[player.inventory.selectedSlot];
+            if (heldItem && heldItem.type === this.favoriteFood) {
+                this.tameProgress += 20;
+                if (player.ui) player.ui.showStatus(`Taming Horse: ${this.tameProgress}%`, false);
+                if (this.tameProgress >= 100) {
+                    this.isTamed = true;
+                    if (player.ui) player.ui.showStatus("HORSE TAMED!", false);
+                    player.game?.achievementManager?.unlock('mount_master');
+                }
+                // Consume food
+                heldItem.count--;
+                if (heldItem.count <= 0) player.inventory.hotbar[player.inventory.selectedSlot] = null;
+                if (player.ui) player.ui.updateHotbar();
+                return;
+            }
+        }
+
         this.health -= amount;
         if (this.health <= 0) {
             this.die(fromPos, player);
@@ -262,7 +285,7 @@ export class Horse {
         const distToPlayer = player ? this.group.position.distanceTo(player.mesh.position) : 999;
         const detectRange = 15 * SCALE_FACTOR; // Horses are more skittish
 
-        if (distToPlayer < detectRange) {
+        if (distToPlayer < detectRange && !this.isTamed && this.state !== 'mounted') {
             this.state = 'flee';
             this.timer = 5.0;
         }

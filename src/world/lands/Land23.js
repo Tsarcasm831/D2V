@@ -113,6 +113,14 @@ export const Land23 = {
       "y": 7.703419002881639,
       "desc": "Hidden Village in the Land of Ghosts",
       "image": "assets/images/lands/yurei.png"
+    },
+    {
+      "id": "poi-center-bowl-yurei",
+      "name": "Center of the Bowl (Yureigakure)",
+      "type": "poi",
+      "x": 48.44358847991723,
+      "y": 7.703419002881639,
+      "desc": "Center bowl of Yureigakure"
     }
   ],
   "texture": "snow",

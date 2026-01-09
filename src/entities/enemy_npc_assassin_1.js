@@ -53,62 +53,25 @@ export class AssassinNPC {
     }
 
     setupEquipment() {
-        attachUnderwear(this.parts);
-        
-        // Black Shirt (Procedural black material)
-        const blackMat = new THREE.MeshToonMaterial({ color: 0x111111 });
-        const outlineMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
-        
-        const torsoRadiusTop = 0.3, torsoRadiusBottom = 0.26, shirtLen = 0.32;
-        const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, shirtLen, 16);
-        const shirtTorso = new THREE.Mesh(shirtTorsoGeo, blackMat);
-        shirtTorso.position.y = 0.41 * SCALE_FACTOR;
-        this.parts.torsoContainer.add(shirtTorso);
-
-        const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        const topCap = new THREE.Mesh(topCapGeo, blackMat);
-        topCap.position.y = shirtLen / 2;
-        shirtTorso.add(topCap);
-
-        [shirtTorsoGeo, topCapGeo].forEach(g => {
-            const o = new THREE.Mesh(g, outlineMat);
-            o.scale.setScalar(1.05);
-            if (g === topCapGeo) o.position.y = shirtLen / 2;
-            shirtTorso.add(o);
-        });
-
-        const sleeveRadius = 0.12, sleeveLen = 0.25;
-        const sleeveGeo = new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLen, 12);
-        const attachSleeve = (armPart) => {
-            const sleeve = new THREE.Mesh(sleeveGeo, blackMat);
-            sleeve.position.y = -sleeveLen / 2;
-            armPart.add(sleeve);
-            const so = new THREE.Mesh(sleeveGeo, outlineMat);
-            so.scale.setScalar(1.08);
-            sleeve.add(so);
+        const config = {
+            outfit: 'assassin',
+            shirtColor: '#111111',
+            bodyType: 'male',
+            equipment: {
+                shirt: true,
+                pants: true,
+                cloak: true,
+                boots: true,
+                helm: true
+            },
+            selectedItem: 'Dagger' // Use Dagger/Knife animations?
         };
-        attachSleeve(this.parts.rightArm);
-        attachSleeve(this.parts.leftArm);
 
-        // Gear
-        attachPants(this.parts, { color: 0x222222 }); // Dark pants
-        attachCloak(this.parts);
+        this.model.sync(config);
+        if (this.animator) this.animator.setConfig(config);
         
-        // Black Boots override
-        const boots = attachLeatherBoots(this.parts, this.model);
-        const blackBootMat = new THREE.MeshToonMaterial({ color: 0x050505 });
-        boots.rightBoot.traverse(child => {
-            if (child.isMesh && child.material && child.material.type !== 'MeshBasicMaterial') {
-                child.material = blackBootMat;
-            }
-        });
-        boots.leftBoot.traverse(child => {
-            if (child.isMesh && child.material && child.material.type !== 'MeshBasicMaterial') {
-                child.material = blackBootMat;
-            }
-        });
-
-        attachAssassinsCap(this.parts);
+        // Custom overrides if needed for specific assassin gear that isn't in standard config
+        // attachAssassinsCap(this.parts); // Helm in config should handle this if defined in PlayerEquipment
     }
 
     addLevelLabel() {
@@ -223,7 +186,28 @@ export class AssassinNPC {
             this.checkCollisions(player);
         }
 
-        this.animator.animate(delta, this.state === 'wander' || this.state === 'chase', this.state === 'chase', false, this.isDead);
+        this.animator.animate(
+            delta, 
+            this.state === 'wander' || this.state === 'chase', 
+            this.state === 'chase', 
+            false, 
+            this.isDead,
+            false, // isJumping
+            'none', // jumpPhase
+            0, // jumpTimer
+            0, // jumpVelocity
+            false, // isLedgeGrabbing
+            0, // ledgeGrabTime
+            0, // recoverTimer
+            false, // isDragged
+            'hips', // draggedPartName
+            new THREE.Vector3(), // dragVelocity
+            0, // deathTime
+            null, // deathVariation
+            false, // isMovingBackwards
+            0, // strafe
+            0 // forward
+        );
         
         const floorY = this.shard.getTerrainHeight(this.group.position.x, this.group.position.z);
         this.group.position.y = floorY;

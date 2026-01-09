@@ -499,6 +499,7 @@ async function showServerSelection() {
                                 console.log('Opening character creator...');
                                 const creator = new CharacterCreator((charData) => {
                                     console.log('Character created, starting loading sequence...');
+                                    localStorage.setItem('character_config', JSON.stringify(charData));
                                     startLoadingSequence(charData, roomCode);
                                 });
                                 creator.show();

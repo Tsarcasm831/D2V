@@ -103,6 +103,15 @@ export class Building {
             case 'firepit':
                 this.collisionRadius = 0.8 * SCALE_FACTOR;
                 break;
+            case 'beehive':
+                this.collisionRadius = 0.6 * SCALE_FACTOR;
+                break;
+            case 'foundation':
+                this.collisionRadius = 2.5 * SCALE_FACTOR;
+                break;
+            case 'ladder':
+                this.collisionRadius = 0.4 * SCALE_FACTOR;
+                break;
         }
     }
 
@@ -1087,6 +1096,173 @@ export class Building {
             this.group.add(roof);
 
             this.radius = width / 2;
+        } else if (this.type === 'beehive') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const woodGeo = wm ? wm.getSharedGeometry('box', 0.6 * SCALE_FACTOR, 0.8 * SCALE_FACTOR, 0.6 * SCALE_FACTOR) : new THREE.BoxGeometry(0.6 * SCALE_FACTOR, 0.8 * SCALE_FACTOR, 0.6 * SCALE_FACTOR);
+            const hive = new THREE.Mesh(woodGeo, woodMat);
+            hive.position.y = 0.4 * SCALE_FACTOR;
+            hive.castShadow = true;
+            hive.layers.enable(1);
+            this.group.add(hive);
+            this.health = 15;
+            this.radius = 0.6 * SCALE_FACTOR;
+            this.isBeehive = true;
+            this.readyToHarvest = false;
+            this.lastHarvestTime = Date.now();
+        } else if (this.type === 'foundation') {
+            const stoneMat = wm ? wm.getSharedMaterial('standard', { color: 0x757575 }) : new THREE.MeshStandardMaterial({ color: 0x757575 });
+            const size = 5.0 * SCALE_FACTOR;
+            const height = 1.0 * SCALE_FACTOR;
+            const geo = wm ? wm.getSharedGeometry('box', size, height, size) : new THREE.BoxGeometry(size, height, size);
+            const mesh = new THREE.Mesh(geo, stoneMat);
+            mesh.position.y = height / 2;
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            mesh.layers.enable(1);
+            this.group.add(mesh);
+            this.health = 100;
+            this.radius = 2.5 * SCALE_FACTOR;
+        } else if (this.type === 'ladder') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x3e2723 }) : new THREE.MeshStandardMaterial({ color: 0x3e2723 });
+            const width = 0.8 * SCALE_FACTOR;
+            const height = 3.0 * SCALE_FACTOR;
+            const railGeo = wm ? wm.getSharedGeometry('box', 0.1 * SCALE_FACTOR, height, 0.1 * SCALE_FACTOR) : new THREE.BoxGeometry(0.1 * SCALE_FACTOR, height, 0.1 * SCALE_FACTOR);
+            
+            for (let side of [-1, 1]) {
+                const rail = new THREE.Mesh(railGeo, woodMat);
+                rail.position.set(side * width / 2, height / 2, 0);
+                rail.castShadow = true;
+                rail.layers.enable(1);
+                this.group.add(rail);
+            }
+            
+            const rungGeo = wm ? wm.getSharedGeometry('box', width, 0.05 * SCALE_FACTOR, 0.05 * SCALE_FACTOR) : new THREE.BoxGeometry(width, 0.05 * SCALE_FACTOR, 0.05 * SCALE_FACTOR);
+            for (let i = 0; i < 6; i++) {
+                const rung = new THREE.Mesh(rungGeo, woodMat);
+                rung.position.set(0, (i + 0.5) * (height / 6), 0);
+                rung.castShadow = true;
+                rung.layers.enable(1);
+                this.group.add(rung);
+            }
+            this.health = 10;
+            this.radius = 0.4 * SCALE_FACTOR;
+            this.isLadder = true;
+        } else if (this.type === 'chest' || this.type === 'table' || this.type === 'chair' || this.type === 'bed') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            this.health = 20;
+            if (this.type === 'chest') {
+                const geo = wm ? wm.getSharedGeometry('box', 1.0 * SCALE_FACTOR, 0.6 * SCALE_FACTOR, 0.6 * SCALE_FACTOR) : new THREE.BoxGeometry(1.0 * SCALE_FACTOR, 0.6 * SCALE_FACTOR, 0.6 * SCALE_FACTOR);
+                const mesh = new THREE.Mesh(geo, woodMat);
+                mesh.position.y = 0.3 * SCALE_FACTOR;
+                mesh.castShadow = true;
+                mesh.layers.enable(1);
+                this.group.add(mesh);
+                this.radius = 0.6 * SCALE_FACTOR;
+                this.isChest = true;
+            } else if (this.type === 'table') {
+                const topGeo = wm ? wm.getSharedGeometry('box', 1.5 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 1.0 * SCALE_FACTOR) : new THREE.BoxGeometry(1.5 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 1.0 * SCALE_FACTOR);
+                const top = new THREE.Mesh(topGeo, woodMat);
+                top.position.y = 0.75 * SCALE_FACTOR;
+                top.castShadow = true;
+                top.layers.enable(1);
+                this.group.add(top);
+                const legGeo = wm ? wm.getSharedGeometry('box', 0.1 * SCALE_FACTOR, 0.7 * SCALE_FACTOR, 0.1 * SCALE_FACTOR) : new THREE.BoxGeometry(0.1 * SCALE_FACTOR, 0.7 * SCALE_FACTOR, 0.1 * SCALE_FACTOR);
+                for (let x of [-0.6, 0.6]) {
+                    for (let z of [-0.4, 0.4]) {
+                        const leg = new THREE.Mesh(legGeo, woodMat);
+                        leg.position.set(x * SCALE_FACTOR, 0.35 * SCALE_FACTOR, z * SCALE_FACTOR);
+                        leg.layers.enable(1);
+                        this.group.add(leg);
+                    }
+                }
+                this.radius = 1.0 * SCALE_FACTOR;
+            } else if (this.type === 'chair') {
+                const seatGeo = wm ? wm.getSharedGeometry('box', 0.5 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 0.5 * SCALE_FACTOR) : new THREE.BoxGeometry(0.5 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 0.5 * SCALE_FACTOR);
+                const seat = new THREE.Mesh(seatGeo, woodMat);
+                seat.position.y = 0.4 * SCALE_FACTOR;
+                seat.castShadow = true;
+                seat.layers.enable(1);
+                this.group.add(seat);
+                const backGeo = wm ? wm.getSharedGeometry('box', 0.5 * SCALE_FACTOR, 0.6 * SCALE_FACTOR, 0.1 * SCALE_FACTOR) : new THREE.BoxGeometry(0.5 * SCALE_FACTOR, 0.6 * SCALE_FACTOR, 0.1 * SCALE_FACTOR);
+                const back = new THREE.Mesh(backGeo, woodMat);
+                back.position.set(0, 0.7 * SCALE_FACTOR, -0.2 * SCALE_FACTOR);
+                back.layers.enable(1);
+                this.group.add(back);
+                this.radius = 0.4 * SCALE_FACTOR;
+            } else if (this.type === 'bed') {
+                const baseGeo = wm ? wm.getSharedGeometry('box', 1.2 * SCALE_FACTOR, 0.4 * SCALE_FACTOR, 2.2 * SCALE_FACTOR) : new THREE.BoxGeometry(1.2 * SCALE_FACTOR, 0.4 * SCALE_FACTOR, 2.2 * SCALE_FACTOR);
+                const base = new THREE.Mesh(baseGeo, woodMat);
+                base.position.y = 0.2 * SCALE_FACTOR;
+                base.castShadow = true;
+                base.layers.enable(1);
+                this.group.add(base);
+                const clothMat = wm ? wm.getSharedMaterial('standard', { color: 0xeeeeee }) : new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+                const pillowGeo = wm ? wm.getSharedGeometry('box', 1.0 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 0.4 * SCALE_FACTOR) : new THREE.BoxGeometry(1.0 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 0.4 * SCALE_FACTOR);
+                const pillow = new THREE.Mesh(pillowGeo, clothMat);
+                pillow.position.set(0, 0.45 * SCALE_FACTOR, -0.8 * SCALE_FACTOR);
+                pillow.layers.enable(1);
+                this.group.add(pillow);
+                this.radius = 1.2 * SCALE_FACTOR;
+            }
+        } else if (this.type === 'blacksmith_bench' || this.type === 'alchemy_lab') {
+            if (this.type === 'blacksmith_bench') {
+                const stoneMat = wm ? wm.getSharedMaterial('standard', { color: 0x444444 }) : new THREE.MeshStandardMaterial({ color: 0x444444 });
+                const metalMat = wm ? wm.getSharedMaterial('standard', { color: 0x222222, metalness: 0.8 }) : new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 });
+                const baseGeo = wm ? wm.getSharedGeometry('box', 2.0 * SCALE_FACTOR, 0.8 * SCALE_FACTOR, 1.0 * SCALE_FACTOR) : new THREE.BoxGeometry(2.0 * SCALE_FACTOR, 0.8 * SCALE_FACTOR, 1.0 * SCALE_FACTOR);
+                const base = new THREE.Mesh(baseGeo, stoneMat);
+                base.position.y = 0.4 * SCALE_FACTOR;
+                base.castShadow = true;
+                base.layers.enable(1);
+                this.group.add(base);
+                const anvilGeo = wm ? wm.getSharedGeometry('box', 0.6 * SCALE_FACTOR, 0.4 * SCALE_FACTOR, 0.4 * SCALE_FACTOR) : new THREE.BoxGeometry(0.6 * SCALE_FACTOR, 0.4 * SCALE_FACTOR, 0.4 * SCALE_FACTOR);
+                const anvil = new THREE.Mesh(anvilGeo, metalMat);
+                anvil.position.set(0.4 * SCALE_FACTOR, 1.0 * SCALE_FACTOR, 0);
+                anvil.layers.enable(1);
+                this.group.add(anvil);
+                this.radius = 1.5 * SCALE_FACTOR;
+                this.isWorkbench = true;
+                this.workbenchType = 'blacksmith';
+            } else if (this.type === 'alchemy_lab') {
+                const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+                const glassMat = wm ? wm.getSharedMaterial('standard', { color: 0x88ccff, transparent: true, opacity: 0.6 }) : new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.6 });
+                const deskGeo = wm ? wm.getSharedGeometry('box', 1.5 * SCALE_FACTOR, 0.8 * SCALE_FACTOR, 0.8 * SCALE_FACTOR) : new THREE.BoxGeometry(1.5 * SCALE_FACTOR, 0.8 * SCALE_FACTOR, 0.8 * SCALE_FACTOR);
+                const desk = new THREE.Mesh(deskGeo, woodMat);
+                desk.position.y = 0.4 * SCALE_FACTOR;
+                desk.castShadow = true;
+                desk.layers.enable(1);
+                this.group.add(desk);
+                const bottleGeo = wm ? wm.getSharedGeometry('cylinder', 0.1 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 0.3 * SCALE_FACTOR) : new THREE.CylinderGeometry(0.1 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 0.3 * SCALE_FACTOR);
+                const bottle = new THREE.Mesh(bottleGeo, glassMat);
+                bottle.position.set(-0.3 * SCALE_FACTOR, 0.95 * SCALE_FACTOR, 0);
+                bottle.layers.enable(1);
+                this.group.add(bottle);
+                this.radius = 1.2 * SCALE_FACTOR;
+                this.isWorkbench = true;
+                this.workbenchType = 'alchemy';
+            }
+        } else if (this.type === 'spike_trap') {
+            const woodMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037 }) : new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const metalMat = wm ? wm.getSharedMaterial('standard', { color: 0x777777, metalness: 0.8 }) : new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.8 });
+            
+            const baseGeo = wm ? wm.getSharedGeometry('box', 1.0 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 1.0 * SCALE_FACTOR) : new THREE.BoxGeometry(1.0 * SCALE_FACTOR, 0.1 * SCALE_FACTOR, 1.0 * SCALE_FACTOR);
+            const base = new THREE.Mesh(baseGeo, woodMat);
+            base.position.y = 0.05 * SCALE_FACTOR;
+            base.layers.enable(1);
+            this.group.add(base);
+            
+            const spikeGeo = wm ? wm.getSharedGeometry('cone', 0.05 * SCALE_FACTOR, 0.4 * SCALE_FACTOR, 4) : new THREE.ConeGeometry(0.05 * SCALE_FACTOR, 0.4 * SCALE_FACTOR, 4);
+            for (let x of [-0.3, 0, 0.3]) {
+                for (let z of [-0.3, 0, 0.3]) {
+                    const spike = new THREE.Mesh(spikeGeo, metalMat);
+                    spike.position.set(x * SCALE_FACTOR, 0.25 * SCALE_FACTOR, z * SCALE_FACTOR);
+                    spike.layers.enable(1);
+                    this.group.add(spike);
+                }
+            }
+            this.health = 15;
+            this.radius = 0.5 * SCALE_FACTOR;
+            this.isTrap = true;
+            this.trapType = 'spike';
         }
     }
 

@@ -103,6 +103,38 @@ export class WeatherManager {
         this.updateAreaWeather();
         this.updateState(delta);
         this.updateEffects(delta);
+        this.updateGameplayEffects(delta);
+    }
+
+    updateGameplayEffects(delta) {
+        if (!this.game.player) return;
+        const player = this.game.player;
+        const intensity = this.getWeatherIntensity();
+        const timeManager = this.game.timeManager;
+        const season = timeManager?.getCurrentSeason() || 'SPRING';
+        
+        // Temperature System
+        let tempImpact = 0;
+        
+        // Seasonal modifiers
+        const seasonMult = (season === 'WINTER') ? 1.5 : (season === 'SUMMER') ? 0.5 : 1.0;
+
+        if (this.currentState === WEATHER_TYPES.SNOWSTORM) {
+            tempImpact = 5 * intensity * seasonMult; // Drain up to 5 stamina/sec in blizzard
+        } else if (this.currentState === WEATHER_TYPES.STORM || this.currentState === WEATHER_TYPES.RAIN) {
+            tempImpact = 2 * intensity * seasonMult; // Drain up to 2 stamina/sec in storm
+        } else if (season === 'WINTER') {
+            tempImpact = 1.0; // Passive cold drain in winter even if clear
+        }
+
+        if (tempImpact > 0 && player.stats) {
+            player.stats.stamina -= tempImpact * delta;
+            if (player.stats.stamina < 0) {
+                player.stats.stamina = 0;
+                // Cold damage if out of stamina
+                player.takeDamage(1 * delta);
+            }
+        }
     }
 
     updateAreaWeather() {

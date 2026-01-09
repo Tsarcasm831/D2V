@@ -186,33 +186,29 @@ export function attachVest(parts) {
     // Torso: 0.28 / 0.22
     // Shirt: 0.30 / 0.24
     // Vest:  0.32 / 0.26
-    const torsoRadiusTop = 0.32;
-    const torsoRadiusBottom = 0.26;
-    const vestLen = 0.48; // Slightly longer to cover the torso body
+    const torsoRadiusTop = 0.34;
+    const torsoRadiusBottom = 0.28;
+    const vestLen = 0.54; // Slightly longer than shirtLen (0.52)
     
     const vestGroup = new THREE.Group();
     vestGroup.name = 'vest';
-    // Align with torso mesh center (0.38)
+    // Align with shirtTorso.position.y (0.38)
     vestGroup.position.y = 0.38 * SCALE_FACTOR;
-    vestGroup.position.z = 0.01;
+    vestGroup.position.z = 0.04; // Shirt is at 0.02
     
-    // Parenting to torso mesh ensures it follows all non-uniform scaling and animations (like breathing)
-    if (parts.torso) {
-        parts.torso.add(vestGroup);
-    } else {
-        parts.torsoContainer.add(vestGroup);
-    }
+    // Parenting to torsoContainer like the shirt
+    parts.torsoContainer.add(vestGroup);
 
     // 1. MAIN BODY (Split Front)
     const bodyGeoR = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, vestLen, 16, 1, false, Math.PI * 0.55, Math.PI * 0.9);
-    // Apply depth scale to geometry to match torso mesh shape perfectly
-    bodyGeoR.scale(1, 1, 0.68); 
+    // Match shirt depth scale (0.78) and ensure it's slightly larger
+    bodyGeoR.scale(1.05, 1, 0.82); 
     const bodyR = new THREE.Mesh(bodyGeoR, VEST_MAT);
     bodyR.castShadow = true;
     vestGroup.add(bodyR);
 
     const bodyGeoL = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, vestLen, 16, 1, false, Math.PI * 1.55, Math.PI * 0.9);
-    bodyGeoL.scale(1, 1, 0.68);
+    bodyGeoL.scale(1.05, 1, 0.82);
     const bodyL = new THREE.Mesh(bodyGeoL, VEST_MAT);
     bodyL.castShadow = true;
     vestGroup.add(bodyL);
@@ -229,20 +225,20 @@ export function attachVest(parts) {
     const collarHeight = 0.12;
     // Split collar to match the front opening
     const collarGeoR = new THREE.CylinderGeometry(collarRadius, collarRadius, collarHeight, 16, 1, false, Math.PI * 0.55, Math.PI * 0.9);
-    collarGeoR.scale(1, 1, 0.68);
+    collarGeoR.scale(1.05, 1, 0.82);
     const collarR = new THREE.Mesh(collarGeoR, VEST_MAT);
     collarR.position.y = vestLen / 2 + collarHeight / 2;
     vestGroup.add(collarR);
 
     const collarGeoL = new THREE.CylinderGeometry(collarRadius, collarRadius, collarHeight, 16, 1, false, Math.PI * 1.55, Math.PI * 0.9);
-    collarGeoL.scale(1, 1, 0.68);
+    collarGeoL.scale(1.05, 1, 0.82);
     const collarL = new THREE.Mesh(collarGeoL, VEST_MAT);
     collarL.position.y = vestLen / 2 + collarHeight / 2;
     vestGroup.add(collarL);
 
     // Collar trim (thicker look)
     const collarTrimGeo = new THREE.TorusGeometry(collarRadius, 0.02, 8, 16, Math.PI * 1.8);
-    collarTrimGeo.scale(1, 1, 0.68);
+    collarTrimGeo.scale(1.05, 1, 0.82);
     const collarTrim = new THREE.Mesh(collarTrimGeo, TRIM_MAT);
     collarTrim.rotation.x = Math.PI / 2;
     collarTrim.rotation.z = Math.PI * 0.1;
@@ -281,7 +277,7 @@ export function attachVest(parts) {
     const flapGeo = new THREE.BoxGeometry(pouchWidth + 0.01, 0.03, pouchDepth + 0.01);
     
     // Position surface for pouches based on squashed depth
-    const pouchZ = (torsoRadiusTop * 0.68) + 0.02;
+    const pouchZ = (torsoRadiusTop * 0.78) + 0.02;
 
     for (let side = -1; side <= 1; side += 2) {
         for (let p = -1; p <= 1; p++) {
@@ -313,7 +309,7 @@ export function attachVest(parts) {
     const bottomTrimRadius = torsoRadiusBottom + 0.02;
     const bottomTrimHeight = 0.08;
     const bottomTrimGeo = new THREE.CylinderGeometry(bottomTrimRadius, bottomTrimRadius, bottomTrimHeight, 16);
-    bottomTrimGeo.scale(1, 1, 0.68);
+    bottomTrimGeo.scale(1.05, 1, 0.82);
     const bottomTrim = new THREE.Mesh(bottomTrimGeo, TRIM_MAT);
     bottomTrim.position.y = -vestLen / 2;
     vestGroup.add(bottomTrim);

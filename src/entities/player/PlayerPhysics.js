@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PlayerUtils } from './PlayerUtils.js';
+import { SCALE_FACTOR } from '../../world/world_bounds.js';
 
 export class PlayerPhysics {
     
@@ -16,7 +17,60 @@ export class PlayerPhysics {
         }
     }
 
+    dodge() {
+        if (this.isDead || this.isLedgeGrabbing || this.dodgeCooldown > 0) return;
+        
+        const STAMINA_COST = 15;
+        if (this.player.stats && this.player.stats.stamina < STAMINA_COST) return;
+        
+        this.player.stats.stamina -= STAMINA_COST;
+        this.isDodging = true;
+        this.dodgeTimer = 0.3; // Invincibility frames duration
+        this.dodgeCooldown = 0.5; // Cooldown duration
+        
+        // Apply directional impulse
+        const worldDir = new THREE.Vector3();
+        if (this.lastMoveDir && (this.lastMoveDir.x !== 0 || this.lastMoveDir.z !== 0)) {
+            worldDir.copy(this.lastMoveDir);
+        } else {
+            this.player.mesh.getWorldDirection(worldDir);
+        }
+        
+        this.dodgeDir = worldDir.normalize();
+        
+        // Trigger dodge animation
+        if (this.player.animator) {
+            this.player.isDodging = true;
+        }
+    }
+
     static update(player, dt, input, cameraAngle, obstacles) {
+        if (!player.playerPhysics) return;
+        const physics = player.playerPhysics;
+
+        // Update dodge state
+        if (physics.dodgeTimer > 0) {
+            physics.dodgeTimer -= dt;
+            if (physics.dodgeTimer <= 0) {
+                physics.isDodging = false;
+                player.isDodging = false;
+            }
+            
+            // Apply dodge movement
+            const dodgeSpeed = 30 * SCALE_FACTOR;
+            const dist = dodgeSpeed * dt;
+            const nextPos = player.mesh.position.clone();
+            nextPos.addScaledVector(physics.dodgeDir, dist);
+            
+            if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
+                player.mesh.position.copy(nextPos);
+            }
+        }
+        
+        if (physics.dodgeCooldown > 0) {
+            physics.dodgeCooldown -= dt;
+        }
+
         // 1. Handle Ground & Gravity
         let groundHeight = 0;
         if (player.worldManager && typeof player.worldManager.getTerrainHeight === 'function') {
@@ -25,6 +79,31 @@ export class PlayerPhysics {
         
         const obstacleHeight = PlayerUtils.getGroundHeight(player.mesh.position, player.config, obstacles);
         groundHeight = Math.max(groundHeight, obstacleHeight);
+
+        // Apply Shoe Offset
+        if (player.config && player.config.equipment && player.config.equipment.shoes) {
+            groundHeight += 0.02; // Lift player slightly when wearing shoes to avoid clipping
+        }
+
+        // Apply Weather Movement Effects
+        const weatherManager = player.worldManager?.game?.weatherManager;
+        let weatherSpeedMult = 1.0;
+        if (weatherManager) {
+            const weatherType = weatherManager.currentState;
+            const weatherIntensity = weatherManager.getWeatherIntensity();
+
+            if (weatherType === 'snowstorm') {
+                weatherSpeedMult = 1.0 - (0.3 * weatherIntensity); // Up to 30% reduction
+            } else if (weatherType === 'storm' || weatherType === 'rain') {
+                weatherSpeedMult = 1.0 - (0.2 * weatherIntensity); // Up to 20% reduction
+            } else if (weatherType === 'fog') {
+                weatherSpeedMult = 1.0 - (0.1 * weatherIntensity); // Up to 10% reduction
+            }
+        }
+        
+        // Apply Stealth Slowdown
+        const crouchMult = player.isCrouching ? 0.5 : 1.0;
+        player.weatherSpeedMult = weatherSpeedMult * crouchMult;
         
         if (player.isJumping) {
             player.jumpVelocity += player.gravity * dt;
@@ -81,7 +160,7 @@ export class PlayerPhysics {
             }
         }
         
-        const finalSpeed = baseSpeed * speedModifier;
+        const finalSpeed = baseSpeed * speedModifier * (player.weatherSpeedMult || 1.0);
 
         // Face the hit_indicator if it exists and is visible
         if (player.actions && player.actions.hitIndicator && player.actions.hitIndicator.mesh.visible) {

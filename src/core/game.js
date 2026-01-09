@@ -20,6 +20,9 @@ import { FireballProjectile } from '../systems/fireball_projectile.js';
 
 import { OptionsUI } from '../ui/options_ui.js';
 import { ParticleManager } from '../systems/particle_manager.js';
+import { MagicSystem } from '../systems/magic_system.js';
+import { QuestManager } from '../systems/quest_manager.js';
+import { AchievementManager } from '../systems/achievement_manager.js';
 
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
@@ -27,6 +30,9 @@ export class Game {
         this.scene = new THREE.Scene();
         this.projectiles = [];
         this.particleManager = new ParticleManager(this.scene);
+        this.achievementManager = new AchievementManager(this);
+        this.magicSystem = new MagicSystem(this);
+        this.questManager = new QuestManager(this);
         this.scene.background = new THREE.Color(0x050a14);
         this.scene.fog = new THREE.FogExp2(0x050a14, 0.008);
         
@@ -51,10 +57,16 @@ export class Game {
         this.setupLights();
         
         this.timeManager = new TimeManager(this);
-        this.worldManager = new WorldManager(this.scene);
+        this.worldManager = new WorldManager(this.scene, this);
         this.scene.worldManager = this.worldManager;
         this.player = new Player(this.scene, this.worldManager, characterData);
         this.player.game = this;
+
+        // Enforce default spawn immediately after player creation
+        // (Final spawn enforcement happens after land load in initAfterLoading)
+        const SPAWN_X = 1501;
+        const SPAWN_Z = -1393;
+        this.player.teleport(SPAWN_X, SPAWN_Z);
 
         this.buildManager = new BuildManager(this);
         this.weatherManager = new WeatherManager(this);
@@ -172,6 +184,13 @@ export class Game {
         // In a real scenario, we might check localStorage here
         const { Land23 } = await import('../world/lands/Land23.js');
         await this.worldManager.loadLand(Land23);
+
+        // Enforce explicit spawn after land load
+        const SPAWN_X = 1501;
+        const SPAWN_Z = -1393;
+        if (this.player) {
+            this.player.teleport(SPAWN_X, SPAWN_Z);
+        }
 
         // Initial world generation sweep
         this.worldManager.update(this.player, 0);
@@ -511,6 +530,41 @@ export class Game {
             this.spawnAllBuildings();
         } else if (landId === 'Land23') {
             this.spawnYureigakureTown();
+        }
+    }
+
+    onSeasonChanged(season) {
+        console.log(`Game: Season changed to ${season}`);
+        
+        // Update weather weights based on season
+        if (this.weatherManager) {
+            switch (season) {
+                case 'SPRING':
+                    this.weatherManager.weatherWeights = {
+                        'clear': 40, 'cloudy': 30, 'rain': 20, 'storm': 5, 'fog': 5, 'snowstorm': 0
+                    };
+                    break;
+                case 'SUMMER':
+                    this.weatherManager.weatherWeights = {
+                        'clear': 70, 'cloudy': 15, 'rain': 5, 'storm': 10, 'fog': 0, 'snowstorm': 0
+                    };
+                    break;
+                case 'AUTUMN':
+                    this.weatherManager.weatherWeights = {
+                        'clear': 30, 'cloudy': 30, 'rain': 20, 'storm': 5, 'fog': 15, 'snowstorm': 0
+                    };
+                    break;
+                case 'WINTER':
+                    this.weatherManager.weatherWeights = {
+                        'clear': 20, 'cloudy': 20, 'rain': 0, 'storm': 0, 'fog': 10, 'snowstorm': 50
+                    };
+                    break;
+            }
+        }
+
+        // Show season change notification
+        if (this.player && this.player.ui) {
+            this.player.ui.showStatus(`THE SEASON HAS CHANGED TO ${season}`, false);
         }
     }
 

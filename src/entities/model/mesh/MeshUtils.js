@@ -22,6 +22,7 @@ export const createSegment = (radiusTop, length, segMaterial, radiusBottom) => {
     // NOTE: We don't add a bottom joint automatically here anymore for all segments, 
     // because Tapered segments (shins) usually connect to a specific joint mesh (ankle) handled by the builder.
     // However, for standard segments (arms), we might want it.
+    // For backwards compatibility with the previous `createSegment` which added a bottom sphere:
     
     const botJointGeo = new THREE.SphereGeometry(rBot, 12, 12);
     const botJoint = new THREE.Mesh(botJointGeo, segMaterial);
