@@ -25,6 +25,10 @@ export class PlayerAnimator {
         this._isHolding = isHolding;
     }
 
+    setConfig(config) {
+        this.config = config;
+    }
+
     playPickup() { 
         this.isPickingUp = true;
         this.pickUpTime = 0;
@@ -59,6 +63,19 @@ export class PlayerAnimator {
 
         const state = this.player || this;
         
+        // Ensure config exists for NPCs (who use this wrapper as state)
+        if (!state.config) {
+            state.config = this.config || {
+                selectedItem: null,
+                weaponStance: 'side',
+                legScale: 1.0,
+                bodyType: 'male'
+            };
+        } else if (this.config) {
+            // Merge wrapper config if it exists (for overrides)
+            state.config = { ...state.config, ...this.config };
+        }
+
         // Ensure ALL properties are synced to the state object for the modular animator
         state.isPunch = this.isPunch;
         state.punchTimer = this.punchTimer;

@@ -44,6 +44,7 @@ export class QuestGiver extends NPC {
             }
         };
         this.model.sync(config);
+        if (this.animator) this.animator.setConfig(config);
     }
 
     update(delta, player) {

@@ -7,20 +7,17 @@ import { PlayerClothingManager } from './PlayerClothingManager.js';
 import { PlayerHairManager } from './PlayerHairManager.js';
 import { PlayerBodyScaler } from './PlayerBodyScaler.js';
 import { PlayerDebugManager } from './PlayerDebugManager.js';
-import { DEFAULT_CONFIG } from '../../data/constants.js';
 
 export class PlayerModel {
-    constructor(customConfig = {}) {
-        this.config = { ...DEFAULT_CONFIG, ...customConfig };
-        
+    constructor(config = {}) {
         this.parts = {}; // Proxy to registry.parts for compatibility with PlayerAnimator
         this.equippedMeshes = {};
         this.currentHeldItem = null;
 
-        this.materials = new PlayerMaterials(this.config);
+        this.materials = new PlayerMaterials(config);
         
         // Build initial mesh structure
-        const buildResult = PlayerMeshBuilder.build(this.materials, this.config);
+        const buildResult = PlayerMeshBuilder.build(this.materials, config);
         this.group = buildResult.group;
         
         // Initialize Registry
@@ -63,28 +60,20 @@ export class PlayerModel {
         PlayerEquipment.updateArmor(equipment, this.parts, this.equippedMeshes);
     }
 
-    sync(partialConfig, isCombatStance = false) {
-        // Merge with existing config
-        this.config = { ...this.config, ...partialConfig };
+    sync(config, isCombatStance = false) {
+        this.materials.sync(config);
+        this.applyOutfit(config.outfit, config.skinColor);
         
-        // Ensure equipment is merged deeply if provided partially, though typically it's a full object
-        if (partialConfig.equipment) {
-            this.config.equipment = { ...this.config.equipment, ...partialConfig.equipment };
-        }
+        this.debug.update(config.debugHead);
+        
+        this.scaler.sync(config, isCombatStance);
 
-        this.materials.sync(this.config);
-        this.applyOutfit(this.config.outfit, this.config.skinColor);
+        this.updateEquipment(config.equipment);
+        this.updateHeldItem(config.selectedItem);
         
-        this.debug.update(this.config.debugHead);
+        this.clothing.update(config);
         
-        this.scaler.sync(this.config, isCombatStance);
-
-        this.updateEquipment(this.config.equipment);
-        this.updateHeldItem(this.config.selectedItem);
-        
-        this.clothing.update(this.config);
-        
-        this.hair.updateConfig(this.config);
-        this.hair.syncColor(this.config.hairColor);
+        this.hair.updateConfig(config);
+        this.hair.syncColor(config.hairColor);
     }
 }

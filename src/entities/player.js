@@ -58,6 +58,9 @@ export class Player {
         this.isInteracting = false;
         this.interactTimer = 0;
         
+        this.isFishing = false;
+        this.fishingTimer = 0;
+
         this.isSkinning = false;
         this.canSkin = false;
         this.skinningTimer = 0;

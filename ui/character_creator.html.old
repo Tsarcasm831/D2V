@@ -325,26 +325,11 @@
                         <input type="checkbox" id="toggle-underwear" checked style="margin: 0;">
                         <span style="font-size: 12px; opacity: 0.8;">Underwear</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="toggle-shoes" style="margin: 0;">
-                        <span style="font-size: 12px; opacity: 0.8;">Shoes</span>
-                    </label>
                 </div>
             </div>
             <div class="creator-section">
-                <div class="creator-label">SHIRT COLORS</div>
-                <div style="margin-bottom: 8px;">
-                    <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Primary</div>
-                    <input type="color" id="shirt-color" class="creator-input" value="#ffffff">
-                </div>
-                <div>
-                    <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Secondary</div>
-                    <input type="color" id="shirt-color-2" class="creator-input" value="#ffeb3b">
-                </div>
-            </div>
-            <div class="creator-section">
-                <div class="creator-label">PANTS COLOR</div>
-                <input type="color" id="pants-color" class="creator-input" value="#2d3748">
+                <div class="creator-label">SHIRT COLOR</div>
+                <input type="color" id="shirt-color" class="creator-input" value="#ffffff">
             </div>
             <div class="creator-section">
                 <div class="creator-label">SHIRT PATTERN</div>

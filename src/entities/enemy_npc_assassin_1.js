@@ -63,10 +63,12 @@ export class AssassinNPC {
                 cloak: true,
                 boots: true,
                 helm: true
-            }
+            },
+            selectedItem: 'Dagger' // Use Dagger/Knife animations?
         };
 
         this.model.sync(config);
+        if (this.animator) this.animator.setConfig(config);
         
         // Custom overrides if needed for specific assassin gear that isn't in standard config
         // attachAssassinsCap(this.parts); // Helm in config should handle this if defined in PlayerEquipment

@@ -80,11 +80,6 @@ export class PlayerPhysics {
         const obstacleHeight = PlayerUtils.getGroundHeight(player.mesh.position, player.config, obstacles);
         groundHeight = Math.max(groundHeight, obstacleHeight);
 
-        // Apply Shoe Offset
-        if (player.config && player.config.equipment && player.config.equipment.shoes) {
-            groundHeight += 0.02; // Lift player slightly when wearing shoes to avoid clipping
-        }
-
         // Apply Weather Movement Effects
         const weatherManager = player.worldManager?.game?.weatherManager;
         let weatherSpeedMult = 1.0;

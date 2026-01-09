@@ -70,6 +70,7 @@ export class HumanoidNPC {
         };
 
         this.model.sync(config);
+        if (this.animator) this.animator.setConfig(config);
     }
 
     addLevelLabel() {

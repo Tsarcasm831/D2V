@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 export class PantsBuilder {
     static build(parts, config) {
-        if (!config.equipment || !config.equipment.pants) return null;
+        if (!config.equipment.pants) return null;
 
         const canvas = document.createElement('canvas');
         canvas.width = 512;
@@ -10,16 +10,15 @@ export class PantsBuilder {
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
 
-        let baseColor = '#2d3748'; // Default Dark Grey
+        // Use configured color. Default fallback if somehow missing.
+        let baseColor = config.pantsColor || '#2d3748';
         let detailColor = '#1a202c';
 
-        if (config.outfit === 'peasant') { baseColor = '#5d4037'; detailColor = '#3e2723'; }
-        else if (config.outfit === 'warrior') { baseColor = '#263238'; detailColor = '#000000'; }
-        else if (config.outfit === 'noble') { baseColor = '#ffffff'; detailColor = '#d1c4e9'; }
-        else if (config.outfit === 'naked' || config.outfit === 'nude') { 
-            baseColor = '#3182ce'; // Blue Jeans if 'Naked' but pants equipped
-            detailColor = '#2c5282';
-        }
+        // Minor detail adjustments based on outfit style, but respect base color from config
+        if (config.outfit === 'peasant') { detailColor = '#3e2723'; }
+        else if (config.outfit === 'warrior') { detailColor = '#000000'; }
+        else if (config.outfit === 'noble') { detailColor = '#d1c4e9'; }
+        else if (config.outfit === 'naked') { detailColor = '#2c5282'; }
 
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, 512, 512);
@@ -83,28 +82,20 @@ export class PantsBuilder {
             parts.pelvis.add(cMesh);
             meshes.push(cMesh);
 
-            // 1b. Buttocks Coverage (Critical for Female model)
-            const buttocks = new THREE.Group();
-            parts.pelvis.add(buttocks);
-            
-            const buttRadius = 0.125;
-            const buttGeo = new THREE.SphereGeometry(buttRadius, 16, 16);
-            
-            [-1, 1].forEach(side => {
-                const cheekGroup = new THREE.Group();
-                // Match TorsoBuilder positioning
-                cheekGroup.position.set(side * 0.075, -0.06, -0.11); 
-                cheekGroup.rotation.x = 0.2; 
-                cheekGroup.rotation.y = side * 0.25; 
-                buttocks.add(cheekGroup);
-
-                const cheek = new THREE.Mesh(buttGeo, mat);
-                // Slightly larger than the base cheek (1.06 vs 1.0) and then multiplied by pants scale 's'
-                cheek.scale.set(1.05, 1.0, 0.9);
-                cheek.scale.multiplyScalar(s);
-                cheekGroup.add(cheek);
-                meshes.push(cheek);
-            });
+            // Pants Bulge (Male only)
+            if (config.bodyType === 'male') {
+                // Slightly larger than underwear bulge (radius 0.042)
+                const bGeo = new THREE.CapsuleGeometry(0.046, 0.042, 4, 8);
+                const bMesh = new THREE.Mesh(bGeo, mat);
+                bMesh.name = 'pantsBulge'; // Tag for Scaler
+                bMesh.castShadow = true;
+                
+                // Initial placement (will be overridden by scaler frame updates)
+                bMesh.position.set(0, -0.075, 0.13);
+                
+                parts.pelvis.add(bMesh);
+                meshes.push(bMesh);
+            }
         }
 
         // 2. Legs
