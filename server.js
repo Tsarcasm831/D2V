@@ -211,6 +211,7 @@ const SINGLE_ROOM_CODE = 'Alpha';
 const rooms = new Map();
 const connectionRate = new Map();
 const messageRate = new Map();
+const guilds = new Map(); // key: guildId, value: { name, leaderId, members: Set, basePos: {x,y,z} }
 
 // Initialize the single room immediately
 rooms.set(SINGLE_ROOM_CODE, {
@@ -333,11 +334,51 @@ wss.on('connection', (ws, req) => {
                 case 'chat':
                     handleChat(data);
                     break;
+                case 'createGuild':
+                    handleCreateGuild(data);
+                    break;
+                case 'joinGuild':
+                    handleJoinGuild(data);
+                    break;
             }
         } catch (e) {
             console.error('Error handling message:', e);
         }
     });
+
+    function handleCreateGuild(data) {
+        if (!currentRoomCode) return;
+        const guildId = randomUUID();
+        const guild = {
+            id: guildId,
+            name: data.name || "New Guild",
+            leaderId: playerId,
+            members: new Set([playerId]),
+            basePos: data.basePos || null
+        };
+        guilds.set(guildId, guild);
+        
+        const playerState = rooms.get(currentRoomCode).players.get(playerId);
+        if (playerState) playerState.guildId = guildId;
+
+        ws.send(JSON.stringify({ type: 'guildCreated', guildId, name: guild.name }));
+        broadcastToRoom(currentRoomCode, {
+            type: 'event',
+            kind: 'chat',
+            username: 'System',
+            text: `${username} has founded the guild [${guild.name}]!`
+        });
+    }
+
+    function handleJoinGuild(data) {
+        const guild = guilds.get(data.guildId);
+        if (guild) {
+            guild.members.add(playerId);
+            const playerState = rooms.get(currentRoomCode).players.get(playerId);
+            if (playerState) playerState.guildId = data.guildId;
+            ws.send(JSON.stringify({ type: 'guildJoined', guildId: data.guildId, name: guild.name }));
+        }
+    }
 
     function markPlayerSeen() {
         if (!currentRoomCode) return;

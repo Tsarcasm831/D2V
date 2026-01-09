@@ -26,7 +26,16 @@ export class BuildManager {
             { type: 'long_tavern', name: 'Long Tavern', cost: 100 },
             { type: 'grail_silo', name: 'Grail Silo', cost: 120 },
             { type: 'crop_plot', name: 'Crop Plot', cost: 2 },
-            { type: 'beehive', name: 'Beehive', cost: 5 }
+            { type: 'beehive', name: 'Beehive', cost: 5 },
+            { type: 'foundation', name: 'Stone Foundation', cost: 15 },
+            { type: 'ladder', name: 'Wooden Ladder', cost: 8 },
+            { type: 'chest', name: 'Wooden Chest', cost: 15 },
+            { type: 'table', name: 'Wooden Table', cost: 10 },
+            { type: 'chair', name: 'Wooden Chair', cost: 5 },
+            { type: 'bed', name: 'Simple Bed', cost: 20 },
+            { type: 'blacksmith_bench', name: 'Blacksmith Station', cost: 40 },
+            { type: 'alchemy_lab', name: 'Alchemy Station', cost: 30 },
+            { type: 'spike_trap', name: 'Spike Trap', cost: 15 }
         ];
     }
 
@@ -77,7 +86,7 @@ export class BuildManager {
 
     changeElevation(delta) {
         const option = this.buildOptions[this.selectedBuildIndex];
-        if (option.type === 'floor' || option.type === 'wall' || option.type === 'doorway') {
+        if (option.type === 'floor' || option.type === 'wall' || option.type === 'doorway' || option.type === 'ladder') {
             this.buildElevation = THREE.MathUtils.clamp(
                 this.buildElevation + (delta * this.elevationStep),
                 this.minElevation,
@@ -229,6 +238,95 @@ export class BuildManager {
             const hive = new THREE.Mesh(woodGeo, ghostMat);
             hive.position.y = 0.4;
             this.buildGhost.add(hive);
+        } else if (type === 'foundation') {
+            const size = 5.0;
+            const height = 1.0;
+            const geo = new THREE.BoxGeometry(size, height, size);
+            const mesh = new THREE.Mesh(geo, ghostMat);
+            mesh.position.y = height / 2;
+            this.buildGhost.add(mesh);
+        } else if (type === 'ladder') {
+            const width = 0.8;
+            const height = 3.0;
+            const railGeo = new THREE.BoxGeometry(0.1, height, 0.1);
+            for (let side of [-1, 1]) {
+                const rail = new THREE.Mesh(railGeo, ghostMat);
+                rail.position.set(side * width / 2, height / 2, 0);
+                this.buildGhost.add(rail);
+            }
+            const rungGeo = new THREE.BoxGeometry(width, 0.05, 0.05);
+            for (let i = 0; i < 6; i++) {
+                const rung = new THREE.Mesh(rungGeo, ghostMat);
+                rung.position.set(0, (i + 0.5) * (height / 6), 0);
+                this.buildGhost.add(rung);
+            }
+        } else if (type === 'chest') {
+            const geo = new THREE.BoxGeometry(1.0, 0.6, 0.6);
+            const mesh = new THREE.Mesh(geo, ghostMat);
+            mesh.position.y = 0.3;
+            this.buildGhost.add(mesh);
+        } else if (type === 'table') {
+            const topGeo = new THREE.BoxGeometry(1.5, 0.1, 1.0);
+            const top = new THREE.Mesh(topGeo, ghostMat);
+            top.position.y = 0.75;
+            this.buildGhost.add(top);
+            const legGeo = new THREE.BoxGeometry(0.1, 0.7, 0.1);
+            for (let x of [-0.6, 0.6]) {
+                for (let z of [-0.4, 0.4]) {
+                    const leg = new THREE.Mesh(legGeo, ghostMat);
+                    leg.position.set(x, 0.35, z);
+                    this.buildGhost.add(leg);
+                }
+            }
+        } else if (type === 'chair') {
+            const seatGeo = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+            const seat = new THREE.Mesh(seatGeo, ghostMat);
+            seat.position.y = 0.4;
+            this.buildGhost.add(seat);
+            const backGeo = new THREE.BoxGeometry(0.5, 0.6, 0.1);
+            const back = new THREE.Mesh(backGeo, ghostMat);
+            back.position.set(0, 0.7, -0.2);
+            this.buildGhost.add(back);
+        } else if (type === 'bed') {
+            const baseGeo = new THREE.BoxGeometry(1.2, 0.4, 2.2);
+            const base = new THREE.Mesh(baseGeo, ghostMat);
+            base.position.y = 0.2;
+            this.buildGhost.add(base);
+            const pillowGeo = new THREE.BoxGeometry(1.0, 0.1, 0.4);
+            const pillow = new THREE.Mesh(pillowGeo, ghostMat);
+            pillow.position.set(0, 0.45, -0.8);
+            this.buildGhost.add(pillow);
+        } else if (type === 'blacksmith_bench') {
+            const baseGeo = new THREE.BoxGeometry(2.0, 0.8, 1.0);
+            const base = new THREE.Mesh(baseGeo, ghostMat);
+            base.position.y = 0.4;
+            this.buildGhost.add(base);
+            const anvilGeo = new THREE.BoxGeometry(0.6, 0.4, 0.4);
+            const anvil = new THREE.Mesh(anvilGeo, ghostMat);
+            anvil.position.set(0.4, 1.0, 0);
+            this.buildGhost.add(anvil);
+        } else if (type === 'alchemy_lab') {
+            const deskGeo = new THREE.BoxGeometry(1.5, 0.8, 0.8);
+            const desk = new THREE.Mesh(deskGeo, ghostMat);
+            desk.position.y = 0.4;
+            this.buildGhost.add(desk);
+            const bottleGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.3);
+            const bottle = new THREE.Mesh(bottleGeo, ghostMat);
+            bottle.position.set(-0.3, 0.95, 0);
+            this.buildGhost.add(bottle);
+        } else if (type === 'spike_trap') {
+            const baseGeo = new THREE.BoxGeometry(1.0, 0.1, 1.0);
+            const base = new THREE.Mesh(baseGeo, ghostMat);
+            base.position.y = 0.05;
+            this.buildGhost.add(base);
+            const spikeGeo = new THREE.ConeGeometry(0.05, 0.4, 4);
+            for (let x of [-0.3, 0, 0.3]) {
+                for (let z of [-0.3, 0, 0.3]) {
+                    const spike = new THREE.Mesh(spikeGeo, ghostMat);
+                    spike.position.set(x, 0.25, z);
+                    this.buildGhost.add(spike);
+                }
+            }
         }
         this.game.scene.add(this.buildGhost);
     }
@@ -294,7 +392,7 @@ export class BuildManager {
             posZ = this.verifiedPos.z;
             finalRotation = this.verifiedRotation;
         } else {
-            if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot' || type === 'beehive') {
+            if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot' || type === 'beehive' || type === 'foundation') {
                 posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
                 posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
             } else {
@@ -398,7 +496,7 @@ export class BuildManager {
 
             if (mousePos) {
                 const type = this.buildOptions[this.selectedBuildIndex].type;
-                if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot' || type === 'beehive') {
+                if (type === 'floor' || type === 'firepit' || type === 'square_hut' || type === 'long_tavern' || type === 'grail_silo' || type === 'crop_plot' || type === 'beehive' || type === 'foundation') {
                     posX = Math.floor(mousePos.x / gridStep) * gridStep + halfStep;
                     posZ = Math.floor(mousePos.z / gridStep) * gridStep + halfStep;
                 } else {

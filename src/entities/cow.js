@@ -135,6 +135,11 @@ export class Cow {
     takeDamage(amount, fromPos, player) {
         if (this.isDead) return;
         this.health -= amount;
+        if (this.health > 0) {
+            import('../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('cow_moo', 0.45);
+            });
+        }
         if (this.health <= 0) {
             this.die(fromPos, player);
         } else {
@@ -151,7 +156,7 @@ export class Cow {
         this.velocity.set(dir.x * 8, 10, dir.z * 8);
 
         import('../utils/audio_manager.js').then(({ audioManager }) => {
-            audioManager.play('enemy_hit', 0.5);
+            audioManager.play('cow_moo', 0.6);
         });
 
         if (player && player.inventory) {

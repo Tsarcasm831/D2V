@@ -5,6 +5,11 @@ export class TimeManager {
         this.dayCount = 1;
         this.dayLengthMinutes = 20.0; // Configurable: 20 minutes for a full day
         this.isPaused = false;
+        
+        // Seasonal System
+        this.seasons = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
+        this.currentSeasonIndex = 0;
+        this.daysPerSeason = 7;
     }
 
     setTime(hours) {
@@ -24,7 +29,20 @@ export class TimeManager {
             this.timeOfDay -= 24.0;
             this.dayCount++;
             console.log(`Day ${this.dayCount} has begun.`);
+            
+            // Season transition
+            if (this.dayCount % this.daysPerSeason === 0) {
+                this.currentSeasonIndex = (this.currentSeasonIndex + 1) % this.seasons.length;
+                console.log(`Season changed to: ${this.getCurrentSeason()}`);
+                if (this.game && this.game.onSeasonChanged) {
+                    this.game.onSeasonChanged(this.getCurrentSeason());
+                }
+            }
         }
+    }
+
+    getCurrentSeason() {
+        return this.seasons[this.currentSeasonIndex];
     }
 
     getTimeString() {

@@ -26,6 +26,7 @@ export class Player {
         this.scene.add(this.mesh);
         
         this.animator = new PlayerAnimator(parts, model);
+        this.animator.player = this; // Link player back to animator for state access
         this.playerPhysics = new PlayerPhysics(this);
         
         // State Properties
@@ -68,7 +69,19 @@ export class Player {
         this.hasHit = false; 
         this.isPunch = false;
         this.punchTimer = 0;
-        this.comboChain = 0; 
+        this.punchHasHit = false;
+        this.comboChain = 0;
+        this.comboTimer = 0;
+        this.isDodging = false;
+        this.isBlocking = false;
+        this.isHeavyAttack = false;
+        this.isHeavyAttackCharging = false;
+        this.heavyAttackTimer = 0;
+        this.isCrouching = false;
+        this.stealthMultiplier = 1.0;
+        this.maxMana = 100;
+        this.mana = 100;
+        this.manaRegen = 5;
 
         this.blinkTimer = 0;
         this.isBlinking = false;
@@ -82,6 +95,8 @@ export class Player {
         this.stats = new PlayerStats(this);
         this.gear = new PlayerGear(this);
         this.actions = new PlayerActions(this);
+        
+        this.discoveredLocations = new Set();
 
         this.config = {
             bodyType: characterData.bodyType || 'male',
@@ -177,7 +192,25 @@ export class Player {
     takeDamage(amount) {
         if (this.isDead || (this.actions && this.actions.isInvulnerable)) return;
 
-        this.stats.health -= amount;
+        let finalDamage = amount;
+        
+        // Block Mitigation
+        if (this.isBlocking && this.inventory?.equipment?.WEAPON_OFF) {
+            const shield = this.inventory.equipment.WEAPON_OFF;
+            const blockFactor = shield.stats?.block || 0.5;
+            finalDamage *= (1.0 - blockFactor);
+            
+            // Shield Durability Loss
+            if (shield.durability !== undefined) {
+                shield.durability -= 1;
+                if (shield.durability <= 0) shield.durability = 0;
+            }
+
+            // Visual feedback for block
+            if (this.ui) this.ui.showStatus("BLOCKED", false);
+        }
+
+        this.stats.health -= finalDamage;
         if (this.stats.health <= 0) {
             this.stats.health = 0;
             this.toggleDeath();
@@ -376,6 +409,11 @@ export class Player {
         if (this.actions && this.actions.update) {
             this.actions.update(delta);
         }
+
+        // Mana Regeneration
+        if (this.mana < this.maxMana) {
+            this.mana = Math.min(this.maxMana, this.mana + this.manaRegen * delta);
+        }
         
         if (input.isDead && !this.wasDeadKeyPressed) {
             this.toggleDeath();
@@ -397,7 +435,34 @@ export class Player {
         if (this.animator) {
             const isMoving = input.x !== 0 || input.y !== 0;
             this.animator.isCombatStance = !!(this.actions && this.actions.isCombat);
+            
+            // Sync action flags to animator wrapper
+            this.animator.isPunch = this.isPunch;
+            this.animator.punchTimer = this.punchTimer;
+            this.animator.isAxeSwing = this.isAxeSwing;
+            this.animator.axeSwingTimer = this.axeSwingTimer;
+            this.animator.comboChain = this.comboChain;
+            this.animator.isDodging = this.isDodging;
+            this.animator.isBlocking = this.isBlocking;
+            this.animator.isHeavyAttack = this.isHeavyAttack;
+            this.animator.isHeavyAttackCharging = this.isHeavyAttackCharging;
+            this.animator.heavyAttackTimer = this.heavyAttackTimer;
+            this.animator.isCrouching = this.isCrouching;
+            
             this.animator.animate(delta, isMoving, input.run, this.isPickingUp, this.isDead, this.isJumping, '', 0, this.jumpVelocity, this.isLedgeGrabbing, this.ledgeGrabTime, this.recoverTimer, this.isDragged, this.draggedPartName, this.dragVelocity, this.deathTime, this.deathVariation, false, input.x, input.y);
+            
+            // Sync back timers and flags if they were updated in the animator (though they shouldn't be now)
+            this.punchTimer = this.animator.punchTimer;
+            this.axeSwingTimer = this.animator.axeSwingTimer;
+            this.isPunch = this.animator.isPunch;
+            this.isAxeSwing = this.animator.isAxeSwing;
+            this.comboChain = this.animator.comboChain;
+            this.isDodging = this.animator.isDodging;
+            this.isBlocking = this.animator.isBlocking;
+            this.isHeavyAttack = this.animator.isHeavyAttack;
+            this.isHeavyAttackCharging = this.animator.isHeavyAttackCharging;
+            this.heavyAttackTimer = this.animator.heavyAttackTimer;
+            this.isCrouching = this.animator.isCrouching;
         }
 
         this.updateCloth(delta);

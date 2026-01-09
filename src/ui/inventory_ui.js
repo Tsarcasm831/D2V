@@ -2,50 +2,20 @@ import * as THREE from 'three';
 import { createPlayerMesh } from '../entities/player_mesh.js';
 import { PlayerAnimator } from '../entities/player_animator.js';
 import * as gearFns from '../items/gear.js';
-
-const ItemRarity = {
-  NORMAL: 'Normal',
-  MAGIC: 'Magic',
-  RARE: 'Rare',
-  UNIQUE: 'Unique'
-};
-
-const SlotType = {
-  HELMET: 'HELMET',
-  BODY: 'BODY',
-  VEST: 'VEST',
-  GLOVES: 'GLOVES',
-  BOOTS: 'BOOTS',
-  BELT: 'BELT',
-  RING: 'RING',
-  AMULET: 'AMULET',
-  WEAPON_MAIN: 'WEAPON_MAIN',
-  WEAPON_OFF: 'WEAPON_OFF',
-  BACK: 'BACK',
-  FLASK: 'FLASK',
-  CHARM: 'CHARM',
-  INVENTORY: 'INVENTORY'
-};
-
-const INVENTORY_COLS = 8;
-const INVENTORY_ROWS = 8;
+import { ItemRarity, SlotType, INVENTORY_CONFIG } from './inventory_types.js';
+import { EquipSlot } from './components/EquipSlot.js';
+import { Tooltip } from './components/Tooltip.js';
+import { escapeHtml } from './utils.js';
+import { getIcon } from './components/IconGenerator.js';
 
 const CURRENCY_ITEMS = [
-  { id: 'curr-1', name: 'Chaos Orb', icon: 'assets/icons/gold_coin.png', description: 'Re-rolls stats on a rare item.' }
+  { id: 'curr-1', name: 'Chaos Orb', icon: getIcon('Enchantment', ItemRarity.RARE), description: 'Re-rolls stats on a rare item.', rarity: ItemRarity.RARE, type: 'Enchantment' }
 ];
 
-const GEM_ITEMS = [];
-
-const escapeHtml = (value) => {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  };
-  return String(value).replace(/[&<>"']/g, (char) => map[char]);
-};
+const GEM_ITEMS = [
+  { id: 'gem-1', name: 'Fireball', icon: getIcon('Gem', ItemRarity.NORMAL), description: 'Launches a projectile of pure flame.', rarity: ItemRarity.NORMAL, type: 'Gem' },
+  { id: 'gem-2', name: 'Frostblink', icon: getIcon('Gem', ItemRarity.NORMAL), description: 'Teleport and leave a trail of ice.', rarity: ItemRarity.NORMAL, type: 'Gem' }
+];
 
 export class InventoryUI {
   constructor(player) {
@@ -54,7 +24,7 @@ export class InventoryUI {
       items: [],
       inventoryIds: [],
       draggedItem: null,
-      draggedSource: null, // { type: 'INVENTORY' | 'HOTBAR', index: number }
+      draggedSource: null,
       equipped: {
         HELMET: null,
         BODY: null,
@@ -76,22 +46,13 @@ export class InventoryUI {
         FLASK_5: null,
         SHORTS: null
       },
-      activeTab: 'GENERAL',
-      tooltipItemId: null,
-      tooltipX: 0,
-      tooltipY: 0
+      activeTab: 'GENERAL'
     };
     
     this.appEl = document.getElementById('app');
-    this.tooltipEl = document.getElementById('tooltip');
-    if (!this.tooltipEl) {
-      this.tooltipEl = document.createElement('div');
-      this.tooltipEl.id = 'tooltip';
-      document.body.appendChild(this.tooltipEl);
-    }
-    this.container = null; // Will be set after first render
+    this.tooltip = new Tooltip();
+    this.container = null;
     
-    // Preview Scene State
     this.previewScene = null;
     this.previewCamera = null;
     this.previewRenderer = null;
@@ -99,7 +60,6 @@ export class InventoryUI {
     this.currentPreviewMesh = null;
     this.lastUpdateTime = performance.now();
     this.animationFrameId = null;
-    
   }
 
   init() {
@@ -146,15 +106,18 @@ export class InventoryUI {
   syncWithPlayer() {
     if (!this.player || !this.player.inventory) return;
     const inv = this.player.inventory;
+    const hotbar = Array.isArray(inv.hotbar) ? inv.hotbar : [];
+    const storage = Array.isArray(inv.storage) ? inv.storage : [];
+    const equipment = inv.equipment || {};
     
     // Flatten all items from hotbar, storage, and equipment to ensure they are in the state list
     this.state.items = [
-      ...inv.hotbar.filter(i => i),
-      ...inv.storage.filter(i => i),
-      ...Object.values(inv.equipment).filter(i => i)
+      ...hotbar.filter(i => i),
+      ...storage.filter(i => i),
+      ...Object.values(equipment).filter(i => i)
     ];
     
-    this.state.inventoryIds = inv.storage.map((item, idx) => {
+    this.state.inventoryIds = storage.map((item, idx) => {
       if (item) {
         if (!item.id) {
           item.id = `inv-${idx}-${Date.now()}`;
@@ -163,13 +126,13 @@ export class InventoryUI {
       }
       return null;
     });
-    this.state.equipped = { ...inv.equipment };
+    this.state.equipped = { ...equipment };
     
     // Refresh the state items list from all potential sources to ensure IDs are synced
     this.state.items = [
-      ...inv.hotbar.filter(i => i),
-      ...inv.storage.filter(i => i),
-      ...Object.values(inv.equipment).filter(i => i)
+      ...hotbar.filter(i => i),
+      ...storage.filter(i => i),
+      ...Object.values(equipment).filter(i => i)
     ];
 
     // Ensure all items have IDs in the flattened list
@@ -255,60 +218,15 @@ export class InventoryUI {
   }
 
   showTooltip(item, x, y) {
-    if (!item || !this.tooltipEl) return;
-    this.state.tooltipItemId = item.id;
-    this.state.tooltipX = x;
-    this.state.tooltipY = y;
-    const borderClass = item.rarity ? this.getBorderColor(item.rarity) : 'border-normal';
-    this.tooltipEl.className = `tooltip-premium ${borderClass}`;
-    this.tooltipEl.innerHTML = this.renderTooltipContent(item);
-    this.tooltipEl.style.display = 'block';
-    this.tooltipEl.style.opacity = '1';
-    this.tooltipEl.style.visibility = 'visible';
-    this.positionTooltip(x, y);
+    this.tooltip.show(item, x, y);
   }
 
   hideTooltip() {
-    if (!this.tooltipEl) return;
-    this.state.tooltipItemId = null;
-    this.tooltipEl.style.opacity = '0';
-    this.tooltipEl.style.display = 'none';
-    this.tooltipEl.style.visibility = 'hidden';
+    this.tooltip.hide();
   }
 
-  positionTooltip(x, y) {
-    if (!this.state.tooltipItemId || !this.tooltipEl) return;
-    const padding = 15;
-    const tooltipWidth = this.tooltipEl.offsetWidth || 300;
-    const tooltipHeight = this.tooltipEl.offsetHeight || 200;
-    
-    let left = x + padding;
-    let top = y + padding;
-
-    if (left + tooltipWidth > window.innerWidth) {
-      left = x - tooltipWidth - padding;
-    }
-    if (top + tooltipHeight > window.innerHeight) {
-      top = y - tooltipHeight - padding;
-    }
-
-    this.tooltipEl.style.left = `${Math.max(10, left)}px`;
-    this.tooltipEl.style.top = `${Math.max(10, top)}px`;
-  }
-
-  renderEquipSlot({ slotKey, item, className, label, rarity }) {
-    const hasItem = !!item;
-    const rarityClass = hasItem ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : '';
-    return `
-      <div class="inventory-slot-premium equipment-slot-v3 ${className} ${rarityClass} ${hasItem ? 'has-item' : ''}"
-        data-action="unequip" data-slot="${slotKey}" ${hasItem ? `data-tooltip-id="${item.id}"` : ''}>
-        <div class="slot-inner">
-          ${!hasItem && label ? `<span class="slot-label-v3">${escapeHtml(label)}</span>` : ''}
-          ${hasItem ? `<img src="${item.icon}" class="item-icon-v3" />` : ''}
-        </div>
-        ${hasItem ? `<div class="rarity-indicator-v3"></div>` : ''}
-      </div>
-    `;
+  renderEquipSlot(options) {
+    return EquipSlot.render(options);
   }
 
   renderInventoryContent() {
@@ -319,6 +237,7 @@ export class InventoryUI {
 
   renderCurrencyTab() {
     const cellClass = 'inventory-slot-premium';
+    const totalCells = INVENTORY_CONFIG.ROWS * INVENTORY_CONFIG.COLS;
     const currencyCells = CURRENCY_ITEMS.map((curr) => (
       `<div class="${cellClass}" data-tooltip-id="${curr.id}">
         <div class="w-full h-full p-2">
@@ -328,7 +247,7 @@ export class InventoryUI {
       </div>`
     )).join('');
 
-    const emptyCells = Array.from({ length: Math.max(0, 64 - CURRENCY_ITEMS.length) })
+    const emptyCells = Array.from({ length: Math.max(0, totalCells - CURRENCY_ITEMS.length) })
       .map(() => `<div class="${cellClass}"></div>`)
       .join('');
 
@@ -341,6 +260,7 @@ export class InventoryUI {
 
   renderGemsTab() {
     const cellClass = 'inventory-slot-premium';
+    const totalCells = INVENTORY_CONFIG.ROWS * INVENTORY_CONFIG.COLS;
     const gemCells = GEM_ITEMS.map((gem) => (
       `<div class="${cellClass}" data-tooltip-id="${gem.id}">
         <div class="w-full h-full p-2">
@@ -349,7 +269,7 @@ export class InventoryUI {
       </div>`
     )).join('');
 
-    const emptyCells = Array.from({ length: Math.max(0, 64 - GEM_ITEMS.length) })
+    const emptyCells = Array.from({ length: Math.max(0, totalCells - GEM_ITEMS.length) })
       .map(() => `<div class="${cellClass}"></div>`)
       .join('');
 
@@ -361,7 +281,7 @@ export class InventoryUI {
   }
 
   renderGeneralTab() {
-    const totalCells = INVENTORY_ROWS * INVENTORY_COLS;
+    const totalCells = INVENTORY_CONFIG.ROWS * INVENTORY_CONFIG.COLS;
     const cellClass = 'inventory-slot-premium';
 
     const cells = Array.from({ length: totalCells }).map((_, idx) => {
@@ -369,23 +289,31 @@ export class InventoryUI {
       const item = this.getItemById(itemId);
 
       return `
-        <div class="${cellClass}" data-slot-type="STORAGE" data-slot-index="${idx}">
+        <div class="${cellClass} ${item ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : ''}" data-slot-type="STORAGE" data-slot-index="${idx}">
+          ${!item ? `<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)] pointer-events-none"></div>` : ''}
           ${item ? `
             <div class="inventory-item-container" draggable="true" 
                  data-action="equip" data-item-id="${item.id}" data-tooltip-id="${item.id}"
                  data-slot-type="STORAGE" data-slot-index="${idx}">
               <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm pointer-events-none" alt="${escapeHtml(item.name)}" />
-              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${this.getRarityBgClass(item.rarity)}"></div>
+              <div class="rarity-indicator-v3"></div>
               ${item.count > 1 ? `<div class="item-count-v3">${item.count}</div>` : ''}
+              ${item.durability !== undefined ? `
+                <div class="absolute bottom-1 left-1 right-1 h-1 bg-black/50 rounded-full overflow-hidden">
+                  <div class="h-full ${item.durability / item.maxDurability < 0.25 ? 'bg-red-500' : 'bg-green-500'}" 
+                       style="width: ${(item.durability / item.maxDurability) * 100}%"></div>
+                </div>
+              ` : ''}
             </div>
           ` : ''}
+          <div class="absolute inset-0 border border-white/0 group-hover:border-[#c8aa6e]/50 pointer-events-none transition-colors duration-75 z-20"></div>
         </div>
       `;
     }).join('');
 
     return `
       <div class="flex flex-col gap-4 mx-auto w-fit select-none">
-        <div class="bg-[#2a221a] p-[1px] shadow-2xl">
+        <div class="bg-[#5c4d3c] p-[1px] shadow-2xl">
           <div class="new-inventory-grid">${cells}</div>
         </div>
         ${this.renderHotbarSection()}
@@ -399,17 +327,25 @@ export class InventoryUI {
     
     const cells = hotbarItems.map((item, idx) => {
       return `
-        <div class="${cellClass} hotbar-slot-v3" data-slot-type="HOTBAR" data-slot-index="${idx}">
+        <div class="${cellClass} hotbar-slot-v3 ${item ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : ''}" data-slot-type="HOTBAR" data-slot-index="${idx}">
+          ${!item ? `<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)] pointer-events-none"></div>` : ''}
           ${item ? `
             <div class="inventory-item-container" draggable="true"
                  data-action="equip" data-item-id="${item.id}" data-tooltip-id="${item.id}"
                  data-slot-type="HOTBAR" data-slot-index="${idx}">
               <img src="${item.icon}" class="w-full h-full object-contain saturate-[0.85] transition-all drop-shadow-sm pointer-events-none" alt="${escapeHtml(item.name)}" />
-              <div class="absolute bottom-[2px] left-[2px] right-[2px] h-[2px] opacity-70 ${this.getRarityBgClass(item.rarity)}"></div>
+              <div class="rarity-indicator-v3"></div>
               ${item.count > 1 ? `<div class="item-count-v3">${item.count}</div>` : ''}
+              ${item.durability !== undefined ? `
+                <div class="absolute bottom-1 left-1 right-1 h-1 bg-black/50 rounded-full overflow-hidden">
+                  <div class="h-full ${item.durability / item.maxDurability < 0.25 ? 'bg-red-500' : 'bg-green-500'}" 
+                       style="width: ${(item.durability / item.maxDurability) * 100}%"></div>
+                </div>
+              ` : ''}
             </div>
           ` : ''}
           <div class="hotbar-key-v3">${idx + 1}</div>
+          <div class="absolute inset-0 border border-white/0 group-hover:border-[#c8aa6e]/30 pointer-events-none transition-colors duration-75 z-20"></div>
         </div>
       `;
     }).join('');
@@ -427,6 +363,8 @@ export class InventoryUI {
       case ItemRarity.UNIQUE: return 'bg-unique';
       case ItemRarity.RARE: return 'bg-rare';
       case ItemRarity.MAGIC: return 'bg-magic';
+      case ItemRarity.QUEST: return 'bg-quest';
+      case ItemRarity.GEM: return 'bg-gem';
       default: return 'bg-transparent';
     }
   }
@@ -548,73 +486,60 @@ export class InventoryUI {
     }
   }
 
+  renderPreviewContainer() {
+    return `
+      <div class="absolute inset-0">
+        <div id="preview-canvas-container" class="w-full h-full"></div>
+      </div>
+    `;
+  }
+
   renderEquipmentSection() {
     const equipped = this.state.equipped;
     return `
-      <div class="flex-1-2 flex flex-col background-doll border-r-doll relative overflow-hidden">
+      <div class="background-doll relative overflow-hidden">
         <div class="doll-texture"></div>
         ${this.renderPreviewContainer()}
-        <div class="flex-1 flex flex-col items-center justify-start relative z-10 overflow-hidden pt-0">
+        <div class="flex-1 flex flex-col items-center justify-center relative z-10 overflow-hidden">
           <div class="paper-doll-container">
-            ${this.renderEquipmentTopRow(equipped)}
-            ${this.renderEquipmentGrid(equipped)}
+            <div class="equip-row-top">
+              ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-10 h-10 rounded-full amulet-slot', label: 'Neck' })}
+              ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-16 h-16 helmet-slot', label: 'Head' })}
+              ${this.renderEquipSlot({ slotKey: 'TRINKET', item: equipped.TRINKET, className: 'w-10 h-10 rounded-full relic-slot', label: 'Relic' })}
+            </div>
+            
+            <div class="equipment-grid-v3">
+              <div class="equip-column-side pt-2">
+                ${this.renderEquipSlot({ slotKey: 'WEAPON_MAIN', item: equipped.WEAPON_MAIN, className: 'w-20 h-40 weapon-slot', label: 'Main Hand' })}
+              </div>
+              
+              <div class="equip-column-center">
+                <div class="equip-center-main-row">
+                  <div class="equip-side-slots pt-2">
+                    ${this.renderEquipSlot({ slotKey: 'RING_1', item: equipped.RING_1, className: 'w-10 h-10 ring-slot', label: 'Ring' })}
+                    ${this.renderEquipSlot({ slotKey: 'GLOVES', item: equipped.GLOVES, className: 'w-16 h-16 gloves-slot', label: 'Hands' })}
+                    ${this.renderEquipSlot({ slotKey: 'SUMMON', item: equipped.SUMMON, className: 'w-12 h-12 rounded-full summon-slot', label: 'Summon' })}
+                  </div>
+
+                  ${this.renderEquipSlot({ slotKey: 'BODY', item: equipped.BODY, className: 'w-28 h-40 body-slot', label: 'Torso' })}
+
+                  <div class="equip-side-slots pt-2">
+                    ${this.renderEquipSlot({ slotKey: 'RING_2', item: equipped.RING_2, className: 'w-10 h-10 ring-slot', label: 'Ring' })}
+                    ${this.renderEquipSlot({ slotKey: 'BOOTS', item: equipped.BOOTS, className: 'w-16 h-16 boots-slot', label: 'Feet' })}
+                    ${this.renderEquipSlot({ slotKey: 'RESONANT', item: equipped.RESONANT, className: 'w-12 h-12 rounded-full resonant-slot', label: 'Resonant' })}
+                  </div>
+                </div>
+                
+                ${this.renderEquipSlot({ slotKey: 'BELT', item: equipped.BELT, className: 'w-28 h-10 belt-slot', label: 'Waist' })}
+              </div>
+
+              <div class="equip-column-side pt-2">
+                ${this.renderEquipSlot({ slotKey: 'WEAPON_OFF', item: equipped.WEAPON_OFF, className: 'w-20 h-40 weapon-slot', label: 'Off Hand' })}
+              </div>
+            </div>
           </div>
         </div>
         ${this.renderStatsPanel()}
-      </div>
-    `;
-  }
-
-  renderPreviewContainer() {
-    return `
-      <div id="preview-canvas-container" class="silhouette-overlay">
-          <div class="silhouette-glow"></div>
-          <div class="silhouette-gradient"></div>
-      </div>
-    `;
-  }
-
-  renderEquipmentTopRow(equipped) {
-    return `
-      <div class="flex justify-center items-end gap-6 mb-4">
-        <div class="flex flex-col items-center gap-2">
-           ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-10 h-10 rounded-full amulet-slot', label: 'Neck' })}
-        </div>
-        <div class="flex flex-col items-center">
-          ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-14 h-14 helmet-slot', label: 'Head' })}
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          ${this.renderEquipSlot({ slotKey: 'TRINKET', item: equipped.TRINKET, className: 'w-10 h-10 rounded-full relic-slot', label: 'Relic' })}
-        </div>
-      </div>
-    `;
-  }
-
-  renderEquipmentGrid(equipped) {
-    return `
-      <div class="equipment-grid-v3">
-        <div class="equip-column-side">
-          ${this.renderEquipSlot({ slotKey: 'WEAPON_MAIN', item: equipped.WEAPON_MAIN, className: 'w-16 h-32 weapon-slot', label: 'Main' })}
-          ${this.renderEquipSlot({ slotKey: 'RING_1', item: equipped.RING_1, className: 'w-10 h-10 ring-slot', label: 'Ring' })}
-        </div>
-        
-        <div class="equip-column-center">
-          ${this.renderEquipSlot({ slotKey: 'BODY', item: equipped.BODY, className: 'w-24 h-24 body-slot', label: 'Torso' })}
-          ${this.renderEquipSlot({ slotKey: 'VEST', item: equipped.VEST, className: 'w-24 h-24 vest-slot', label: 'Vest' })}
-          ${this.renderEquipSlot({ slotKey: 'BELT', item: equipped.BELT, className: 'w-24 h-8 belt-slot', label: 'Waist' })}
-          ${this.renderEquipSlot({ slotKey: 'SHORTS', item: equipped.SHORTS, className: 'w-24 h-24 legs-slot', label: 'Legs' })}
-        </div>
-
-        <div class="equip-column-side">
-          ${this.renderEquipSlot({ slotKey: 'BACK', item: equipped.BACK, className: 'w-16 h-16 cloak-slot', label: 'Cloak' })}
-          ${this.renderEquipSlot({ slotKey: 'WEAPON_OFF', item: equipped.WEAPON_OFF, className: 'w-16 h-32 weapon-slot', label: 'Off' })}
-          ${this.renderEquipSlot({ slotKey: 'RING_2', item: equipped.RING_2, className: 'w-10 h-10 ring-slot', label: 'Ring' })}
-        </div>
-        
-        <div class="equip-row-bottom">
-           ${this.renderEquipSlot({ slotKey: 'GLOVES', item: equipped.GLOVES, className: 'w-14 h-14 gloves-slot', label: 'Hands' })}
-           ${this.renderEquipSlot({ slotKey: 'BOOTS', item: equipped.BOOTS, className: 'w-14 h-14 boots-slot', label: 'Feet' })}
-        </div>
       </div>
     `;
   }
@@ -628,7 +553,7 @@ export class InventoryUI {
     return `
       <div class="stats-panel-doll relative z-20">
         <div class="stats-panel-glow"></div>
-        <div class="flex flex-col p-3 gap-2">
+        <div class="flex flex-col p-6 gap-2">
           ${this.renderStatsHeader(charName, charLevel, charClass)}
           <div class="stats-grid-doll">
             ${this.renderAttributes(stats)}
@@ -642,17 +567,19 @@ export class InventoryUI {
 
   renderStatsHeader(name, level, className) {
     return `
-      <div class="char-header-row" style="padding-bottom: 0.25rem;">
+      <div class="char-header-row">
         <div>
           <h2 class="char-name-doll">${name}</h2>
           <div class="char-subtitle-doll">
-            <span class="level-label-doll">Level ${level}</span>
+            <span class="level-label-doll">LEVEL ${level}</span>
             <span class="doll-dot"></span>
             <span class="class-label-doll">${className}</span>
+            <span class="doll-dot"></span>
+            <span class="title-label-doll">LICH LORD</span>
           </div>
         </div>
-        <div class="doll-icon-container" style="width: 2rem; height: 2rem;">
-          <svg class="doll-icon-svg" style="width: 1.25rem; height: 1.25rem;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
+        <div class="doll-icon-container">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
         </div>
       </div>
     `;
@@ -663,16 +590,28 @@ export class InventoryUI {
       <div class="stats-col-doll">
         <h4 class="stats-header-doll">Attributes</h4>
         <div class="stats-row-v3">
-          <span class="stat-label-v3">STRENGTH</span>
+          <span class="stat-label-v3">Strength</span>
           <span class="stat-value-v3">${stats?.base?.strength || 0}</span>
         </div>
         <div class="stats-row-v3">
-          <span class="stat-label-v3">DEXTERITY</span>
+          <span class="stat-label-v3">Dexterity</span>
           <span class="stat-value-v3">${stats?.base?.dexterity || 0}</span>
         </div>
-        <div class="stats-row-v3 highlight-blue">
-          <span class="stat-label-v3">INTELLIGENCE</span>
-          <span class="stat-value-v3">${stats?.base?.intelligence || 0}</span>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">Intelligence</span>
+          <span class="stat-value-v3 highlight-blue">${stats?.base?.intelligence || 0}</span>
+        </div>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">Vitality</span>
+          <span class="stat-value-v3">${stats?.base?.vitality || 0}</span>
+        </div>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">Luck</span>
+          <span class="stat-value-v3">42</span>
+        </div>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">Fame</span>
+          <span class="stat-value-v3 highlight-gold">12,500</span>
         </div>
       </div>
     `;
@@ -683,16 +622,20 @@ export class InventoryUI {
       <div class="stats-col-doll">
         <h4 class="stats-header-doll">Defenses</h4>
         <div class="stats-row-v3">
-          <span class="stat-label-v3">ARMOUR</span>
+          <span class="stat-label-v3">Armour</span>
           <span class="stat-value-v3">${stats?.derived?.defense || 0}</span>
         </div>
         <div class="stats-row-v3">
-          <span class="stat-label-v3">EVASION</span>
+          <span class="stat-label-v3">Natural Soak</span>
+          <span class="stat-value-v3">18%</span>
+        </div>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">Evasion</span>
           <span class="stat-value-v3">${stats?.derived?.dodge || 0}</span>
         </div>
-        <div class="stats-row-v3 highlight-blue">
-          <span class="stat-label-v3">EN. SHIELD</span>
-          <span class="stat-value-v3">0</span>
+        <div class="stats-row-v3">
+          <span class="stat-label-v3">Energy Shield</span>
+          <span class="stat-value-v3 highlight-blue">1,250</span>
         </div>
       </div>
     `;
@@ -702,15 +645,33 @@ export class InventoryUI {
     return `
       <div class="stats-col-doll">
         <h4 class="stats-header-doll">Resistances</h4>
-        <div class="grid grid-cols-2 gap-x-6">
-          <div class="stats-row-v3 highlight-red"><span class="stat-label-v3">FIRE</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-wind"><span class="stat-label-v3">WIND</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-water"><span class="stat-label-v3">WATER</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-earth"><span class="stat-label-v3">EARTH</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-lightning"><span class="stat-label-v3">LIGHTN</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-light"><span class="stat-label-v3">LIGHT</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-shadow"><span class="stat-label-v3">SHADOW</span> <span class="stat-value-v3">0%</span></div>
-          <div class="stats-row-v3 highlight-reson"><span class="stat-label-v3">RESON</span> <span class="stat-value-v3">0%</span></div>
+        <div class="stats-row-v3 highlight-red">
+          <span class="stat-label-v3">Fire</span>
+          <span class="stat-value-v3">75%</span>
+        </div>
+        <div class="stats-row-v3 highlight-water">
+          <span class="stat-label-v3">Water</span>
+          <span class="stat-value-v3">75%</span>
+        </div>
+        <div class="stats-row-v3 highlight-wind">
+          <span class="stat-label-v3">Wind</span>
+          <span class="stat-value-v3">68%</span>
+        </div>
+        <div class="stats-row-v3 highlight-lightning">
+          <span class="stat-label-v3">Lightning</span>
+          <span class="stat-value-v3">76%</span>
+        </div>
+        <div class="stats-row-v3 highlight-earth">
+          <span class="stat-label-v3">Earth</span>
+          <span class="stat-value-v3">52%</span>
+        </div>
+        <div class="stats-row-v3 highlight-shadow">
+          <span class="stat-label-v3">Shadow</span>
+          <span class="stat-value-v3">30%</span>
+        </div>
+        <div class="stats-row-v3 highlight-light">
+          <span class="stat-label-v3">Light</span>
+          <span class="stat-value-v3">-15%</span>
         </div>
       </div>
     `;
@@ -723,18 +684,23 @@ export class InventoryUI {
         return `
           <div
             data-tab="${tab}"
-            class="inventory-tab-v3 ${isActive ? 'active' : ''}"
+            class="inventory-tab-premium ${isActive ? 'active' : ''}"
           >
             <span class="tab-label-v3">${tab}</span>
-            <div class="tab-indicator-v3"></div>
           </div>
         `;
       }).join('');
 
     return `
       <div class="inventory-pane-v3">
-        <div class="inventory-tabs-v3">
+        <div class="inventory-tabs-container">
           ${tabs}
+          <div class="flex-1"></div>
+          <div class="flex items-center gap-1 pb-1">
+            <button class="sort-button-premium" data-sort="NAME">NAME</button>
+            <button class="sort-button-premium" data-sort="TYPE">TYPE</button>
+            <button class="sort-button-premium" data-sort="RARITY">RARITY</button>
+          </div>
         </div>
 
         <div class="inventory-main-content-v3 custom-scrollbar">
@@ -746,28 +712,37 @@ export class InventoryUI {
         <div class="inventory-footer-v3">
           <div class="footer-stats-v3">
             <div class="footer-stat-v3">
-              <img src="assets/icons/gold_coin.png" class="footer-icon-v3" />
+              <span class="footer-stat-dot-gold"></span>
+              <span class="footer-stat-label">GOLD</span>
               <span class="footer-stat-value-v3 text-unique">${this.player?.inventory?.currency?.gold || 0}</span>
             </div>
             <div class="footer-stat-v3">
-              <div class="footer-icon-v3 resonance-icon"></div>
-              <span class="footer-stat-value-v3 text-magic">0</span>
+              <span class="footer-stat-dot-resonance"></span>
+              <span class="footer-stat-label">RESONANCE</span>
+              <span class="footer-stat-value-v3 text-magic">142</span>
             </div>
           </div>
           <div class="footer-status-v3">
-            <span class="status-dot-v3"></span>
-            Awaiting Input
+            AWAITING INPUT
           </div>
         </div>
       </div>
     `;
   }
 
+  handleTradeOffer(itemId) {
+    // Basic logic for a future trading window
+    const item = this.getItemById(itemId);
+    if (item && this.player.game?.tradingSystem) {
+        this.player.game.tradingSystem.offerItem(item);
+        this.render();
+    }
+  }
+
   render() {
     if (!this.appEl) return;
     this.hideTooltip();
 
-    // Check if we need to preserve the display state
     const existingWrapper = document.getElementById('inventory-overlay-wrapper');
     const currentDisplay = existingWrapper ? window.getComputedStyle(existingWrapper).display : 'none';
 
@@ -800,10 +775,10 @@ export class InventoryUI {
             ${this.renderInventoryPane()}
           </div>
           
-          <div class="inventory-border-v3 t"></div>
-          <div class="inventory-border-v3 b"></div>
-          <div class="inventory-border-v3 l"></div>
-          <div class="inventory-border-v3 r"></div>
+          <div class="inventory-border-premium t"></div>
+          <div class="inventory-border-premium b"></div>
+          <div class="inventory-border-premium l"></div>
+          <div class="inventory-border-premium r"></div>
         </div>
 
         <div class="inventory-version-v3">
@@ -817,6 +792,7 @@ export class InventoryUI {
     // If inventory is visible, ensure preview is running
     const wrapper = document.getElementById('inventory-overlay-wrapper');
     if (wrapper && window.getComputedStyle(wrapper).display !== 'none') {
+      this.setupPreviewScene();
       if (!this.animationFrameId) {
         this.startPreviewAnimation();
       } else {
@@ -842,7 +818,7 @@ export class InventoryUI {
   }
 
   bindTabs(wrapper) {
-    wrapper.querySelectorAll('.inventory-tab-v3').forEach(tab => {
+    wrapper.querySelectorAll('.inventory-tab-premium').forEach(tab => {
       tab.onclick = (e) => {
         e.stopPropagation();
         const tabName = tab.dataset.tab;
@@ -850,6 +826,13 @@ export class InventoryUI {
           this.state.activeTab = tabName;
           this.render();
         }
+      };
+    });
+    
+    wrapper.querySelectorAll('.sort-button-premium').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        this.handleSort(btn.dataset.sort);
       };
     });
   }
@@ -884,7 +867,12 @@ export class InventoryUI {
       e.stopPropagation();
       
       if (target.dataset.action === 'equip') {
-        this.handleEquip(target.dataset.itemId);
+        // Trade Mode: if in trade, move to trade window instead of equip
+        if (this.state.isTrading) {
+            this.handleTradeOffer(target.dataset.itemId);
+        } else {
+            this.handleEquip(target.dataset.itemId);
+        }
       } else if (target.dataset.action === 'unequip') {
         this.handleUnequip(target.dataset.slot);
       }

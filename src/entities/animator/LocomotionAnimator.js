@@ -5,7 +5,8 @@ export class LocomotionAnimator {
     animateIdle(player, parts, damp, skipRightArm = false) {
         const lerp = THREE.MathUtils.lerp;
         const t = Date.now() * 0.002;
-        const baseHeight = 0.89 * (player.config.legScale || 1.0);
+        const legScale = (player.config && player.config.legScale) ? player.config.legScale : 1.0;
+        const baseHeight = 0.89 * legScale;
 
         this.animateBreathing(player, parts, t, 1.0);
 
@@ -18,27 +19,32 @@ export class LocomotionAnimator {
         parts.hips.position.z = lerp(parts.hips.position.z, 0, damp);
         parts.hips.rotation.set(0, 0, 0);
         
-        parts.hips.position.y = lerp(parts.hips.position.y, baseHeight + Math.sin(t)*0.005, damp);
-        
-        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0, damp);
-        parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, 0, damp);
-        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, Math.sin(t) * 0.02, damp);
+        // Only set Y if not in action, or let the action layer handle it
+        if (!skipRightArm) {
+            parts.hips.position.y = lerp(parts.hips.position.y, baseHeight + Math.sin(t)*0.005, damp);
+            parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0, damp);
+            parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, 0, damp);
+            parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, Math.sin(t) * 0.02, damp);
+            
+            parts.leftThigh.rotation.set(0, 0, 0.12);
+            parts.rightThigh.rotation.set(0, 0, -0.12);
+            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0, damp);
+            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0, damp);
+        }
 
         parts.neck.rotation.x = -Math.sin(t) * 0.02;
         parts.head.rotation.x = 0.1 + Math.sin(t - 1) * 0.02;
         
-        parts.leftThigh.rotation.set(0, 0, 0.12);
-        parts.rightThigh.rotation.set(0, 0, -0.12);
-        parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0, damp);
-        parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0, damp);
-        
         this.animateArmsIdle(player, parts, damp, t, skipRightArm);
-        playerModelResetFeet(parts, damp);
+        if (!skipRightArm) {
+            playerModelResetFeet(parts, damp);
+        }
     }
 
     animateCombatStance(player, parts, damp, t, skipRightArm) {
         const lerp = THREE.MathUtils.lerp;
-        const baseHeight = 0.89 * (player.config.legScale || 1.0);
+        const legScale = (player.config && player.config.legScale) ? player.config.legScale : 1.0;
+        const baseHeight = 0.89 * legScale;
         
         parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.12, damp);
         parts.hips.position.x = lerp(parts.hips.position.x, 0, damp);
@@ -51,15 +57,23 @@ export class LocomotionAnimator {
         parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, 0, damp);
         parts.neck.rotation.y = lerp(parts.neck.rotation.y, 0.2, damp);
         parts.head.rotation.y = lerp(parts.head.rotation.y, 0, damp);
-        parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.7, damp);
-        parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.2, damp);
-        parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.8, damp);
-        parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.35, damp);
-        parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.2, damp);
-        parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.15, damp);
 
-        this.applyFootRot(parts.leftShin, -0.1);
-        this.applyFootRot(parts.rightShin, -0.5);
+        if (player.isDodging) {
+            this.action.animateDodge(player, parts, dt, damp);
+            return;
+        }
+
+        if (!skipRightArm) {
+            parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.7, damp);
+            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.2, damp);
+            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.8, damp);
+            parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.35, damp);
+            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.2, damp);
+            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.15, damp);
+
+            this.applyFootRot(parts.leftShin, -0.1);
+            this.applyFootRot(parts.rightShin, -0.5);
+        }
 
         const breathing = Math.sin(t * 3) * 0.05;
         parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.9 + breathing, damp);
@@ -78,15 +92,17 @@ export class LocomotionAnimator {
 
     animateArmsIdle(player, parts, damp, t, skipRightArm) {
         const lerp = THREE.MathUtils.lerp;
-        const isHolding = !!player.config.selectedItem;
-        const stance = player.config.weaponStance;
+        const isHolding = player.config && !!player.config.selectedItem;
+        const stance = player.config ? player.config.weaponStance : 'relaxed';
 
         // Left Arm (Relaxed)
         parts.leftArm.rotation.set(Math.sin(t)*0.03, 0, 0.15);
         parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, damp);
         parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, damp);
 
-        if (skipRightArm) return;
+        if (skipRightArm) {
+            return;
+        }
 
         // Right Arm
         if (isHolding) {
@@ -111,8 +127,8 @@ export class LocomotionAnimator {
 
     animateMovement(player, parts, dt, damp, input, skipRightArm = false) {
         const isRunning = input.isRunning;
-        const isHolding = !!player.config.selectedItem;
-        const stance = player.config.weaponStance;
+        const isHolding = player.config && !!player.config.selectedItem;
+        const stance = player.config ? player.config.weaponStance : 'relaxed';
         const lerp = THREE.MathUtils.lerp;
         
         const speedMult = isRunning ? 15 : 9;
@@ -121,13 +137,17 @@ export class LocomotionAnimator {
         this.animateBreathing(player, parts, Date.now() * 0.002, isRunning ? 2.5 : 1.5);
 
         const forward = -input.y;
-        const baseHeight = 0.89 * (player.config.legScale || 1.0);
+        const legScale = (player.config && player.config.legScale) ? player.config.legScale : 1.0;
+        const baseHeight = 0.89 * legScale;
 
         const bounceAmp = isRunning ? 0.08 : 0.03;
         const bouncePhase = Math.cos(2 * t);
         const yOffset = bouncePhase * bounceAmp;
         const runSquat = isRunning ? 0.05 : 0.0;
-        parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - runSquat + yOffset, damp * 2);
+        
+        if (!skipRightArm) {
+            parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - runSquat + yOffset, damp * 2);
+        }
 
         const swayAmp = isRunning ? 0.04 : 0.06;
         const sway = -Math.sin(t) * swayAmp; 
@@ -135,21 +155,33 @@ export class LocomotionAnimator {
 
         const twistAmp = isRunning ? 0.3 : 0.15;
         const twist = -Math.sin(t) * twistAmp * Math.sign(forward || 1);
-        parts.hips.rotation.y = twist;
+        
+        if (!skipRightArm) {
+            parts.hips.rotation.y = twist;
+        }
 
         const rollAmp = isRunning ? 0.05 : 0.03;
-        parts.hips.rotation.z = Math.sin(t) * rollAmp;
+        const roll = Math.sin(t) * rollAmp;
+        parts.hips.rotation.z = roll;
+
+        if (player.isDodging) {
+            this.action.animateDodge(player, parts, dt, damp);
+            return;
+        }
 
         const leanBase = isRunning ? 0.35 : 0.1;
         const leanBob = Math.abs(Math.cos(t)) * 0.05;
-        parts.hips.rotation.x = lerp(parts.hips.rotation.x, leanBase + leanBob, damp);
-
-        parts.torsoContainer.rotation.y = -twist * 0.8; 
-        parts.torsoContainer.rotation.z = -parts.hips.rotation.z * 0.5;
-        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, isRunning ? 0.1 : 0.02, damp);
         
-        parts.neck.rotation.y = -parts.torsoContainer.rotation.y * 0.5;
-        parts.head.rotation.x = lerp(parts.head.rotation.x, 0.1 - leanBob, damp);
+        if (!skipRightArm) {
+            parts.hips.rotation.x = lerp(parts.hips.rotation.x, leanBase + leanBob, damp);
+            
+            parts.torsoContainer.rotation.y = -twist * 0.8; 
+            parts.torsoContainer.rotation.z = -parts.hips.rotation.z * 0.5;
+            parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, isRunning ? 0.1 : 0.02, damp);
+            
+            parts.neck.rotation.y = -parts.torsoContainer.rotation.y * 0.5;
+            parts.head.rotation.x = lerp(parts.head.rotation.x, 0.1 - leanBob, damp);
+        }
 
         const calcLeg = (offset) => {
             const phase = t + offset;
@@ -178,13 +210,15 @@ export class LocomotionAnimator {
         const left = calcLeg(0);
         const right = calcLeg(Math.PI);
 
-        parts.leftThigh.rotation.x = left.thigh;
-        parts.leftShin.rotation.x = left.shin;
-        this.applyFootRot(parts.leftShin, left.foot);
+        if (!skipRightArm) {
+            parts.leftThigh.rotation.x = left.thigh;
+            parts.leftShin.rotation.x = left.shin;
+            this.applyFootRot(parts.leftShin, left.foot);
 
-        parts.rightThigh.rotation.x = right.thigh;
-        parts.rightShin.rotation.x = right.shin;
-        this.applyFootRot(parts.rightShin, right.foot);
+            parts.rightThigh.rotation.x = right.thigh;
+            parts.rightShin.rotation.x = right.shin;
+            this.applyFootRot(parts.rightShin, right.foot);
+        }
 
         const armAmp = isRunning ? 1.4 : 0.6;
         parts.leftArm.rotation.x = Math.sin(t) * armAmp;
@@ -219,7 +253,7 @@ export class LocomotionAnimator {
         const lerp = THREE.MathUtils.lerp;
         const vel = player.jumpVelocity || 0;
         const isMoving = Math.abs(input.x) > 0 || Math.abs(input.y) > 0;
-        const isHolding = !!player.config.selectedItem;
+        const isHolding = player.config && !!player.config.selectedItem;
 
         this.animateBreathing(player, parts, Date.now() * 0.002, 2.0);
         playerModelResetFeet(parts, damp);

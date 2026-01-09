@@ -59,7 +59,26 @@ export class InputManager {
             if (key === 'a') this.input.x = -1;
             if (key === 'd') this.input.x = 1;
             if (key === 'shift') this.input.run = true;
-            if (key === ' ') this.input.jump = true;
+            if (key === 'c') {
+                this.game.player.isCrouching = !this.game.player.isCrouching;
+                if (this.game.player.ui) {
+                    this.game.player.ui.showStatus(this.game.player.isCrouching ? "STEALTH MODE" : "STEALTH OFF", false);
+                }
+                const cSlot = document.getElementById('slot-c');
+                if (cSlot) {
+                    cSlot.classList.add('active');
+                    setTimeout(() => cSlot.classList.remove('active'), 150);
+                }
+            }
+            if (key === ' ') {
+                if (this.input.run) {
+                    if (this.game.player.playerPhysics) {
+                        this.game.player.playerPhysics.dodge();
+                    }
+                } else {
+                    this.input.jump = true;
+                }
+            }
             if (key === 'q') {
                 if (this.game.buildManager.isBuildMode) {
                     this.game.buildManager.changeElevation(1);
@@ -106,10 +125,18 @@ export class InputManager {
             if (key === 'm') this.game.shardMap.toggle();
             if (key === 'tab') {
                 e.preventDefault();
-                this.game.player.ui.toggleInventory();
+                if (this.game.player.inventoryUI) {
+                    this.game.player.inventoryUI.toggle();
+                } else if (this.game.player.ui && this.game.player.ui.toggleInventory) {
+                    this.game.player.ui.toggleInventory();
+                }
             }
             if (key === 'p') {
-                this.game.player.ui.toggleInventory();
+                if (this.game.player.inventoryUI) {
+                    this.game.player.inventoryUI.toggle();
+                } else if (this.game.player.ui && this.game.player.ui.toggleInventory) {
+                    this.game.player.ui.toggleInventory();
+                }
             }
             if (key === 'f') {
                 // Check if we are in an input field
@@ -142,7 +169,14 @@ export class InputManager {
                 if (this.game.buildManager.isBuildMode) {
                     this.game.buildManager.selectSlot(num - 1);
                 } else if (this.game.player && this.game.player.inventory) {
-                    this.game.player.inventory.selectSlot(num - 1);
+                    if (this.game.player.inventory.selectSlot) {
+                        this.game.player.inventory.selectSlot(num - 1);
+                    } else if (this.game.player.inventory.selectedSlot !== undefined) {
+                        this.game.player.inventory.selectedSlot = num - 1;
+                        if (this.game.player.ui && this.game.player.ui.updateHotbar) {
+                            this.game.player.ui.updateHotbar();
+                        }
+                    }
                 }
             }
         });
@@ -225,13 +259,11 @@ export class InputManager {
             }
             if (e.button === 0) {
                 if (this.game.buildManager.isBuildMode) {
-                    console.log("InputManager: Build mode placement triggered");
                     this.game.buildManager.place();
                     return;
                 }
                 
-                console.log("InputManager: Setting action=true for player");
-                this.input.action = true;
+                this.input.attack1 = true; // Use attack1 instead of action
                 this.triggerActionFeedback();
                 
                 // Explicitly trigger attack logic if available
@@ -242,7 +274,9 @@ export class InputManager {
         });
         window.addEventListener('mouseup', (e) => {
             if (e.button === 2) this.isRotating = false;
-            if (e.button === 0) this.input.action = false;
+            if (e.button === 0) {
+                this.input.attack1 = false;
+            }
         });
         window.addEventListener('mousemove', (e) => {
             this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;

@@ -1,13 +1,14 @@
 import * as THREE from 'three';
-import { SCALE_FACTOR } from '../world/world_bounds.js';
+import { SCALE_FACTOR, SHARD_SIZE } from '../world/world_bounds.js';
 
 export class Bear {
-    constructor(scene, shard, pos) {
+    constructor(scene, shard, pos, variant = 'standard') {
         this.scene = scene;
         this.shard = shard;
         this.isEnemy = true;
         this.isDead = false;
         this.type = 'bear';
+        this.variant = variant;
 
         this.group = new THREE.Group();
         this.group.position.copy(pos);
@@ -23,10 +24,22 @@ export class Bear {
         this.wanderAngle = Math.random() * Math.PI * 2;
         this.timer = Math.random() * 2;
         this.state = 'idle'; // idle, wander, aggressive, chase, attack
+        
+        // Variant Stats
         this.moveSpeed = 2.5 * SCALE_FACTOR;
         this.chaseSpeed = 7 * SCALE_FACTOR;
-        
         this.maxHealth = 15 + Math.floor(this.level / 2);
+        
+        if (this.variant === 'grizzly') {
+            this.maxHealth *= 1.5;
+            this.chaseSpeed *= 0.8;
+            this.level += 5;
+        } else if (this.variant === 'polar') {
+            this.maxHealth *= 1.2;
+            this.chaseSpeed *= 1.1;
+            this.level += 10;
+        }
+        
         this.health = this.maxHealth;
 
         this.attackRange = 3 * SCALE_FACTOR;
@@ -44,8 +57,18 @@ export class Bear {
     }
 
     setupMesh() {
-        const furMat = new THREE.MeshStandardMaterial({ color: 0x3e2723 }); // Dark brown
-        const snoutMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 }); // Lighter brown
+        let bearColor = 0x3e2723; // Dark brown
+        let snoutColor = 0x5d4037; // Lighter brown
+        
+        if (this.variant === 'grizzly') {
+            bearColor = 0x2b1d0e;
+        } else if (this.variant === 'polar') {
+            bearColor = 0xf0f0f0;
+            snoutColor = 0xd0d0d0;
+        }
+
+        const furMat = new THREE.MeshStandardMaterial({ color: bearColor });
+        const snoutMat = new THREE.MeshStandardMaterial({ color: snoutColor });
         const noseMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
         const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
@@ -138,7 +161,8 @@ export class Bear {
         ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`Lv. ${this.level} BEAR`, 128, 32);
+        const labelText = this.variant === 'standard' ? `Lv. ${this.level} BEAR` : `Lv. ${this.level} ${this.variant.toUpperCase()} BEAR`;
+        ctx.fillText(labelText, 128, 32);
         
         const tex = new THREE.CanvasTexture(canvas);
         const spriteMat = new THREE.SpriteMaterial({ map: tex });
@@ -148,10 +172,17 @@ export class Bear {
         this.group.add(this.label);
     }
 
-    takeDamage(amount, fromPos, player) {
-        console.log(`Bear: takeDamage called with amount ${amount} from player ${player ? 'exists' : 'null'}`);
+    takeDamage(amount, fromPos, player, isWeakPoint = false) {
+        console.log(`Bear: takeDamage called with amount ${amount} from player ${player ? 'exists' : 'null'} (WeakPoint: ${isWeakPoint})`);
         if (this.isDead) return;
-        this.health -= amount;
+        
+        let finalDamage = amount;
+        if (isWeakPoint) {
+            // Visual feedback for weak point hit
+            this.showDamageNumber(finalDamage, true);
+        }
+        
+        this.health -= finalDamage;
 
         // Visual feedback
         const originalScale = this.group.scale.clone();
@@ -167,6 +198,40 @@ export class Bear {
                 audioManager.play('enemy_hit', 0.4);
             });
         }
+    }
+
+    showDamageNumber(amount, isCrit) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = isCrit ? '#ffaa00' : '#ffffff';
+        ctx.font = `bold ${isCrit ? '48' : '32'}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.floor(amount).toString(), 64, 32);
+        
+        const tex = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.copy(this.group.position);
+        sprite.position.y += 2.0 * SCALE_FACTOR;
+        this.scene.add(sprite);
+        
+        const startTime = performance.now();
+        const duration = 1000;
+        const animate = (now) => {
+            const elapsed = now - startTime;
+            const p = elapsed / duration;
+            if (p >= 1) {
+                this.scene.remove(sprite);
+                tex.dispose();
+                spriteMat.dispose();
+                return;
+            }
+            sprite.position.y += 0.02;
+            sprite.material.opacity = 1 - p;
+            requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
     }
 
     die(fromPos, player) {
@@ -219,6 +284,9 @@ export class Bear {
                 });
             }
             player.addXP(20 + this.level * 2);
+            player.game?.achievementManager?.unlock('first_kill');
+            player.game?.achievementManager?.unlock('bear_hunter');
+            player.game?.questManager?.onKill('bear');
         }
     }
 
@@ -423,14 +491,43 @@ export class Bear {
     }
 
     updateAI(player) {
+        const timeManager = this.shard?.worldManager?.game?.timeManager;
+        const isNight = timeManager ? (timeManager.timeOfDay < 6 || timeManager.timeOfDay > 18) : false;
+        
+        // Stealth detection logic
+        let effectiveDetectRange = isNight ? this.detectRange * 1.2 : this.detectRange;
+        let effectiveAttackRange = isNight ? this.attackRange * 1.1 : this.attackRange;
+
+        if (player && player.isCrouching) {
+            effectiveDetectRange *= 0.4; // 60% reduction in detection range when player is crouching
+            effectiveAttackRange *= 0.8;
+
+            // Check for cover (e.g. tall grass)
+            const playerPos = player.mesh.position;
+            const sx = Math.floor((playerPos.x + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((playerPos.z + SHARD_SIZE / 2) / SHARD_SIZE);
+            const shard = this.shard?.worldManager?.activeShards.get(`${sx},${sz}`);
+            
+            if (shard) {
+                const h = shard.getBiomeNoise(playerPos.x, playerPos.z);
+                // Forest biomes (0.3 to 0.45) have higher grass/cover
+                if (h > 0.3 && h < 0.45) {
+                    effectiveDetectRange *= 0.5; // Additional 50% reduction in forests
+                }
+            }
+        }
+
         const canAggro = player && player.mesh && !player.isInvulnerable && !player.isCombatMode;
         const distToPlayer = (player && player.mesh) ? this.group.position.distanceTo(player.mesh.position) : 999;
 
-        if (canAggro && distToPlayer < this.attackRange && this.state !== 'attack') {
+        if (canAggro && distToPlayer < effectiveAttackRange && this.state !== 'attack') {
             this.state = 'attack';
             this.timer = 1.2;
             this.hasDealtDamage = false;
-        } else if (canAggro && distToPlayer < this.detectRange && this.state !== 'attack') {
+            import('../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('bear_attack_1', 0.45);
+            });
+        } else if (canAggro && distToPlayer < effectiveDetectRange && this.state !== 'attack') {
             if (this.state !== 'chase') {
                 import('../utils/audio_manager.js').then(({ audioManager }) => {
                     audioManager.play('bear_growl', 0.5);
@@ -460,7 +557,11 @@ export class Bear {
             } else if (p < 0.7) {
                 this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, 0.2, 15 * delta);
                 if (!this.hasDealtDamage && player && player.mesh && distToPlayer < 2.5 * SCALE_FACTOR) {
-                    player.takeDamage(25 + Math.floor(this.level * 0.75));
+                    const timeManager = this.shard?.worldManager?.game?.timeManager;
+                    const isNight = timeManager ? (timeManager.timeOfDay < 6 || timeManager.timeOfDay > 18) : false;
+                    const nightMultiplier = isNight ? 1.25 : 1.0;
+                    
+                    player.takeDamage((25 + Math.floor(this.level * 0.75)) * nightMultiplier);
                     this.hasDealtDamage = true;
                 }
             } else if (p >= 1.0) {

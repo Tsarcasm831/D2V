@@ -247,37 +247,25 @@ export class PlayerActions {
     }
 
     castSkill() {
-        if (this.player.stats.chakra < this.selectedSkill.cost) {
-            if (this.player.ui) this.player.ui.showStatus("Not enough Chakra!", true);
-            return;
-        }
-        this.player.stats.chakra -= this.selectedSkill.cost;
-        if (this.player.ui) {
-            this.player.ui.updateHud();
-            this.player.ui.showStatus(`Casting ${this.selectedSkill.name}!`, false);
-        }
         const game = (this.player.worldManager && this.player.worldManager.game) || this.player.game || null;
-        if (game && game.inputManager) {
-            const startPos = this.player.mesh.position.clone();
-            startPos.y += 1.2;
-            const targetPos = game.inputManager.input.mouseWorldPos;
-            if (targetPos) {
-                let projectile = null;
-                if (this.selectedSkill.id === 'fireball') {
-                    projectile = new FireballProjectile(this.player.scene, startPos, targetPos, this.player);
-                } else if (this.selectedSkill.id === 'icebolt') {
-                    projectile = new IceboltProjectile(this.player.scene, startPos, targetPos, this.player);
-                }
-                if (projectile) {
-                    game.projectiles.push(projectile);
-                }
+        if (!game || !game.magicSystem) return;
+
+        const targetPos = game.inputManager.input.mouseWorldPos;
+        if (!targetPos) return;
+
+        if (game.magicSystem.castSpell(this.selectedSkill.id, this.player, targetPos)) {
+            if (this.player.ui) {
+                this.player.ui.updateHud();
+                this.player.ui.showStatus(`Casting ${this.selectedSkill.name}!`, false);
             }
+            
+            this.player.isInteracting = true;
+            this.player.interactTimer = 0;
+            
+            import('../../utils/audio_manager.js').then(({ audioManager }) => {
+                audioManager.play('whoosh', 0.8);
+            });
         }
-        this.player.isInteracting = true;
-        this.player.interactTimer = 0;
-        import('../../utils/audio_manager.js').then(({ audioManager }) => {
-            audioManager.play('whoosh', 0.8);
-        });
     }
 
     tryInteractPlot(isRightClick = false) {

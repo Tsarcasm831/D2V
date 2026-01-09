@@ -7,6 +7,10 @@
         { "id": "bear_pelt", "chance": 0.5, "min": 1, "max": 1 },
         { "id": "gold_coin", "chance": 0.3, "min": 5, "max": 15 },
         { "id": "honey", "chance": 0.2, "min": 1, "max": 2 }
+      ],
+      "weak_points": [
+        { "name": "head", "multiplier": 2.0, "offset": { "x": 0, "y": 0.9, "z": 0.9 }, "radius": 0.4 },
+        { "name": "back_legs", "multiplier": 1.5, "offset": { "x": 0, "y": 0.25, "z": -0.45 }, "radius": 0.5 }
       ]
     },
     "chest_wooden": {
@@ -33,6 +37,10 @@
         { "id": "raw_meat", "chance": 0.7, "min": 1, "max": 2 },
         { "id": "wolf_pelt", "chance": 0.4, "min": 1, "max": 1 },
         { "id": "gold_coin", "chance": 0.5, "min": 2, "max": 8 }
+      ],
+      "weak_points": [
+        { "name": "neck", "multiplier": 2.5, "offset": { "x": 0, "y": 0.5, "z": 0.4 }, "radius": 0.3 },
+        { "name": "flank", "multiplier": 1.3, "offset": { "x": 0, "y": 0.4, "z": 0 }, "radius": 0.4 }
       ]
     },
     "enemy_assassin": {
@@ -98,6 +106,40 @@
       "rolls": 1,
       "items": [
         { "id": "honey", "chance": 1.0, "min": 1, "max": 3 }
+      ]
+    },
+    "harvest_fire_flower": {
+      "rolls": 1,
+      "items": [
+        { "id": "fire_essence", "chance": 1.0, "min": 1, "max": 2 }
+      ]
+    },
+    "harvest_mana_flower": {
+      "rolls": 1,
+      "items": [
+        { "id": "mana_essence", "chance": 1.0, "min": 1, "max": 2 }
+      ]
+    },
+    "hazard_frozen_lake": {
+      "damage": 5,
+      "effect": "frozen",
+      "description": "Thin ice. Deals cold damage and slows movement."
+    },
+    "hazard_geothermal_vent": {
+      "damage": 15,
+      "effect": "burn",
+      "description": "Scumbering steam. Deals fire damage."
+    },
+    "enemy_ice_titan": {
+      "rolls": 3,
+      "items": [
+        { "id": "gold_coin", "chance": 1.0, "min": 100, "max": 250 },
+        { "id": "iron_sword", "chance": 0.5, "min": 1, "max": 1 },
+        { "id": "iron_shield", "chance": 0.3, "min": 1, "max": 1 }
+      ],
+      "weak_points": [
+        { "name": "eye", "multiplier": 4.0, "offset": { "x": 0, "y": 2.5, "z": 0.5 }, "radius": 0.3 },
+        { "name": "chest_core", "multiplier": 2.0, "offset": { "x": 0, "y": 1.8, "z": 0.3 }, "radius": 0.6 }
       ]
     }
   }

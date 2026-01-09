@@ -59,82 +59,17 @@ export class HumanoidNPC {
     }
 
     setupClothing() {
-        // Base layer
-        attachUnderwear(this.parts);
-        
-        const greyDark = 0x444444;
-        const greyLight = 0x888888;
-        const outlineMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
-
-        // Grey Shorts (mimics shorts.js logic)
-        const shortsMat = new THREE.MeshToonMaterial({ color: greyDark });
-        const thighRadius = 0.1, legLen = 0.42;
-        const legGeo = new THREE.CylinderGeometry(thighRadius * 1.35, thighRadius * 1.25, legLen, 12);
-        
-        const attachLeg = (thighPart) => {
-            const leg = new THREE.Mesh(legGeo, shortsMat);
-            leg.position.y = -legLen / 2 + 0.02; 
-            thighPart.add(leg);
-            const o = new THREE.Mesh(legGeo, outlineMat);
-            o.scale.setScalar(1.1);
-            leg.add(o);
+        const config = {
+            outfit: 'survivor',
+            shirtColor: '#888888',
+            bodyType: 'male',
+            equipment: {
+                shirt: true,
+                pants: true
+            }
         };
-        attachLeg(this.parts.rightThigh);
-        attachLeg(this.parts.leftThigh);
 
-        const torsoRadiusBottom = 0.22, waistLen = 0.24;
-        const waistGeo = new THREE.CylinderGeometry(torsoRadiusBottom * 1.12, torsoRadiusBottom * 1.1, waistLen, 16);
-        const waist = new THREE.Mesh(waistGeo, shortsMat);
-        waist.position.y = (0.05 + waistLen/2) * SCALE_FACTOR;
-        this.parts.torsoContainer.add(waist);
-        
-        // Add crotch section to hide underwear from below
-        const crotchGeo = new THREE.SphereGeometry(torsoRadiusBottom * 1.1, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-        const crotch = new THREE.Mesh(crotchGeo, shortsMat);
-        crotch.position.y = -waistLen / 2;
-        waist.add(crotch);
-
-        const wo = new THREE.Mesh(waistGeo, outlineMat);
-        wo.scale.setScalar(1.05);
-        waist.add(wo);
-
-        const co = new THREE.Mesh(crotchGeo, outlineMat);
-        co.scale.setScalar(1.05);
-        co.position.y = -waistLen / 2;
-        waist.add(co);
-
-        // Grey Shirt - FIXED COVERAGE (sync with shirt.js logic)
-        const shirtMat = new THREE.MeshToonMaterial({ color: greyLight });
-        const torsoRadiusTop = 0.3, torsoRadiusBottomShirt = 0.26, shirtLen = 0.32;
-        const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottomShirt, shirtLen, 16);
-        const shirtTorso = new THREE.Mesh(shirtTorsoGeo, shirtMat);
-        shirtTorso.position.y = 0.41 * SCALE_FACTOR;
-        this.parts.torsoContainer.add(shirtTorso);
-
-        const topCapGeo = new THREE.SphereGeometry(torsoRadiusTop, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        const topCap = new THREE.Mesh(topCapGeo, shirtMat);
-        topCap.position.y = shirtLen / 2;
-        shirtTorso.add(topCap);
-
-        [shirtTorsoGeo, topCapGeo].forEach(g => {
-            const o = new THREE.Mesh(g, outlineMat);
-            o.scale.setScalar(1.05);
-            if (g === topCapGeo) o.position.y = shirtLen / 2;
-            shirtTorso.add(o);
-        });
-
-        const sleeveRadius = 0.12, sleeveLen = 0.25;
-        const sleeveGeo = new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLen, 12);
-        const attachSleeve = (armPart) => {
-            const sleeve = new THREE.Mesh(sleeveGeo, shirtMat);
-            sleeve.position.y = -sleeveLen / 2;
-            armPart.add(sleeve);
-            const so = new THREE.Mesh(sleeveGeo, outlineMat);
-            so.scale.setScalar(1.08);
-            sleeve.add(so);
-        };
-        attachSleeve(this.parts.rightArm);
-        attachSleeve(this.parts.leftArm);
+        this.model.sync(config);
     }
 
     addLevelLabel() {
@@ -384,7 +319,10 @@ export class HumanoidNPC {
             'hips', // draggedPartName
             new THREE.Vector3(), // dragVelocity
             0, // deathTime
-            null // deathVariation
+            null, // deathVariation
+            false, // isMovingBackwards
+            0, // strafe
+            0 // forward
         );
         
         const floorY = this.shard.getTerrainHeight(this.group.position.x, this.group.position.z);

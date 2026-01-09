@@ -36,9 +36,6 @@ export class KonohaNinjaNPC {
         this.mesh.position.copy(pos);
         this.scene.add(this.mesh);
 
-        // Attach Gear (Manual overrides for specific items)
-        this.underwear = attachUnderwear(this.parts);
-        
         // Ninja gear (Specific attachments)
         this.vest = gear.attachVest(this.parts);
         this.headband = gear.attachHeadband(this.parts);
@@ -207,7 +204,10 @@ export class KonohaNinjaNPC {
             'hips', // draggedPartName
             new THREE.Vector3(), // dragVelocity
             0, // deathTime
-            null // deathVariation
+            null, // deathVariation
+            false, // isMovingBackwards
+            0, // strafe
+            0 // forward
         );
         
         // Keep on ground

@@ -45,72 +45,36 @@ export class PlayerAnimator {
     playPunch() {
         this.isPunch = true;
         this.punchTimer = 0;
+        this.comboChain = 1; // Start combo
         this.isAxeSwing = false; 
         this.axeSwingTimer = 0;
     }
 
     animate(delta, isMoving, isRunning, isPickingUp, isDead, isJumping, jumpPhase, jumpTimer, jumpVelocity, isLedgeGrabbing, ledgeGrabTime, recoverTimer, isDragged, draggedPartName, dragVelocity, deathTime, deathVariation, isMovingBackwards, strafe = 0, forward = 0) {
-        // Map the existing animate call to the new modular animator
-        const model = this.model || { parts: this.parts, eyelids: this.parts.eyelids || [] };
-        const playerState = {
-            model,
-            config: { 
-                legScale: this.parts.hips?.scale.y || 1.0,
-                selectedItem: this._isHolding,
-                weaponStance: 'relaxed' // Default
-            },
-            isPickingUp: this.isPickingUp || isPickingUp,
-            pickUpTime: this.pickUpTime || 0,
-            isInteracting: this.isInteracting,
-            interactTimer: this.interactTimer || 0,
-            isAxeSwing: this.isAxeSwing,
-            axeSwingTimer: this.axeSwingTimer || 0,
-            isPunch: this.isPunch,
-            punchTimer: this.punchTimer || 0,
-            isDead: isDead,
-            deathTime: deathTime,
-            deathVariation: deathVariation,
-            isJumping: isJumping,
-            jumpVelocity: jumpVelocity,
-            isLedgeGrabbing: isLedgeGrabbing,
-            ledgeGrabTime: ledgeGrabTime,
-            recoverTimer: recoverTimer,
-            isDragged: isDragged,
-            draggedPartName: draggedPartName,
-            dragVelocity: dragVelocity,
-            blinkTimer: this.blinkTimer || 0,
-            isBlinking: this.isBlinking || false,
-            walkTime: this.walkTime || 0,
-            isCombatStance: this.isCombatStance
-        };
-
         const input = {
             isRunning: isRunning,
             x: strafe,
-            y: -forward // Animation system expects -y for forward
+            y: forward
         };
 
-        this.modularAnimator.animate(playerState, delta, isMoving, input);
+        const state = this.player || this;
         
-        // Advance timers on the shared state so we don't overwrite increments.
-        if (playerState.isAxeSwing) {
-            playerState.axeSwingTimer += delta;
-        }
-        if (playerState.isPunch) {
-            playerState.punchTimer += delta;
-        }
-        
-        // Sync back persistent timers
-        this.isPickingUp = playerState.isPickingUp;
-        this.pickUpTime = playerState.pickUpTime;
-        this.isInteracting = playerState.isInteracting;
-        this.interactTimer = playerState.interactTimer;
-        this.isAxeSwing = playerState.isAxeSwing;
-        this.axeSwingTimer = playerState.axeSwingTimer;
-        this.isPunch = playerState.isPunch;
-        this.punchTimer = playerState.punchTimer;
-        this.blinkTimer = playerState.blinkTimer;
-        this.isBlinking = playerState.isBlinking;
-        this.walkTime = playerState.walkTime;
+        // Ensure ALL properties are synced to the state object for the modular animator
+        state.isPunch = this.isPunch;
+        state.punchTimer = this.punchTimer;
+        state.comboChain = this.comboChain;
+        state.isAxeSwing = this.isAxeSwing;
+        state.axeSwingTimer = this.axeSwingTimer;
+        state.isInteracting = this.isInteracting;
+        state.interactTimer = this.interactTimer;
+        state.isPickingUp = this.isPickingUp || isPickingUp;
+        state.isDead = isDead;
+        state.isJumping = isJumping;
+        state.jumpVelocity = jumpVelocity;
+        state.isLedgeGrabbing = isLedgeGrabbing;
+        state.recoverTimer = recoverTimer;
+        state.isDragged = isDragged;
+
+        this.modularAnimator.animate(state, delta, isMoving, input);
     }
 }

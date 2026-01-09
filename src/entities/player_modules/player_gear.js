@@ -101,6 +101,18 @@ export class PlayerGear {
 
         const equipment = this.player.inventory.equipment;
         
+        // Handle Shield Visuals
+        const shieldItem = equipment.WEAPON_OFF && equipment.WEAPON_OFF.type === 'shield' ? equipment.WEAPON_OFF : null;
+        if (shieldItem) {
+            if (!this.shieldGroup) {
+                this.shieldGroup = this.createShieldMesh(shieldItem.id);
+                this.leftHand.add(this.shieldGroup);
+            }
+            this.shieldGroup.visible = true;
+        } else if (this.shieldGroup) {
+            this.shieldGroup.visible = false;
+        }
+
         // Map legacy equipment slots to modular system
         const modularEquip = {
             helm: !!equipment.HELMET,
@@ -114,6 +126,27 @@ export class PlayerGear {
         if (this.player.model) {
             this.player.model.updateEquipment(modularEquip);
         }
+    }
+
+    createShieldMesh(id) {
+        const group = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: id.includes('iron') ? 0x888888 : 0x664422 });
+        
+        if (id.includes('tower')) {
+            const geo = new THREE.BoxGeometry(0.6, 1.2, 0.1).scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, 0.3, 0.1);
+            group.add(mesh);
+        } else {
+            const geo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16).scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
+            geo.rotateX(Math.PI / 2);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, 0, 0.1);
+            group.add(mesh);
+        }
+        
+        group.traverse(c => c.layers.set(0));
+        return group;
     }
 
     setClothingVisible(part, isVisible) {

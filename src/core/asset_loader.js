@@ -21,12 +21,26 @@ export class AssetLoader {
             'chop': 'assets/sounds/chop.mp3',
             'whoosh': 'assets/sounds/whoosh.mp3',
             'bear_growl': 'assets/sounds/bear_growl.mp3',
+            'bear_attack_1': 'assets/sounds/bear_attack_1.mp3',
             'splash': 'assets/sounds/asset_name.mp3',
             'footstep_snow': 'assets/sounds/footstep_snow.mp3',
+            'footstep_dirt': 'assets/sounds/footstep_dirt.mp3',
+            'footstep_gravel': 'assets/sounds/footstep_gravel.mp3',
+            'footstep_gravel_wet': 'assets/sounds/footstep_gravel_wet.mp3',
+            'footstep_sand': 'assets/sounds/footstep_sand.mp3',
+            'footstep_splash': 'assets/sounds/footstep_splash.mp3',
+            'footstep_walk_slow': 'assets/sounds/footstep_walk_slow.mp3',
             'enemy_hit': 'assets/sounds/enemy_hit.mp3',
             'harvest': 'assets/sounds/harvest.mp3',
             'wolf_howl': 'assets/sounds/wolf_howl.mp3',
-            'hit-metallic': 'assets/sounds/hit-metallic.mp3'
+            'hit-metallic': 'assets/sounds/hit-metallic.mp3',
+            'chicken_cluck': 'assets/sounds/chicken_cluck.mp3',
+            'chicken_distressed': 'assets/sounds/chicken_distressed.mp3',
+            'chicken_short': 'assets/sounds/chicken_short.mp3',
+            'cow_moo': 'assets/sounds/cow_moo.mp3',
+            'sheep_call': 'assets/sounds/sheep_call.mp3',
+            'sheep_baa_short': 'assets/sounds/sheep_baa_short.mp3',
+            'skinning': 'assets/sounds/skinning.mp3'
         };
         this.total = this.images.length + Object.keys(this.sounds).length;
         this.loaded = 0;

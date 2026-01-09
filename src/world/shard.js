@@ -103,6 +103,34 @@ export class Shard {
         const isLand23 = (this.worldManager && this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land23');
         const onPlateau = isLand23 && (distSq_plateau < plateauRadiusWithMarginSq || inCanyon);
 
+        // --- PvP Arena Spawning ---
+        const isArenaShard = isLand23 && this.gridX === 125 && this.gridZ === -115; // Example coordinate for an arena
+        if (isArenaShard) {
+            const arenaPos = new THREE.Vector3(this.offsetX, this.getTerrainHeight(this.offsetX, this.offsetZ), this.offsetZ);
+            
+            // Visual Arena Base
+            const arenaGeo = new THREE.CircleGeometry(20 * SCALE_FACTOR, 32);
+            arenaGeo.rotateX(-Math.PI / 2);
+            const arenaMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 });
+            const arena = new THREE.Mesh(arenaGeo, arenaMat);
+            arena.position.copy(arenaPos);
+            arena.position.y += 0.1;
+            arena.receiveShadow = true;
+            this.objects.add(arena);
+
+            // Arena Pillars
+            const pillarGeo = new THREE.CylinderGeometry(1 * SCALE_FACTOR, 1 * SCALE_FACTOR, 5 * SCALE_FACTOR, 8);
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const pPos = arenaPos.clone().add(new THREE.Vector3(Math.cos(angle) * 18 * SCALE_FACTOR, 2.5 * SCALE_FACTOR, Math.sin(angle) * 18 * SCALE_FACTOR));
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.copy(pPos);
+                pillar.castShadow = true;
+                this.objects.add(pillar);
+            }
+        }
+
         // Force Snowy Plateau characteristics if near the center or in canyon
         if (onPlateau) {
             h = 0.9; 
@@ -162,6 +190,22 @@ export class Shard {
             berryCount = 1;
             pondChance = 0.2;
             oreTypes = ['silver', 'gold', 'iron', 'rock'];
+        }
+
+        // --- Interactive Flora Spawning ---
+        const flowerChance = 0.1;
+        if (rng() < flowerChance && !onPlateau && !isLand15) {
+            const fx = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
+            const fz = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
+            const fy = this.getTerrainHeight(fx, fz);
+            const fPos = new THREE.Vector3(fx, fy, fz);
+            
+            const isCold = h > 0.6 || isLand23;
+            const flowerType = isCold ? 'mana_flower' : 'fire_flower';
+            const flower = new BerryBush(this.scene, this, fPos);
+            flower.type = flowerType;
+            flower.setupMesh(); // Re-setup with new type
+            this.resources.push(flower);
         }
 
         // Special adjustments for shards on or near the plateau
@@ -678,6 +722,41 @@ export class Shard {
             }
         }
 
+        // --- Enemy Spawning with Variants ---
+        const enemyChance = 0.2;
+        if (rng() < enemyChance && !onPlateau && !isLand15) {
+            const ex = (rng() - 0.5) * SHARD_SIZE * 0.7 + this.offsetX;
+            const ez = (rng() - 0.5) * SHARD_SIZE * 0.7 + this.offsetZ;
+            const ey = this.getTerrainHeight(ex, ez);
+            const ePos = new THREE.Vector3(ex, ey, ez);
+
+            if (h > 0.6) {
+                // High altitude: Polar Bear or Arctic Wolf
+                if (rng() < 0.1) { // 10% chance for Ice Titan boss in cold peaks
+                    import('../entities/boss_ice_titan.js').then(({ IceTitan }) => {
+                        const boss = new IceTitan(this.scene, this, ePos);
+                        this.npcs.push(boss);
+                    });
+                } else if (rng() < 0.4) {
+                    const bear = new Bear(this.scene, this, ePos, rng() < 0.3 ? 'polar' : 'standard');
+                    this.npcs.push(bear);
+                } else {
+                    const wolf = new Wolf(this.scene, this, ePos, rng() < 0.4 ? 'arctic' : 'standard');
+                    this.npcs.push(wolf);
+                }
+            } else if (h < 0.45) {
+                // Forest/Swamp: Grizzly or Alpha Wolf
+                if (rng() < 0.3) {
+                    const bear = new Bear(this.scene, this, ePos, rng() < 0.5 ? 'grizzly' : 'standard');
+                    this.npcs.push(bear);
+                } else {
+                    const variant = rng() < 0.1 ? 'alpha' : rng() < 0.2 ? 'arctic' : 'standard';
+                    const wolf = new Wolf(this.scene, this, ePos, variant);
+                    this.npcs.push(wolf);
+                }
+            }
+        }
+
         // Elemental Ores & Rocks
         for (let i = 0; i < 4; i++) {
             const type = oreTypes[Math.floor(rng() * oreTypes.length)];
@@ -737,6 +816,83 @@ export class Shard {
             } while ((tooClose || tooCloseToTent) && attempts < 10);
             
             this.resources.push(new BerryBush(this.scene, this, pos));
+        }
+
+        // --- Environmental Hazards ---
+        const hazardChance = 0.15;
+        if (rng() < hazardChance) {
+            const hx = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetX;
+            const hz = (rng() - 0.5) * SHARD_SIZE * 0.8 + this.offsetZ;
+            const hy = this.getTerrainHeight(hx, hz);
+            const hPos = new THREE.Vector3(hx, hy, hz);
+            
+            const isCold = h > 0.6 || isLand23;
+            const hazardType = isCold ? 'frozen_lake' : 'geothermal_vent';
+            const hazardRadius = 3.0 + rng() * 4.0;
+
+            if (this.worldManager && this.worldManager.game && this.worldManager.game.environmentManager) {
+                this.worldManager.game.environmentManager.registerHazard(hPos, hazardRadius, hazardType);
+                
+                // Visual Indicator
+                const indicatorGeo = new THREE.CircleGeometry(hazardRadius, 16);
+                indicatorGeo.rotateX(-Math.PI / 2);
+                const indicatorMat = new THREE.MeshBasicMaterial({ 
+                    color: isCold ? 0x00ffff : 0xff4400, 
+                    transparent: true, 
+                    opacity: 0.3 
+                });
+                const indicator = new THREE.Mesh(indicatorGeo, indicatorMat);
+                indicator.position.copy(hPos);
+                indicator.position.y += 0.05;
+                this.objects.add(indicator);
+            }
+        }
+
+        // --- Cave Entrances ---
+        const caveChance = 0.05;
+        if (rng() < caveChance && !onPlateau && !isLand15) {
+            const cx = (rng() - 0.5) * SHARD_SIZE * 0.6 + this.offsetX;
+            const cz = (rng() - 0.5) * SHARD_SIZE * 0.6 + this.offsetZ;
+            const cy = this.getTerrainHeight(cx, cz);
+            const cPos = new THREE.Vector3(cx, cy, cz);
+
+            if (this.worldManager && this.worldManager.caveGenerator) {
+                this.worldManager.caveGenerator.generateCaveShard(this.gridX, this.gridZ, landSeed);
+                
+                // Visual Entrance (Dark hole in ground)
+                const entranceGeo = new THREE.CircleGeometry(2.0 * SCALE_FACTOR, 12);
+                entranceGeo.rotateX(-Math.PI / 2);
+                const entranceMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                const entrance = new THREE.Mesh(entranceGeo, entranceMat);
+                entrance.position.copy(cPos);
+                entrance.position.y += 0.02;
+                this.objects.add(entrance);
+                
+                // Interaction prompt setup could go here
+            }
+        }
+
+        // --- Ruins & Dungeons ---
+        const ruinChance = 0.03;
+        if (rng() < ruinChance && !onPlateau && !isLand15) {
+            const rx = (rng() - 0.5) * SHARD_SIZE * 0.5 + this.offsetX;
+            const rz = (rng() - 0.5) * SHARD_SIZE * 0.5 + this.offsetZ;
+            const ry = this.getTerrainHeight(rx, rz);
+            const rPos = new THREE.Vector3(rx, ry, rz);
+
+            const ruinTypes = ['abandoned_hut', 'ancient_altar', 'broken_wall'];
+            const ruinType = ruinTypes[Math.floor(rng() * ruinTypes.length)];
+            
+            const ruin = new Building(this.scene, this, ruinType, rPos, rng() * Math.PI * 2);
+            ruin.isRuin = true;
+            this.resources.push(ruin);
+            
+            // Random loot in ruins
+            if (rng() < 0.7) {
+                const chestPos = rPos.clone().add(new THREE.Vector3((rng()-0.5)*2, 0.2, (rng()-0.5)*2));
+                const chest = new Building(this.scene, this, 'chest', chestPos, rng() * Math.PI * 2);
+                this.resources.push(chest);
+            }
         }
 
         // --- Town Building Placement ---

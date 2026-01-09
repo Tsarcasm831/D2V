@@ -1,13 +1,14 @@
 import * as THREE from 'three';
-import { SCALE_FACTOR } from '../world/world_bounds.js';
+import { SCALE_FACTOR, SHARD_SIZE } from '../world/world_bounds.js';
 
 export class Wolf {
-    constructor(scene, shard, pos) {
+    constructor(scene, shard, pos, variant = 'standard') {
         this.scene = scene;
         this.shard = shard;
         this.isEnemy = true;
         this.isDead = false;
         this.type = 'wolf';
+        this.variant = variant;
 
         this.group = new THREE.Group();
         this.group.position.copy(pos);
@@ -23,14 +24,22 @@ export class Wolf {
         this.wanderAngle = Math.random() * Math.PI * 2;
         this.timer = Math.random() * 2;
         this.state = 'idle'; // idle, wander
+        
+        // Variant Stats
         this.moveSpeed = 4 * SCALE_FACTOR;
-
-        // AI Collision avoidance state
-        this.isColliding = false;
-        this.pauseTimer = 0;
-        this.avoidanceAngle = 0;
-
         this.maxHealth = 3 + Math.floor(this.level / 10);
+        
+        if (this.variant === 'arctic') {
+            this.maxHealth *= 1.5;
+            this.moveSpeed *= 1.2;
+            this.level += 5;
+        } else if (this.variant === 'alpha') {
+            this.maxHealth *= 3.0;
+            this.moveSpeed *= 1.1;
+            this.level += 15;
+            this.group.scale.multiplyScalar(1.3);
+        }
+        
         this.health = this.maxHealth;
 
         this.attackRange = 2 * SCALE_FACTOR;
@@ -44,8 +53,19 @@ export class Wolf {
     }
 
     setupMesh() {
-        const wolfMat = new THREE.MeshStandardMaterial({ color: 0x333333 }); // Darker grey
-        const furMat = new THREE.MeshStandardMaterial({ color: 0x555555 }); // Lighter grey
+        let wolfColor = 0x333333; // Darker grey
+        let furColor = 0x555555; // Lighter grey
+        
+        if (this.variant === 'arctic') {
+            wolfColor = 0xcccccc;
+            furColor = 0xeeeeee;
+        } else if (this.variant === 'alpha') {
+            wolfColor = 0x111111;
+            furColor = 0x222222;
+        }
+
+        const wolfMat = new THREE.MeshStandardMaterial({ color: wolfColor });
+        const furMat = new THREE.MeshStandardMaterial({ color: furColor });
         const noseMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
         const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2 });
 
@@ -146,7 +166,8 @@ export class Wolf {
         ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`Lv. ${this.level} WOLF`, 128, 32);
+        const labelText = this.variant === 'standard' ? `Lv. ${this.level} WOLF` : `Lv. ${this.level} ${this.variant.toUpperCase()} WOLF`;
+        ctx.fillText(labelText, 128, 32);
         
         const tex = new THREE.CanvasTexture(canvas);
         const spriteMat = new THREE.SpriteMaterial({ map: tex });
@@ -156,9 +177,15 @@ export class Wolf {
         this.group.add(this.label);
     }
 
-    takeDamage(amount, fromPos, player) {
+    takeDamage(amount, fromPos, player, isWeakPoint = false) {
         if (this.isDead) return;
-        this.health -= amount;
+        
+        let finalDamage = amount;
+        if (isWeakPoint) {
+            this.showDamageNumber(finalDamage, true);
+        }
+        
+        this.health -= finalDamage;
 
         // Visual feedback jolt
         const originalScale = this.group.scale.clone();
@@ -174,6 +201,40 @@ export class Wolf {
                 audioManager.play('enemy_hit', 0.3);
             });
         }
+    }
+
+    showDamageNumber(amount, isCrit) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = isCrit ? '#ffaa00' : '#ffffff';
+        ctx.font = `bold ${isCrit ? '48' : '32'}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.floor(amount).toString(), 64, 32);
+        
+        const tex = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.copy(this.group.position);
+        sprite.position.y += 1.5 * SCALE_FACTOR;
+        this.scene.add(sprite);
+        
+        const startTime = performance.now();
+        const duration = 1000;
+        const animate = (now) => {
+            const elapsed = now - startTime;
+            const p = elapsed / duration;
+            if (p >= 1) {
+                this.scene.remove(sprite);
+                tex.dispose();
+                spriteMat.dispose();
+                return;
+            }
+            sprite.position.y += 0.02;
+            sprite.material.opacity = 1 - p;
+            requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
     }
 
     die(fromPos, player) {
@@ -231,6 +292,9 @@ export class Wolf {
                 });
             }
             player.addXP(10 + this.level);
+            player.game?.achievementManager?.unlock('first_kill');
+            player.game?.achievementManager?.unlock('wolf_slayer');
+            player.game?.questManager?.onKill('wolf');
         }
     }
 
@@ -432,17 +496,43 @@ export class Wolf {
     }
 
     updateAI(player) {
+        const timeManager = this.shard?.worldManager?.game?.timeManager;
+        const isNight = timeManager ? (timeManager.timeOfDay < 6 || timeManager.timeOfDay > 18) : false;
+        
+        let effectiveDetectRange = isNight ? this.detectRange * 1.5 : this.detectRange;
+        let effectiveAttackRange = isNight ? this.attackRange * 1.2 : this.attackRange;
+
+        // Stealth detection logic
+        if (player && player.isCrouching) {
+            effectiveDetectRange *= 0.35; // Wolves have keen smell, but crouching still helps
+            effectiveAttackRange *= 0.7;
+
+            // Check for cover (e.g. tall grass)
+            const playerPos = player.mesh.position;
+            const sx = Math.floor((playerPos.x + SHARD_SIZE / 2) / SHARD_SIZE);
+            const sz = Math.floor((playerPos.z + SHARD_SIZE / 2) / SHARD_SIZE);
+            const shard = this.shard?.worldManager?.activeShards.get(`${sx},${sz}`);
+            
+            if (shard) {
+                const h = shard.getBiomeNoise(playerPos.x, playerPos.z);
+                // Forest biomes (0.3 to 0.45) have higher grass/cover
+                if (h > 0.3 && h < 0.45) {
+                    effectiveDetectRange *= 0.4; // Wolves rely more on scent, but cover still helps
+                }
+            }
+        }
+
         const canAggro = player && !player.isInvulnerable && !player.isCombatMode;
         const distToPlayer = player ? this.group.position.distanceTo(player.mesh.position) : 999;
 
-        if (canAggro && distToPlayer < this.attackRange && this.state !== 'lunge') {
+        if (canAggro && distToPlayer < effectiveAttackRange && this.state !== 'lunge') {
             this.state = 'lunge';
             this.timer = 0.8;
             this.hasDealtDamage = false;
-        } else if (canAggro && distToPlayer < this.detectRange && this.state !== 'lunge') {
+        } else if (canAggro && distToPlayer < effectiveDetectRange && this.state !== 'lunge') {
             this.state = 'chase';
         } else if (this.state === 'chase' || (!canAggro && this.state === 'lunge')) {
-            if (!canAggro || distToPlayer >= this.detectRange) {
+            if (!canAggro || distToPlayer >= effectiveDetectRange) {
                 this.state = 'idle';
                 this.timer = 1.0;
             }
@@ -465,7 +555,11 @@ export class Wolf {
                     this.headGroup.rotation.x = -0.5;
                     
                     if (!this.hasDealtDamage && this.group.position.distanceTo(player.mesh.position) < 1.5 * SCALE_FACTOR) {
-                        player.takeDamage(10 + Math.floor(this.level * 0.4));
+                        const timeManager = this.shard?.worldManager?.game?.timeManager;
+                        const isNight = timeManager ? (timeManager.timeOfDay < 6 || timeManager.timeOfDay > 18) : false;
+                        const nightMultiplier = isNight ? 1.25 : 1.0;
+
+                        player.takeDamage((10 + Math.floor(this.level * 0.4)) * nightMultiplier);
                         this.hasDealtDamage = true;
                     }
                 }

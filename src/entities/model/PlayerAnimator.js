@@ -8,57 +8,82 @@ export class PlayerAnimator {
         this.locomotion = new LocomotionAnimator();
         this.action = new ActionAnimator();
         this.status = new StatusAnimator();
+        this.isPunch = false;
+        this.isAxeSwing = false;
+        this.isBlocking = false;
+        this.isDodging = false;
+        this.isHeavyAttack = false;
+        this.heavyAttackTimer = 0;
+        this.isCrouching = false;
     }
 
     animate(player, dt, isMoving, input) {
+        if (!player || !player.model || !player.model.parts) return;
         const parts = player.model.parts;
         const damp = 10 * dt;
 
+        const state = player;
+
         // 0. Facial Animation
-        this.animateFace(player, dt);
+        this.animateFace(state, dt);
 
         // 1. Full Body Overrides
-        if (player.isDragged || player.recoverTimer > 0) {
-            this.status.animateRagdoll(player, parts, dt);
+        if (state.isDragged || state.recoverTimer > 0) {
+            this.status.animateRagdoll(state, parts, dt);
             return;
         } 
-        if (player.isDead) {
-            this.status.animateDeath(player, parts, dt, damp);
+        if (state.isDead) {
+            this.status.animateDeath(state, parts, dt, damp);
             return;
         } 
-        if (player.isLedgeGrabbing) {
-            this.action.animateClimb(player, parts, dt, damp);
+        if (state.isLedgeGrabbing) {
+            this.action.animateClimb(state, parts, dt, damp);
             return;
         }
-        if (player.isPickingUp) {
-            this.action.animatePickup(player, parts, dt, damp);
+        if (state.isPickingUp) {
+            this.action.animatePickup(state, parts, dt, damp);
             return;
         }
-        if (player.isSkinning) {
-            this.action.animateSkinning(player, parts, dt, damp);
+        if (state.isSkinning) {
+            this.action.animateSkinning(state, parts, dt, damp);
             return;
         }
 
         // 2. Determine Action Layer State
-        const isRightArmAction = player.isPunch || player.isAxeSwing || player.isInteracting;
-
+        const isRightArmAction = !!(state.isPunch || state.isAxeSwing || state.isInteracting);
+        
         // 3. Locomotion Layer
-        if (player.isJumping) {
-            this.locomotion.animateJump(player, parts, dt, damp, input, isRightArmAction);
+        if (state.isDodging) {
+            this.action.animateDodge(state, parts, dt, damp);
+        } else if (state.isJumping) {
+            this.locomotion.animateJump(state, parts, dt, damp, input, isRightArmAction);
         } else if (isMoving) {
-            this.locomotion.animateMovement(player, parts, dt, damp, input, isRightArmAction);
+            this.locomotion.animateMovement(state, parts, dt, damp, input, isRightArmAction);
         } else {
-            this.locomotion.animateIdle(player, parts, damp, isRightArmAction);
+            this.locomotion.animateIdle(state, parts, damp, isRightArmAction);
         }
 
         // 4. Action Layer
-        if (player.isAxeSwing) {
-            this.action.animateAxeSwing(player, parts, dt, damp);
-        } else if (player.isPunch) {
-            this.action.animatePunch(player, parts, dt, damp);
-        } else if (player.isInteracting) {
-            this.action.animateInteract(player, parts, dt, damp);
+        if (state.isCrouching) {
+            this.action.animateCrouch(state, parts, dt, damp);
+        } else if (isRightArmAction) {
+            this.action.animate(state, dt, parts, damp, input);
+        } else if (state.isInteracting) {
+            this.action.animateInteract(state, parts, dt, damp);
         }
+    }
+
+    resetActionFlags(player) {
+        player.isAxeSwing = false;
+        player.axeSwingTimer = 0;
+        player.isPunch = false;
+        player.punchTimer = 0;
+        player.isInteracting = false;
+        player.interactTimer = 0;
+        player.isBlocking = false;
+        player.isDodging = false;
+        player.isHeavyAttack = false;
+        player.heavyAttackTimer = 0;
     }
 
     animateFace(player, dt) {

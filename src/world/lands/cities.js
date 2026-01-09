@@ -102,6 +102,14 @@ export const CITIES = [
     "image": "assets/images/lands/yurei.png"
   },
   {
+    "id": "poi-center-bowl-yurei",
+    "name": "Center of the Bowl (Yureigakure)",
+    "type": "poi",
+    "x": 48.64361716159903,
+    "y": 7.903447931463069,
+    "desc": "Center bowl of Yureigakure"
+  },
+  {
     "id": "City-12",
     "name": "Bamboo Village",
     "type": "city",
