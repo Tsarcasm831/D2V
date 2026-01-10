@@ -4,6 +4,13 @@
       "id": "hut",
       "name": "Hut",
       "footprint": { "width": 5.0, "depth": 5.0 },
+      "collision": {
+        "type": "box",
+        "width": 5.0,
+        "depth": 5.0,
+        "height": 3.0,
+        "precise": false
+      },
       "requirements": { "wood": 10, "stone": 5 },
       "snapPoints": [
         { "x": 0, "y": 0, "z": 0, "type": "center" },
@@ -15,6 +22,13 @@
       "id": "tavern",
       "name": "Tavern",
       "footprint": { "width": 10.0, "depth": 10.0 },
+      "collision": {
+        "type": "box",
+        "width": 10.0,
+        "depth": 10.0,
+        "height": 4.0,
+        "precise": false
+      },
       "requirements": { "wood": 50, "stone": 30 },
       "snapPoints": [
         { "x": 0, "y": 0, "z": 0, "type": "center" }
@@ -24,6 +38,12 @@
       "id": "silo",
       "name": "Silo",
       "footprint": { "width": 4.0, "depth": 4.0 },
+      "collision": {
+        "type": "cylinder",
+        "radius": 2.0,
+        "height": 6.0,
+        "precise": false
+      },
       "requirements": { "wood": 20, "stone": 10 },
       "snapPoints": [
         { "x": 0, "y": 0, "z": 0, "type": "center" }
@@ -33,6 +53,13 @@
       "id": "square_hut",
       "name": "Square Hut",
       "footprint": { "width": 5.0, "depth": 5.0 },
+      "collision": {
+        "type": "box",
+        "width": 5.0,
+        "depth": 5.0,
+        "height": 3.0,
+        "precise": false
+      },
       "requirements": { "wood": 20, "stone": 10 },
       "snapPoints": [
         { "x": 0, "y": 0, "z": 0, "type": "center" },
@@ -47,6 +74,13 @@
       "id": "long_tavern",
       "name": "Long Tavern",
       "footprint": { "width": 15.0, "depth": 5.0 },
+      "collision": {
+        "type": "box",
+        "width": 15.0,
+        "depth": 5.0,
+        "height": 4.0,
+        "precise": false
+      },
       "requirements": { "wood": 100, "stone": 50 },
       "snapPoints": [
         { "x": 0, "y": 0, "z": 0, "type": "center" },
@@ -59,23 +93,71 @@
       "id": "grail_silo",
       "name": "Grail Silo",
       "footprint": { "width": 5.0, "depth": 5.0 },
+      "collision": {
+        "type": "cylinder",
+        "radius": 2.5,
+        "height": 8.0,
+        "precise": false
+      },
       "requirements": { "wood": 40, "stone": 80 },
       "snapPoints": [
         { "x": 0, "y": 0, "z": 0, "type": "center" }
       ]
     },
-    "beehive": {
-      "id": "beehive",
-      "name": "Beehive",
-      "footprint": { "width": 1.0, "depth": 1.0 },
-      "requirements": { "wood": 5, "stone": 0 },
-      "snapPoints": [
-        { "x": 0, "y": 0, "z": 0, "type": "center" }
-      ],
-      "isBeehive": true,
-      "harvestInterval": 60000,
-      "harvestItem": "honey",
-      "cost": 5
+    "wall": {
+      "id": "wall",
+      "name": "Wooden Wall",
+      "footprint": { "width": 5.0, "depth": 0.5 },
+      "collision": {
+        "type": "oriented-box",
+        "width": 5.0,
+        "depth": 0.5,
+        "height": 3.0,
+        "precise": true
+      },
+      "requirements": { "wood": 10, "stone": 0 }
+    },
+    "doorway": {
+      "id": "doorway",
+      "name": "Wooden Doorway",
+      "footprint": { "width": 5.0, "depth": 0.5 },
+      "collision": {
+        "type": "doorway",
+        "width": 5.0,
+        "depth": 0.5,
+        "height": 2.5,
+        "openingWidth": 1.5,
+        "precise": true
+      },
+      "requirements": { "wood": 12, "stone": 0 }
+    },
+    "tent": {
+      "id": "tent",
+      "name": "Tent",
+      "footprint": { "width": 2.8, "depth": 2.4 },
+      "collision": {
+        "type": "prism",
+        "points": [
+          { "x": -1.4, "z": 1.2 },
+          { "x": 1.4, "z": 1.2 },
+          { "x": 0, "z": -1.2 }
+        ],
+        "height": 1.6,
+        "precise": true
+      },
+      "requirements": { "wood": 5, "stone": 0 }
+    },
+    "pond": {
+      "id": "pond",
+      "name": "Pond",
+      "footprint": { "width": 8.0, "depth": 6.0 },
+      "collision": {
+        "type": "irregular",
+        "baseRadius": 4.0,
+        "variations": 12,
+        "precise": true
+      },
+      "requirements": { "wood": 0, "stone": 0 }
     },
     "crop_plot": {
       "id": "crop_plot",

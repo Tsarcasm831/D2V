@@ -10,11 +10,35 @@ export class BerryBush {
         this.health = 2;
 
         this.group = new THREE.Group();
+        this.group.userData.entity = this; // Link back to entity for physics
         this.group.position.copy(pos);
         this.scene.add(this.group);
 
-        this.radius = 0.5 * SCALE_FACTOR;
+        this.radius = 0.4 * SCALE_FACTOR; // Slightly smaller collision for bushes
         this.setupMesh();
+    }
+
+    resolveCollision(entityPos, entityRadius) {
+        if (this.isDead || this.isHarvested) return null; // Can walk through harvested bushes? Maybe. Let's say yes for now, or make them solid. Usually bushes are solid-ish. Let's keep them solid but maybe smaller radius.
+        
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const distSq = dx * dx + dz * dz;
+        const minDist = entityRadius + this.radius;
+
+        if (distSq < minDist * minDist) {
+            const dist = Math.sqrt(distSq);
+            if (dist < 0.01) return null;
+
+            const overlap = (minDist - dist);
+            const nx = dx / dist;
+            const nz = dz / dist;
+
+            entityPos.x += nx * overlap;
+            entityPos.z += nz * overlap;
+            return { nx, nz };
+        }
+        return null;
     }
 
     setupMesh() {

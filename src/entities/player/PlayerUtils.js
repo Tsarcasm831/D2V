@@ -27,10 +27,62 @@ export class PlayerUtils {
         return box;
     }
 
-    static checkCollision(pos, config, obstacles) {
-        const playerBox = this.getHitboxBounds(pos, config);
+    static resolveMovement(currentPos, nextPos, config, obstacles) {
+        const playerBox = this.getHitboxBounds(nextPos, config);
+        
+        // Player radius approximation for circular checks
+        const width = 0.6 * (config.torsoWidth || 1.0);
+        const radius = width * 0.5;
+        
+        let adjustedPos = nextPos.clone();
+        let hasCollision = false;
+
         for (const obs of obstacles) {
             if (obs.userData?.type === 'soft') continue;
+            
+            // Priority: Smart Collision (Entity-based)
+            if (obs.userData?.entity?.resolveCollision) {
+                const collision = obs.userData.entity.resolveCollision(adjustedPos, radius);
+                if (collision) {
+                    hasCollision = true;
+                    // resolveCollision modifies adjustedPos in place to push it out
+                }
+                continue;
+            }
+
+            // Fallback: AABB Collision
+            // For AABB, we just revert if there's an overlap (simple block)
+            // A better AABB slide could be implemented, but this preserves existing behavior for box-only objects
+            const obsBox = new THREE.Box3().setFromObject(obs);
+            if (obsBox.intersectsBox(this.getHitboxBounds(adjustedPos, config))) {
+                return currentPos.clone(); // Hard stop for basic boxes
+            }
+        }
+        
+        return adjustedPos;
+    }
+
+    static checkCollision(pos, config, obstacles) {
+        const playerBox = this.getHitboxBounds(pos, config);
+        
+        // Player radius approximation for circular checks
+        const width = 0.6 * (config.torsoWidth || 1.0);
+        const radius = width * 0.5;
+
+        for (const obs of obstacles) {
+            if (obs.userData?.type === 'soft') continue;
+            
+            // Priority: Smart Collision (Entity-based)
+            if (obs.userData?.entity?.resolveCollision) {
+                // Pass a clone because resolveCollision usually modifies the position
+                const testPos = pos.clone();
+                if (obs.userData.entity.resolveCollision(testPos, radius)) {
+                    return true;
+                }
+                continue;
+            }
+
+            // Fallback: AABB Collision
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (obsBox.intersectsBox(playerBox)) return true;
         }

@@ -429,8 +429,18 @@ export class Player {
             if (this.recoverTimer > 0) this.recoverTimer -= delta;
             
             if (this.playerPhysics) {
-                const nearbyObstacles = this.worldManager ? this.worldManager.getNearbyResources(this.mesh.position, 10 * SCALE_FACTOR) : [];
-                const obstacleMeshes = nearbyObstacles.map(res => res.group).filter(g => g);
+                // Collect ALL obstacles: Resources, NPCs, Fauna
+                const nearbyResources = this.worldManager ? this.worldManager.getNearbyResources(this.mesh.position, 10 * SCALE_FACTOR) : [];
+                const nearbyNPCs = this.worldManager ? this.worldManager.getNearbyNPCs(this.mesh.position, 10 * SCALE_FACTOR) : [];
+                const nearbyFauna = this.worldManager ? this.worldManager.getNearbyFauna(this.mesh.position, 10 * SCALE_FACTOR) : [];
+                
+                const allObstacles = [
+                    ...nearbyResources,
+                    ...nearbyNPCs,
+                    ...nearbyFauna
+                ];
+
+                const obstacleMeshes = allObstacles.map(res => res.group || res.mesh).filter(g => g);
                 this.playerPhysics.update(delta, input, camera, obstacleMeshes);
             }
         }

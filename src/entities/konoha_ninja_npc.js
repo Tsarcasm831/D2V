@@ -31,6 +31,7 @@ export class KonohaNinjaNPC {
 
         const { mesh, parts, model } = createPlayerMesh(characterData);
         this.mesh = mesh;
+        this.mesh.userData.entity = this;
         this.parts = parts;
         this.model = model;
         this.mesh.position.copy(pos);
@@ -74,6 +75,30 @@ export class KonohaNinjaNPC {
         if (name) {
             this.addNameTag(name);
         }
+    }
+
+    resolveCollision(entityPos, entityRadius) {
+        if (this.isDead) return null;
+        
+        const dx = entityPos.x - this.mesh.position.x;
+        const dz = entityPos.z - this.mesh.position.z;
+        const distSq = dx * dx + dz * dz;
+        const myRadius = 0.5 * SCALE_FACTOR;
+        const minDist = entityRadius + myRadius;
+
+        if (distSq < minDist * minDist) {
+            const dist = Math.sqrt(distSq);
+            if (dist < 0.01) return null;
+
+            const overlap = (minDist - dist);
+            const nx = dx / dist;
+            const nz = dz / dist;
+
+            entityPos.x += nx * overlap;
+            entityPos.z += nz * overlap;
+            return { nx, nz };
+        }
+        return null;
     }
 
     addNameTag(name) {

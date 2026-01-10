@@ -11,6 +11,7 @@ export class Wolf {
         this.variant = variant;
 
         this.group = new THREE.Group();
+        this.group.userData.entity = this;
         this.group.position.copy(pos);
         this.scene.add(this.group);
 
@@ -50,6 +51,30 @@ export class Wolf {
         this._tempVec2 = new THREE.Vector3();
         this._collisionTimer = 0;
         this._aiTimer = 0;
+    }
+
+    resolveCollision(entityPos, entityRadius) {
+        if (this.isDead) return null;
+        
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const distSq = dx * dx + dz * dz;
+        const myRadius = 0.6 * SCALE_FACTOR;
+        const minDist = entityRadius + myRadius;
+
+        if (distSq < minDist * minDist) {
+            const dist = Math.sqrt(distSq);
+            if (dist < 0.01) return null;
+
+            const overlap = (minDist - dist);
+            const nx = dx / dist;
+            const nz = dz / dist;
+
+            entityPos.x += nx * overlap;
+            entityPos.z += nz * overlap;
+            return { nx, nz };
+        }
+        return null;
     }
 
     setupMesh() {

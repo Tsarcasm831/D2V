@@ -3,9 +3,11 @@ import { Game } from './game.js';
 import { CharacterCreator } from '../ui/character_creator.js';
 import { UILoader } from '../ui/ui_loader.js';
 import { FullWorld } from '../ui/fullworld.js';
+import { NPCList } from '../ui/npc_list.js';
 import { debugLog, debugWarn } from '../utils/logger.js';
 
 let fullWorld = null;
+let npcList = null;
 const MENU_PASSWORD = 'ltwelcome1';
 const MENU_PASSWORD_CACHE_KEY = `menu_password_ok_${MENU_PASSWORD}`;
 
@@ -259,6 +261,7 @@ function showMainMenu() {
     const mainMenu = document.getElementById('main-menu');
     const startBtn = document.getElementById('start-game-btn');
     const fullworldBtn = document.getElementById('fullworld-btn');
+    const npcListBtn = document.getElementById('npc-list-btn');
     const optionsBtn = document.getElementById('options-btn');
     
     if (passwordScreen) passwordScreen.style.display = 'none';
@@ -276,6 +279,14 @@ function showMainMenu() {
             if (mainMenu) mainMenu.style.display = 'none';
             if (!fullWorld) fullWorld = new FullWorld();
             fullWorld.show();
+        };
+    }
+
+    if (npcListBtn) {
+        npcListBtn.onclick = () => {
+            if (mainMenu) mainMenu.style.display = 'none';
+            if (!npcList) npcList = new NPCList();
+            npcList.show();
         };
     }
     

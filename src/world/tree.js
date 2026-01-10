@@ -13,11 +13,36 @@ export class Tree {
         this.regrowTime = 117; // seconds
 
         this.group = new THREE.Group();
+        this.group.userData.entity = this; // Link back to entity for physics
         this.group.position.copy(pos);
         this.scene.add(this.group);
 
-        this.radius = 0.5 * SCALE_FACTOR;
+        this.radius = 0.3 * SCALE_FACTOR; // Tighter collision radius for trees (was 0.5)
         this.setupMesh();
+    }
+
+    resolveCollision(entityPos, entityRadius) {
+        if (this.isDead) return null;
+        
+        // Simple circle collision
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const distSq = dx * dx + dz * dz;
+        const minDist = entityRadius + this.radius;
+
+        if (distSq < minDist * minDist) {
+            const dist = Math.sqrt(distSq);
+            if (dist < 0.01) return null;
+
+            const overlap = (minDist - dist);
+            const nx = dx / dist;
+            const nz = dz / dist;
+
+            entityPos.x += nx * overlap;
+            entityPos.z += nz * overlap;
+            return { nx, nz };
+        }
+        return null;
     }
 
     setupMesh() {

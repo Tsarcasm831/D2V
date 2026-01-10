@@ -11,6 +11,8 @@ export class ItemDrop {
         this.isDead = false;
 
         this.group = new THREE.Group();
+        this.group.userData.entity = this;
+        this.group.userData.type = 'soft'; // Don't block movement
         this.group.position.copy(pos);
         this.scene.add(this.group);
 

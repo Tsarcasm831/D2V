@@ -12,6 +12,7 @@ export class Building {
         this.radius = 1.2 * SCALE_FACTOR;
 
         this.group = new THREE.Group();
+        this.group.userData.entity = this; // Link back to entity for physics
         this.group.position.copy(pos);
         
         // Align to terrain normal if tent, firepit, or pond
@@ -34,6 +35,7 @@ export class Building {
         logToModal(`Building: Added ${this.type} to scene ${this.scene.uuid} at ${this.group.position.x.toFixed(1)}, ${this.group.position.y.toFixed(1)}, ${this.group.position.z.toFixed(1)}`);
 
         this.setupMesh();
+        this.loadCollisionData();
         this.setupCollision();
 
         if (this.type === 'crop_plot') {
@@ -45,11 +47,80 @@ export class Building {
             this.cropMesh = null;
         }
     }
+    
+    async loadCollisionData() {
+        // Load collision data from buildings.json if available
+        try {
+            const buildingsData = this.shard.worldManager.buildingsData || 
+                                await fetch('/data/buildings.json').then(r => r.json()).catch(() => null);
+            
+            if (buildingsData && buildingsData.buildings && buildingsData.buildings[this.type]) {
+                const buildingData = buildingsData.buildings[this.type];
+                this.collisionData = buildingData.collision || null;
+            }
+        } catch (error) {
+            console.warn(`Failed to load collision data for ${this.type}:`, error);
+            this.collisionData = null;
+        }
+    }
 
     setupCollision() {
-        // Default circular radius
+        // Default circular radius for broad phase collision
         this.collisionRadius = this.radius;
         this.collisionType = 'circle';
+        this.precisionThreshold = 0.5 * SCALE_FACTOR; // Distance threshold for precise collision
+        
+        // Initialize mesh-based collision data
+        this.collisionMesh = null;
+        this.collisionGeometry = null;
+        this.usePreciseCollision = false;
+
+        // Use collision data from JSON if available, otherwise fall back to hardcoded values
+        if (this.collisionData) {
+            this.collisionType = this.collisionData.type || 'circle';
+            this.usePreciseCollision = this.collisionData.precise || false;
+            
+            switch (this.collisionType) {
+                case 'box':
+                case 'oriented-box':
+                    this.collisionWidth = (this.collisionData.width || 5.0) * SCALE_FACTOR;
+                    this.collisionDepth = (this.collisionData.depth || 5.0) * SCALE_FACTOR;
+                    this.collisionHeight = (this.collisionData.height || 3.0) * SCALE_FACTOR;
+                    break;
+                case 'cylinder':
+                    this.collisionRadius = (this.collisionData.radius || 2.5) * SCALE_FACTOR;
+                    this.collisionHeight = (this.collisionData.height || 6.0) * SCALE_FACTOR;
+                    break;
+                case 'prism':
+                    this.collisionRadius = 1.4 * SCALE_FACTOR;
+                    this.usePreciseCollision = true;
+                    // Load collision points from JSON
+                    if (this.collisionData.points) {
+                        this.collisionPoints = this.collisionData.points.map(p => 
+                            new THREE.Vector3(p.x * SCALE_FACTOR, 0, p.z * SCALE_FACTOR)
+                        );
+                    }
+                    break;
+                case 'doorway':
+                    this.collisionWidth = (this.collisionData.width || 5.0) * SCALE_FACTOR;
+                    this.collisionDepth = (this.collisionData.depth || 0.5) * SCALE_FACTOR;
+                    this.collisionHeight = (this.collisionData.height || 2.5) * SCALE_FACTOR;
+                    this.openingWidth = (this.collisionData.openingWidth || 1.5) * SCALE_FACTOR;
+                    this.usePreciseCollision = true;
+                    break;
+                case 'irregular':
+                    this.collisionRadius = (this.collisionData.baseRadius || 4.0) * SCALE_FACTOR;
+                    this.usePreciseCollision = true;
+                    break;
+            }
+        } else {
+            // Fall back to hardcoded collision setup
+            this.setupHardcodedCollision();
+        }
+    }
+    
+    setupHardcodedCollision() {
+        // Original hardcoded collision setup as fallback
 
         switch (this.type) {
             case 'square_hut':
@@ -73,24 +144,29 @@ export class Building {
                 this.collisionDepth = 8.0 * SCALE_FACTOR;
                 break;
             case 'wall':
-                this.collisionType = 'box';
+                this.collisionType = 'oriented-box';
                 this.collisionWidth = 5.0 * SCALE_FACTOR;
                 this.collisionDepth = 0.5 * SCALE_FACTOR;
+                this.collisionHeight = 3.0 * SCALE_FACTOR;
+                this.usePreciseCollision = true;
                 break;
             case 'doorway':
                 this.collisionType = 'doorway';
                 this.collisionWidth = 5.0 * SCALE_FACTOR;
                 this.collisionDepth = 0.5 * SCALE_FACTOR;
                 this.openingWidth = 1.5 * SCALE_FACTOR;
+                this.collisionHeight = 2.5 * SCALE_FACTOR;
+                this.usePreciseCollision = true;
                 break;
             case 'pond':
                 this.collisionType = 'pond';
+                this.usePreciseCollision = true;
                 break;
             case 'grail_silo':
                 this.collisionRadius = 2.5 * SCALE_FACTOR;
                 break;
             case 'guard_tower':
-                this.collisionRadius = 2.5 * SCALE_FACTOR;
+                this.collisionRadius = 2.0 * SCALE_FACTOR;
                 break;
             case 'well':
                 this.collisionRadius = 1.2 * SCALE_FACTOR;
@@ -99,10 +175,18 @@ export class Building {
                 this.collisionRadius = 1.0 * SCALE_FACTOR;
                 break;
             case 'tent':
+                this.collisionType = 'prism';
                 this.collisionRadius = 1.4 * SCALE_FACTOR;
+                this.usePreciseCollision = true;
+                // Triangular prism collision points
+                this.collisionPoints = [
+                    new THREE.Vector3(-1.4 * SCALE_FACTOR, 0, 1.2 * SCALE_FACTOR),
+                    new THREE.Vector3(1.4 * SCALE_FACTOR, 0, 1.2 * SCALE_FACTOR),
+                    new THREE.Vector3(0, 0, -1.2 * SCALE_FACTOR)
+                ];
                 break;
             case 'firepit':
-                this.collisionRadius = 0.8 * SCALE_FACTOR;
+                this.collisionRadius = 0.65 * SCALE_FACTOR;
                 break;
             case 'beehive':
                 this.collisionRadius = 0.6 * SCALE_FACTOR;
@@ -117,15 +201,55 @@ export class Building {
     }
 
     resolveCollision(entityPos, entityRadius) {
-        if (this.collisionType === 'box') {
+        // Hybrid collision: broad phase first, then narrow phase if close enough
+        const broadCollision = this.checkBroadPhaseCollision(entityPos, entityRadius);
+        if (!broadCollision) return null;
+        
+        // If entity is close enough and building supports precise collision, use narrow phase
+        if (this.usePreciseCollision && broadCollision.distance < this.precisionThreshold) {
+            return this.resolvePreciseCollision(entityPos, entityRadius);
+        }
+        
+        // Fall back to broad phase collision
+        return this.resolveBroadPhaseCollision(entityPos, entityRadius);
+    }
+    
+    checkBroadPhaseCollision(entityPos, entityRadius) {
+        // Quick distance check using simple collision shapes
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        const minDistance = entityRadius + this.collisionRadius;
+        
+        if (distance < minDistance) {
+            return { distance, overlap: minDistance - distance };
+        }
+        return null;
+    }
+    
+    resolveBroadPhaseCollision(entityPos, entityRadius) {
+        if (this.collisionType === 'box' || this.collisionType === 'oriented-box') {
             return this.resolveBoxCollision(entityPos, entityRadius, this.collisionWidth, this.collisionDepth);
         } else if (this.collisionType === 'doorway') {
             return this.resolveDoorwayCollision(entityPos, entityRadius);
         } else if (this.collisionType === 'circle' || this.collisionType === 'pond') {
             const radius = this.getCollisionRadiusAtAngle(Math.atan2(entityPos.z - this.group.position.z, entityPos.x - this.group.position.x));
             return this.resolveCircleCollision(entityPos, entityRadius, radius);
+        } else if (this.collisionType === 'prism') {
+            return this.resolvePrismCollision(entityPos, entityRadius);
         }
         return null;
+    }
+    
+    resolvePreciseCollision(entityPos, entityRadius) {
+        if (this.collisionType === 'prism') {
+            return this.resolvePrismCollision(entityPos, entityRadius);
+        } else if (this.collisionType === 'oriented-box') {
+            return this.resolveOrientedBoxCollision(entityPos, entityRadius);
+        } else if (this.collisionType === 'pond') {
+            return this.resolvePondCollision(entityPos, entityRadius);
+        }
+        return this.resolveBroadPhaseCollision(entityPos, entityRadius);
     }
 
     resolveBoxCollision(entityPos, entityRadius, width, depth) {
@@ -196,7 +320,19 @@ export class Building {
         const hd = this.collisionDepth / 2;
         const opW = this.openingWidth / 2;
         
-        // Two side segments
+        // Enhanced doorway collision with height consideration
+        if (this.collisionHeight) {
+            const entityHeight = entityPos.y || 0;
+            const buildingTop = this.group.position.y + this.collisionHeight;
+            const buildingBottom = this.group.position.y;
+            
+            // If entity is above doorway height, no collision
+            if (entityHeight > buildingTop) {
+                return null;
+            }
+        }
+        
+        // Two side segments with precise collision
         const segW = (hw - opW);
         const off = opW + segW / 2;
 
@@ -225,6 +361,117 @@ export class Building {
         return null;
     }
 
+    resolvePrismCollision(entityPos, entityRadius) {
+        // Triangular prism collision for tents
+        if (!this.collisionPoints || this.collisionPoints.length !== 3) {
+            return this.resolveCircleCollision(entityPos, entityRadius, this.collisionRadius);
+        }
+        
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const rot = this.group.rotation.y;
+        
+        // Transform entity to local space
+        const cos = Math.cos(-rot);
+        const sin = Math.sin(-rot);
+        const localX = dx * cos - dz * sin;
+        const localZ = dx * sin + dz * cos;
+        
+        // Check if point is inside triangle using barycentric coordinates
+        const p0 = this.collisionPoints[0];
+        const p1 = this.collisionPoints[1];
+        const p2 = this.collisionPoints[2];
+        
+        const v0x = p2.x - p0.x, v0z = p2.z - p0.z;
+        const v1x = p1.x - p0.x, v1z = p1.z - p0.z;
+        const v2x = localX - p0.x, v2z = localZ - p0.z;
+        
+        const dot00 = v0x * v0x + v0z * v0z;
+        const dot01 = v0x * v1x + v0z * v1z;
+        const dot02 = v0x * v2x + v0z * v2z;
+        const dot11 = v1x * v1x + v1z * v1z;
+        const dot12 = v1x * v2x + v1z * v2z;
+        
+        const invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+        const u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        const v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+        
+        // Check if point is inside triangle
+        if (u >= 0 && v >= 0 && (u + v) <= 1) {
+            // Point is inside, find closest edge and push out
+            const distances = [
+                this.pointToLineDistance(localX, localZ, p0.x, p0.z, p1.x, p1.z),
+                this.pointToLineDistance(localX, localZ, p1.x, p1.z, p2.x, p2.z),
+                this.pointToLineDistance(localX, localZ, p2.x, p2.z, p0.x, p0.z)
+            ];
+            
+            const minDist = Math.min(...distances);
+            const closestEdge = distances.indexOf(minDist);
+            
+            // Calculate normal for closest edge
+            let edgeNormal = { x: 0, z: 0 };
+            if (closestEdge === 0) {
+                const edgeX = p1.x - p0.x, edgeZ = p1.z - p0.z;
+                edgeNormal = { x: -edgeZ, z: edgeX };
+            } else if (closestEdge === 1) {
+                const edgeX = p2.x - p1.x, edgeZ = p2.z - p1.z;
+                edgeNormal = { x: -edgeZ, z: edgeX };
+            } else {
+                const edgeX = p0.x - p2.x, edgeZ = p0.z - p2.z;
+                edgeNormal = { x: -edgeZ, z: edgeX };
+            }
+            
+            // Normalize and transform back to world space
+            const norm = Math.sqrt(edgeNormal.x * edgeNormal.x + edgeNormal.z * edgeNormal.z);
+            if (norm > 0) {
+                edgeNormal.x /= norm;
+                edgeNormal.z /= norm;
+            }
+            
+            const worldNX = edgeNormal.x * Math.cos(rot) - edgeNormal.z * Math.sin(rot);
+            const worldNZ = edgeNormal.x * Math.sin(rot) + edgeNormal.z * Math.cos(rot);
+            
+            const overlap = entityRadius + minDist;
+            entityPos.x += worldNX * overlap;
+            entityPos.z += worldNZ * overlap;
+            
+            return { nx: worldNX, nz: worldNZ };
+        }
+        
+        // Point is outside triangle, use circle collision as fallback
+        return this.resolveCircleCollision(entityPos, entityRadius, this.collisionRadius);
+    }
+    
+    pointToLineDistance(px, pz, x1, z1, x2, z2) {
+        const lineLenSq = (x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1);
+        if (lineLenSq === 0) return Math.sqrt((px - x1) * (px - x1) + (pz - z1) * (pz - z1));
+        
+        const t = Math.max(0, Math.min(1, ((px - x1) * (x2 - x1) + (pz - z1) * (z2 - z1)) / lineLenSq));
+        const projX = x1 + t * (x2 - x1);
+        const projZ = z1 + t * (z2 - z1);
+        
+        return Math.sqrt((px - projX) * (px - projX) + (pz - projZ) * (pz - projZ));
+    }
+    
+    resolveOrientedBoxCollision(entityPos, entityRadius) {
+        // Enhanced box collision with height consideration
+        const collision = this.resolveBoxCollision(entityPos, entityRadius, this.collisionWidth, this.collisionDepth);
+        
+        if (collision && this.collisionHeight) {
+            // Add height-based collision if needed
+            const entityHeight = entityPos.y || 0;
+            const buildingTop = this.group.position.y + this.collisionHeight;
+            const buildingBottom = this.group.position.y;
+            
+            // If entity is above building height, reduce collision
+            if (entityHeight > buildingTop) {
+                return null; // No collision if entity is above building
+            }
+        }
+        
+        return collision;
+    }
+    
     resolveCircleCollision(entityPos, entityRadius, resRadius) {
         const dx = entityPos.x - this.group.position.x;
         const dz = entityPos.z - this.group.position.z;
@@ -244,6 +491,21 @@ export class Building {
             return { nx, nz };
         }
         return null;
+    }
+
+    resolvePondCollision(entityPos, entityRadius) {
+        // Precise pond collision using irregular shape
+        if (!this.radiusVariations) {
+            return this.resolveCircleCollision(entityPos, entityRadius, this.collisionRadius);
+        }
+        
+        const dx = entityPos.x - this.group.position.x;
+        const dz = entityPos.z - this.group.position.z;
+        const angle = Math.atan2(dz, dx);
+        
+        // Get precise radius at this angle
+        const preciseRadius = this.getCollisionRadiusAtAngle(angle);
+        return this.resolveCircleCollision(entityPos, entityRadius, preciseRadius);
     }
 
     getCollisionRadiusAtAngle(angle) {

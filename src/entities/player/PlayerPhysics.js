@@ -12,9 +12,8 @@ export class PlayerPhysics {
         nextPos.x += worldDir.x * dist;
         nextPos.z += worldDir.z * dist;
         
-        if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
-            player.mesh.position.copy(nextPos);
-        }
+        const resolvedPos = PlayerUtils.resolveMovement(player.mesh.position, nextPos, player.config, obstacles);
+        player.mesh.position.copy(resolvedPos);
     }
 
     dodge() {
@@ -62,9 +61,8 @@ export class PlayerPhysics {
             const nextPos = player.mesh.position.clone();
             nextPos.addScaledVector(physics.dodgeDir, dist);
             
-            if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
-                player.mesh.position.copy(nextPos);
-            }
+            const resolvedPos = PlayerUtils.resolveMovement(player.mesh.position, nextPos, player.config, obstacles);
+            player.mesh.position.copy(resolvedPos);
         }
         
         if (physics.dodgeCooldown > 0) {
@@ -194,9 +192,8 @@ export class PlayerPhysics {
                 nextPos.x += dx;
                 nextPos.z += dz;
 
-                if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
-                    player.mesh.position.copy(nextPos);
-                }
+                const resolvedPos = PlayerUtils.resolveMovement(player.mesh.position, nextPos, player.config, obstacles);
+                player.mesh.position.copy(resolvedPos);
             }
         } else if (isMoving && !player.isPickingUp && !player.isSkinning) {
             // Original movement-based rotation when no hit indicator
@@ -220,9 +217,8 @@ export class PlayerPhysics {
             nextPos.x += dx;
             nextPos.z += dz;
 
-            if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
-                player.mesh.position.copy(nextPos);
-            }
+            const resolvedPos = PlayerUtils.resolveMovement(player.mesh.position, nextPos, player.config, obstacles);
+            player.mesh.position.copy(resolvedPos);
         }
     }
 

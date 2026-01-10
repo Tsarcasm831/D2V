@@ -7,6 +7,7 @@ export class NPC {
         this.shard = shard;
         this.worldManager = shard ? shard.worldManager : null;
         this.group = new THREE.Group();
+        this.group.userData.entity = this;
         this.group.position.copy(pos);
         this.scene.add(this.group);
         
@@ -50,6 +51,31 @@ export class NPC {
         // Performance: reuse objects
         this._tempVec1 = new THREE.Vector3();
         this._collisionTimer = 0;
+    }
+
+    resolveCollision(entityPos, entityRadius) {
+        if (this.isDead) return null;
+        
+        const myPos = (this.group || this.mesh).position;
+        const dx = entityPos.x - myPos.x;
+        const dz = entityPos.z - myPos.z;
+        const distSq = dx * dx + dz * dz;
+        const myRadius = 0.5 * SCALE_FACTOR;
+        const minDist = entityRadius + myRadius;
+
+        if (distSq < minDist * minDist) {
+            const dist = Math.sqrt(distSq);
+            if (dist < 0.01) return null;
+
+            const overlap = (minDist - dist);
+            const nx = dx / dist;
+            const nz = dz / dist;
+
+            entityPos.x += nx * overlap;
+            entityPos.z += nz * overlap;
+            return { nx, nz };
+        }
+        return null;
     }
 
     takeDamage(amount, fromPos, player) {

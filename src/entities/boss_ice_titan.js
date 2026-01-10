@@ -10,6 +10,7 @@ export class IceTitan extends BossEnemy {
         this.attackRange = 8 * SCALE_FACTOR;
         this.detectRange = 30 * SCALE_FACTOR;
         this.chaseSpeed = 5 * SCALE_FACTOR;
+        this.collisionRadius = 4.0 * SCALE_FACTOR; // Larger radius for Titan
     }
 
     setupMesh() {
