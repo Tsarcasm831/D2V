@@ -24,6 +24,7 @@ import { debugLog } from '../utils/logger.js';
 import { SceneManager } from './scene_manager.js';
 import { TooltipManager } from './tooltip_manager.js';
 import { SpawnManager } from './spawn_manager.js';
+import { WellDialogue } from '../ui/well_dialogue.js';
 
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
@@ -71,6 +72,7 @@ export class Game {
 
         this.tooltipManager = new TooltipManager(this.scene, this.inputManager, this.worldManager);
         this.spawnManager = new SpawnManager(this);
+        this.wellDialogue = new WellDialogue(this);
         
         // Respawn Button Listener
         const respawnBtn = document.getElementById('respawn-btn');

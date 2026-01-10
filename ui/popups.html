@@ -68,3 +68,26 @@
         </div>
     </div>
 </div>
+
+<div id="well-dialogue-modal" class="modal-overlay" style="display: none;">
+    <div class="well-dialogue-container">
+        <div class="well-dialogue-header">
+            <h2>ANCIENT WELL</h2>
+            <div class="close-button" onclick="closeWellDialogue()">×</div>
+        </div>
+        
+        <div class="well-dialogue-content">
+            <div class="well-icon">🏛️</div>
+            <div class="well-text">
+                <p class="well-description">You approach an ancient well, its stone worn smooth by countless hands over centuries.</p>
+                <p class="well-mystery">The depths below seem to whisper secrets of Yureigakure's past...</p>
+            </div>
+        </div>
+        
+        <div class="well-dialogue-actions">
+            <button class="btn-small primary" onclick="drawWater()">Draw Water</button>
+            <button class="btn-small secondary" onclick="examineWell()">Examine</button>
+            <button class="btn-small" onclick="closeWellDialogue()">Leave</button>
+        </div>
+    </div>
+</div>

@@ -392,6 +392,19 @@ export class PlayerActions {
 
         const resources = this.player.worldManager.getNearbyResources(this.player.mesh.position, range * 1.2);
         for (const res of resources) {
+            // Well Interaction
+            if (res.type === 'well') {
+                const distSq = this.player.mesh.position.distanceToSquared(res.group.position);
+                if (distSq < rangeSq) {
+                    if (this.player.game && this.player.game.wellDialogue) {
+                        this.player.game.wellDialogue.open();
+                        this.player.isInteracting = true;
+                        this.player.interactTimer = 0;
+                        return true;
+                    }
+                }
+            }
+
             if (res.type === 'berry_bush' && !res.isHarvested && !res.isDead) {
                 const distSq = this.player.mesh.position.distanceToSquared(res.group.position);
                 if (distSq < rangeSq) {
