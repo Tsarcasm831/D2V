@@ -67,7 +67,8 @@ export class TownManager {
             sz,
             name: `Town of ${id}`,
             buildings: [],
-            roads: []
+            roads: [],
+            locationTag: id.includes('City-11') || id.toLowerCase().includes('yurei') ? 'yureigakure-bowl' : null
         };
 
         // Simple cross road

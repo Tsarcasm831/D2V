@@ -6,7 +6,6 @@ import { Minimap } from '../ui/minimap.js';
 import { ShardMap } from '../world/shard_map.js';
 import { GridLabelManager } from '../world/grid_labels.js';
 import { NodeMPManager } from '../network/nodempmanager.js';
-import { Building } from '../systems/buildings.js';
 import { Shard } from '../world/shard.js';
 import { SHARD_SIZE } from '../world/world_bounds.js';
 import { InputManager } from '../core/input_manager.js';
@@ -15,8 +14,6 @@ import { EnvironmentManager } from '../systems/environment_manager.js';
 import { ChatUI } from '../entities/player_stubs.js';
 
 import { WeatherManager } from '../systems/weather_manager.js';
-import { FireballProjectile } from '../systems/fireball_projectile.js';
-
 
 import { OptionsUI } from '../ui/options_ui.js';
 import { ParticleManager } from '../systems/particle_manager.js';
@@ -24,47 +21,36 @@ import { MagicSystem } from '../systems/magic_system.js';
 import { QuestManager } from '../systems/quest_manager.js';
 import { AchievementManager } from '../systems/achievement_manager.js';
 import { debugLog } from '../utils/logger.js';
+import { SceneManager } from './scene_manager.js';
+import { TooltipManager } from './tooltip_manager.js';
+import { SpawnManager } from './spawn_manager.js';
 
 export class Game {
     constructor(characterData = {}, roomCode = 'Alpha') {
         this.roomCode = roomCode;
-        this.scene = new THREE.Scene();
+        
+        this.sceneManager = new SceneManager(this);
+        this.scene = this.sceneManager.scene;
+        this.camera = this.sceneManager.camera;
+        this.renderer = this.sceneManager.renderer;
+        this.sun = this.sceneManager.sun;
+
         this.projectiles = [];
         this.particleManager = new ParticleManager(this.scene);
         this.achievementManager = new AchievementManager(this);
         this.magicSystem = new MagicSystem(this);
         this.questManager = new QuestManager(this);
-        this.scene.background = new THREE.Color(0x050a14);
-        this.scene.fog = new THREE.FogExp2(0x050a14, 0.008);
         
-
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
         this.cameraRotation = { theta: Math.PI / 4, phi: 0.8, distance: 30 };
         this.cameraMode = 'topdown'; // 'topdown' or 'fpv'
         this.fpvRotation = { yaw: 0, pitch: 0 };
-        this.camera.position.set(20, 20, 20);
-        this.camera.lookAt(0, 0, 0);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.shadowMap.enabled = true;
-        
-        // Ensure camera sees both Layer 0 (default) and Layer 1 (world objects)
-        this.camera.layers.enable(0);
-        this.camera.layers.enable(1);
-        
-        document.body.appendChild(this.renderer.domElement);
-
-        this.setupLights();
-        
         this.timeManager = new TimeManager(this);
         this.worldManager = new WorldManager(this.scene, this);
         this.scene.worldManager = this.worldManager;
         this.player = new Player(this.scene, this.worldManager, characterData);
         this.player.game = this;
 
-        // Enforce default spawn immediately after player creation
-        // (Final spawn enforcement happens after land load in initAfterLoading)
         const spawn = this.worldManager.levelCenter;
         this.player.teleport(spawn.x, spawn.z);
 
@@ -73,8 +59,7 @@ export class Game {
         this.environmentManager = new EnvironmentManager(this);
         this.chat = new ChatUI(this.player);
         this.inputManager = new InputManager(this);
-        this.input = this.inputManager.input; // Shortcut for player update
-
+        this.input = this.inputManager.input;
 
         this.minimap = new Minimap(this.player, this.worldManager);
         this.shardMap = new ShardMap(this.player, this.worldManager);
@@ -84,7 +69,8 @@ export class Game {
         window.gameInstance = this;
         this.multiplayer.initialize(characterData, this.roomCode);
 
-        this.raycaster = new THREE.Raycaster();
+        this.tooltipManager = new TooltipManager(this.scene, this.inputManager, this.worldManager);
+        this.spawnManager = new SpawnManager(this);
         
         // Respawn Button Listener
         const respawnBtn = document.getElementById('respawn-btn');
@@ -94,26 +80,18 @@ export class Game {
             });
         }
 
-        this.grid = new THREE.GridHelper(3000, 600, 0x4444ff, 0x222244); // 5-unit spacing for alignment
+        this.grid = new THREE.GridHelper(3000, 600, 0x4444ff, 0x222244);
         this.grid.position.y = 0.05;
         this.grid.visible = false;
         this.scene.add(this.grid);
 
         this.clock = new THREE.Clock();
+        this.landPositions = {};
         
-        // Land persistence
-        this.landPositions = {}; // key: landId, value: {x, y, z}
-        
-        this.lastTooltipUpdate = 0;
-        
-        // Performance optimizations: reuse vectors
         this._tempVec1 = new THREE.Vector3();
         this._tempVec2 = new THREE.Vector3();
         
-        // Initialize options from storage
         this.initOptions();
-
-        window.addEventListener('resize', () => this.onResize());
     }
 
     initOptions() {
@@ -150,27 +128,8 @@ export class Game {
     }
 
     setQuality(quality) {
-        if (!this.renderer) return;
-        switch (quality) {
-            case 'low':
-                this.renderer.setPixelRatio(1);
-                this.renderer.shadowMap.enabled = false;
-                break;
-            case 'medium':
-                this.renderer.setPixelRatio(window.devicePixelRatio * 0.8);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFShadowMap;
-                break;
-            case 'high':
-                this.renderer.setPixelRatio(window.devicePixelRatio);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                break;
-            case 'ultra':
-                this.renderer.setPixelRatio(window.devicePixelRatio);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.VSMShadowMap;
-                break;
+        if (this.sceneManager) {
+            this.sceneManager.setQuality(quality);
         }
     }
 
@@ -232,44 +191,13 @@ export class Game {
         
         // Spawn starter buildings based on land
         if (this.worldManager.worldMask && this.worldManager.worldMask.landId === 'Land01') {
-            this.spawnStarterTent();
-            this.spawnAllBuildings();
+            this.spawnManager.spawnStarterTent();
+            this.spawnManager.spawnAllBuildings();
         }
 
         // Start the loop
         this.animate();
     }
-
-    spawnAllBuildings() {
-        const startPos = new THREE.Vector3(-20, 0, 15);
-        const spacing = 10;
-        const buildingTypes = [
-            'hut', 'tavern', 'silo', 'square_hut', 
-            'long_tavern', 'grail_silo', 'beehive', 'crop_plot',
-            'well', 'blacksmith', 'windmill', 'guard_tower', 'stable'
-        ];
-
-        buildingTypes.forEach((type, index) => {
-            const pos = startPos.clone().add(new THREE.Vector3(index * spacing, 0, 0));
-            const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
-            const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
-            const shard = this.worldManager.activeShards.get(`${sx},${sz}`);
-
-            if (shard) {
-                pos.y = this.worldManager.getTerrainHeight(pos.x, pos.z);
-                const building = new Building(this.scene, shard, type, pos);
-                shard.resources.push(building);
-                debugLog(`Spawned ${type} at ${pos.x}, ${pos.z}`);
-            } else {
-                console.warn(`Could not find shard for ${type} at ${pos.x}, ${pos.z}`);
-            }
-        });
-    }
-
-    spawnYureigakureTown() {
-        // Town logic moved to Shard.setupEnvironment for persistence
-    }
-
 
     triggerCombat(enemies) {
         if (this.combatScene && !this.combatScene.isActive) {
@@ -279,178 +207,8 @@ export class Game {
         }
     }
 
-    setupLights() {
-        const ambient = new THREE.AmbientLight(0x4040ff, 0.4);
-        ambient.layers.enable(0);
-        ambient.layers.enable(1);
-        this.scene.add(ambient);
-
-        this.sun = new THREE.DirectionalLight(0xffffff, 1.0); // Reduced intensity slightly
-        this.sun.layers.enable(0);
-        this.sun.layers.enable(1);
-        this.sun.position.set(30, 60, 30);
-        this.sun.castShadow = true;
-        
-        this.sun.shadow.camera.left = -40;
-        this.sun.shadow.camera.right = 40;
-        this.sun.shadow.camera.top = 40;
-        this.sun.shadow.camera.bottom = -40;
-        this.sun.shadow.camera.far = 200;
-        this.sun.shadow.mapSize.set(1024, 1024); // Reduced from 2048
-        this.sun.shadow.bias = -0.001; // Adjusted bias
-        this.sun.shadow.normalBias = 0.04; // Increased normalBias
-        
-        this.scene.add(this.sun);
-        this.scene.add(this.sun.target);
-    }
-
     onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    spawnStarterTent() {
-        const campCenter = new THREE.Vector3(6, 0, 10.2);
-        const sx = Math.floor((campCenter.x + SHARD_SIZE / 2) / SHARD_SIZE);
-        const sz = Math.floor((campCenter.z + SHARD_SIZE / 2) / SHARD_SIZE);
-        const shard = this.worldManager.activeShards.get(`${sx},${sz}`);
-        
-        if (shard) {
-            const firePos = campCenter.clone();
-            firePos.y = this.worldManager.getTerrainHeight(firePos.x, firePos.z);
-            const firepit = new Building(this.scene, shard, 'firepit', firePos);
-            shard.resources.push(firepit);
-
-            const dist = 4.2;
-            const tentConfigs = [
-                { pos: new THREE.Vector3(6, 0, 10.2 - dist), rot: 0 },
-                { pos: new THREE.Vector3(6 - dist, 0, 10.2), rot: Math.PI/2 },
-                { pos: new THREE.Vector3(6 + dist, 0, 10.2), rot: -Math.PI/2 }
-            ];
-
-            const pondPos = new THREE.Vector3(-10, 0, -5);
-            // DO NOT set pondPos.y yet, as we need the flattened height from the worldManager AFTER registration
-            const starterPondRadius = 4.0; // Default base radius from buildings.js
-            const pondData = { x: pondPos.x, y: 0, z: pondPos.z, radius: starterPondRadius * 1.3 };
-            
-            // Get raw terrain height for the pond surface
-            pondData.y = this.worldManager._getRawTerrainHeight(pondPos.x, pondPos.z);
-            pondPos.y = pondData.y;
-            
-            this.worldManager.ponds.push(pondData);
-            this.worldManager.clearHeightCache();
-            
-            const pond = new Building(this.scene, shard, 'pond', pondPos);
-            shard.resources.push(pond);
-
-            // Spawn Quest Giver next to fireplace
-            import('../entities/quest_giver.js').then(({ QuestGiver }) => {
-                const questGiverPos = firePos.clone().add(new THREE.Vector3(2, 0, 0));
-                questGiverPos.y = this.worldManager.getTerrainHeight(questGiverPos.x, questGiverPos.z);
-                const questGiver = new QuestGiver(this.scene, shard, questGiverPos);
-                shard.npcs.push(questGiver);
-                this.worldManager.invalidateCache();
-            });
-
-            import('../entities/humanoid_npc.js').then(({ HumanoidNPC }) => {
-                tentConfigs.forEach((config) => {
-                    const tentPos = config.pos.clone();
-                    tentPos.y = this.worldManager.getTerrainHeight(tentPos.x, tentPos.z);
-                    const tent = new Building(this.scene, shard, 'tent', tentPos, config.rot);
-                    shard.resources.push(tent);
-
-                    const offset = new THREE.Vector3(1.5, 0, 1.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), config.rot);
-                    const npcPos = tentPos.clone().add(offset);
-                    npcPos.y = this.worldManager.getTerrainHeight(npcPos.x, npcPos.z);
-                    
-                    const survivor = new HumanoidNPC(this.scene, shard, npcPos);
-                    survivor.setHome(tentPos, 20);
-                    shard.npcs.push(survivor);
-                });
-            });
-        }
-    }
-
-    updateUnitTooltip() {
-        // Remove internal throttle since it is controlled by the main loop now
-        // const now = performance.now();
-        // if (now - this.lastTooltipUpdate < 100) return; 
-        // this.lastTooltipUpdate = now;
-
-        const tooltip = document.getElementById('unit-tooltip');
-        if (!tooltip) return;
-
-        // Optimization: Only check units near the player (e.g. 60 units radius)
-        // This avoids raycasting against every entity in the loaded world
-        if (!this.player || !this.player.mesh) return;
-        
-        const checkRadius = 60;
-        const npcs = this.worldManager.getNearbyNPCs(this.player.mesh.position, checkRadius);
-        const fauna = this.worldManager.getNearbyFauna(this.player.mesh.position, checkRadius);
-        
-        // Filter out dead/invalid units
-        const units = [];
-        for (let i = 0; i < npcs.length; i++) {
-            if (!npcs[i].isDead && npcs[i].level !== undefined) units.push(npcs[i]);
-        }
-        for (let i = 0; i < fauna.length; i++) {
-            if (!fauna[i].isDead && fauna[i].level !== undefined) units.push(fauna[i]);
-        }
-        
-        if (units.length === 0) {
-            tooltip.style.display = 'none';
-            return;
-        }
-
-        this.raycaster.setFromCamera(this.inputManager.mouse, this.camera);
-        
-        const hitObjects = units.map(u => u.group || u.mesh);
-        // Use recursive false if possible, but groups usually require true. 
-        // If hierarchies are simple, we might optimize this. Keeping true for correctness for now.
-        const intersects = this.raycaster.intersectObjects(hitObjects, true);
-
-        if (intersects.length > 0) {
-            let hitUnit = null;
-            for (const unit of units) {
-                const obj = unit.group || unit.mesh;
-                let found = false;
-                obj.traverse(child => {
-                    if (child === intersects[0].object) found = true;
-                });
-                if (found) {
-                    hitUnit = unit;
-                    break;
-                }
-            }
-
-            if (hitUnit) {
-                tooltip.style.display = 'flex';
-                const x = ((this.inputManager.mouse.x + 1) / 2) * window.innerWidth;
-                const y = (-(this.inputManager.mouse.y - 1) / 2) * window.innerHeight;
-                
-                tooltip.style.left = `${x + 20}px`;
-                tooltip.style.top = `${y - 20}px`;
-
-                const unitName = hitUnit.type || hitUnit.constructor.name || 'Unknown';
-                document.getElementById('tt-name').textContent = unitName.toUpperCase();
-                document.getElementById('tt-level').textContent = `LV. ${hitUnit.level}`;
-                
-                const statusEl = document.getElementById('tt-status');
-                if (hitUnit.isEnemy) {
-                    statusEl.textContent = 'Hostile';
-                    statusEl.style.color = '#ff4444';
-                } else {
-                    statusEl.textContent = 'Passive';
-                    statusEl.style.color = '#44ccff';
-                }
-
-                const hpPercent = (hitUnit.health / (hitUnit.maxHealth || 1)) * 100;
-                document.getElementById('tt-health').style.width = `${hpPercent}%`;
-                return;
-            }
-        }
-        tooltip.style.display = 'none';
+        if (this.sceneManager) this.sceneManager.onResize();
     }
 
     async leaveMark() {
@@ -491,45 +249,7 @@ export class Game {
     }
 
     async onLandLoaded(landId) {
-        debugLog(`Game: Land ${landId} loaded, updating spawns...`);
-        
-        // 1. Force load shards around player spawn for immediate building placement
-        if (this.player && this.player.mesh) {
-            const pos = this.player.mesh.position;
-            const sx = Math.floor((pos.x + SHARD_SIZE / 2) / SHARD_SIZE);
-            const sz = Math.floor((pos.z + SHARD_SIZE / 2) / SHARD_SIZE);
-            
-            // Queue and force load surrounding shards
-            for (let dx = -2; dx <= 2; dx++) {
-                for (let dz = -2; dz <= 2; dz++) {
-                    const x = sx + dx;
-                    const z = sz + dz;
-                    const key = `${x},${z}`;
-                    if (this.worldManager.worldMask.containsShard(x, z) && !this.worldManager.activeShards.has(key)) {
-                        this.worldManager.shardQueue.push({ x, z, key });
-                    }
-                }
-            }
-
-            // Force process the queue
-            while (this.worldManager.shardQueue.length > 0) {
-                const { x, z, key } = this.worldManager.shardQueue.shift();
-                if (!this.worldManager.activeShards.has(key)) {
-                    const shard = new Shard(this.scene, x, z, this.worldManager);
-                    this.worldManager.activeShards.set(key, shard);
-                    if (shard.groundMesh) this.worldManager.terrainMeshes.push(shard.groundMesh);
-                }
-            }
-            this.worldManager.invalidateCache();
-        }
-        
-        // 2. Spawn buildings for the new land
-        if (landId === 'Land01') {
-            this.spawnStarterTent();
-            this.spawnAllBuildings();
-        } else if (landId === 'Land23') {
-            this.spawnYureigakureTown();
-        }
+        if (this.spawnManager) await this.spawnManager.onLandLoaded(landId);
     }
 
     onSeasonChanged(season) {
@@ -568,12 +288,12 @@ export class Game {
     }
 
     animate() {
-        if (this._stopped) return; // Stop the loop if flag is set
+        if (this._stopped) return;
         requestAnimationFrame(() => this.animate());
         const delta = Math.min(this.clock.getDelta(), 0.1);
         const now = performance.now();
 
-        // 1. Core Logic (Run every frame)
+        // 1. Core Logic
         this.inputManager.updateMouseWorldPos(this.worldManager.terrainMeshes);
         this.timeManager.update(delta);
         this.weatherManager.update(delta);
@@ -582,7 +302,6 @@ export class Game {
         this.worldManager.update(this.player, delta);
         this.player.update(delta, this.input, this.camera);
         
-        // Update projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update(delta);
@@ -593,7 +312,7 @@ export class Game {
 
         if (this.multiplayer) this.multiplayer.update(now, delta);
         
-        // 2. Secondary Logic (Distributed across frames for smoothness)
+        // 2. Secondary Logic (Staggered)
         this._frameCount = (this._frameCount || 0) + 1;
         const staggerFrame = this._frameCount % 4;
 
@@ -604,7 +323,7 @@ export class Game {
             this.gridLabels.update(this.player.mesh.position, (this.grid && this.grid.visible));
             this.environmentManager.update(this.player.mesh.position);
         } else if (staggerFrame === 2) {
-            this.updateUnitTooltip();
+            this.tooltipManager.update(this.player, this.camera);
         } else if (staggerFrame === 3) {
             this.buildManager.update();
         }
@@ -622,7 +341,6 @@ export class Game {
             const euler = new THREE.Euler(this.fpvRotation.pitch, this.fpvRotation.yaw, 0, 'YXZ');
             this.camera.quaternion.setFromEuler(euler);
             
-            // Throttle terrain height check for camera pushback
             this._cameraPushbackTimer = (this._cameraPushbackTimer || 0) + delta;
             if (this._cameraPushbackTimer > 0.1) {
                 const terrainHeight = this.worldManager.getTerrainHeight(this.camera.position.x, this.camera.position.z);
@@ -642,13 +360,8 @@ export class Game {
             this.camera.lookAt(targetPos);
         }
 
-        if (this.sun) {
-            this.sun.position.set(targetPos.x + 30, targetPos.y + 60, targetPos.z + 30);
-            this.sun.target.position.copy(targetPos);
-            this.sun.target.updateMatrixWorld();
-        }
-
-        this.renderer.render(this.scene, this.camera);
+        this.sceneManager.updateSun(targetPos);
+        this.sceneManager.render();
 
         // 4. FPS Counter
         if (this.fpsCounter && this.fpsCounter.style.display !== 'none') {

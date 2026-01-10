@@ -216,6 +216,32 @@ export class WorldManager {
         return geo;
     }
 
+    getBuildingsByTag(tag) {
+        const results = [];
+        for (const shard of this.activeShards.values()) {
+            if (shard.resources) {
+                const tagged = shard.resources.filter(r => r.locationTag === tag);
+                results.push(...tagged);
+            }
+        }
+        return results;
+    }
+
+    getBuildingById(id) {
+        for (const shard of this.activeShards.values()) {
+            if (shard.resources) {
+                const building = shard.resources.find(r => r.buildingId === id);
+                if (building) return building;
+            }
+        }
+        return null;
+    }
+
+    manipulateBuildingsByTag(tag, callback) {
+        const buildings = this.getBuildingsByTag(tag);
+        buildings.forEach(callback);
+    }
+
     update(player, delta) {
         if (!player || !player.mesh) return;
         const playerPos = player.mesh.position;

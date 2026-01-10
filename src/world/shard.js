@@ -510,7 +510,7 @@ export class Shard {
         // Procedural Ponds (Actual building instantiation)
         if (pendingPond) {
             import('../systems/buildings.js').then(({ Building }) => {
-                const pond = new Building(this.scene, this, 'pond', pendingPond.pos, pendingPond.rot);
+                const pond = new Building(this.scene, this, 'pond', pendingPond.pos, pendingPond.rot, this.town?.locationTag);
                 if (pond.setRadius) pond.setRadius(pendingPond.rad);
                 this.resources.push(pond);
             });
@@ -883,14 +883,14 @@ export class Shard {
             const ruinTypes = ['abandoned_hut', 'ancient_altar', 'broken_wall'];
             const ruinType = ruinTypes[Math.floor(rng() * ruinTypes.length)];
             
-            const ruin = new Building(this.scene, this, ruinType, rPos, rng() * Math.PI * 2);
+            const ruin = new Building(this.scene, this, ruinType, rPos, rng() * Math.PI * 2, this.town?.locationTag);
             ruin.isRuin = true;
             this.resources.push(ruin);
             
             // Random loot in ruins
             if (rng() < 0.7) {
                 const chestPos = rPos.clone().add(new THREE.Vector3((rng()-0.5)*2, 0.2, (rng()-0.5)*2));
-                const chest = new Building(this.scene, this, 'chest', chestPos, rng() * Math.PI * 2);
+                const chest = new Building(this.scene, this, 'chest', chestPos, rng() * Math.PI * 2, this.town?.locationTag);
                 this.resources.push(chest);
             }
         }
@@ -904,7 +904,7 @@ export class Shard {
                 const wy = this.getTerrainHeight(wx, wz);
                 const pos = new THREE.Vector3(wx, wy, wz);
                 
-                const building = new Building(this.scene, this, bData.type, pos, bData.rotation);
+                const building = new Building(this.scene, this, bData.type, pos, bData.rotation, bData.locationTag || this.town?.locationTag);
                 this.resources.push(building);
 
                 // Place building NPCs
@@ -936,8 +936,10 @@ export class Shard {
             if (this.gridX === bowlCenterSX && this.gridZ === bowlCenterSZ) {
                 const bonfirePos = bowlCenter.clone();
                 bonfirePos.y = this.getTerrainHeight(bonfirePos.x, bonfirePos.z);
-                const bonfire = new Building(this.scene, this, 'firepit', bonfirePos);
+                const bonfire = new Building(this.scene, this, 'firepit', bonfirePos, 0, 'yureigakure-bowl');
                 bonfire.group.scale.set(3, 3, 3); // Large bonfire
+                bonfire.collisionRadius *= 3;
+                bonfire.radius *= 3;
                 this.resources.push(bonfire);
             }
 
@@ -957,7 +959,7 @@ export class Shard {
                     const type = buildingPool[i % buildingPool.length];
                     const rotation = angle + Math.PI;
                     
-                    const building = new Building(this.scene, this, type, bPos, rotation);
+                    const building = new Building(this.scene, this, type, bPos, rotation, 'yureigakure-bowl');
                     this.resources.push(building);
 
                     // Add NPCs

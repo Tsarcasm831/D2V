@@ -746,9 +746,31 @@ input[type="checkbox"]:hover {
 
 /* Unit Tooltip */
 #unit-tooltip {
-    position: absolute; background: rgba(0,0,0,0.85);
-    padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);
-    pointer-events: none; display: none; flex-direction: column; gap: 4px; min-width: 120px; z-index: 20;
+    display: none !important;
+}
+
+/* Building Tooltip */
+#building-tooltip {
+    display: none !important;
+}
+
+#bt-name {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #dfefff;
+}
+
+#bt-type {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: rgba(153, 204, 255, 0.8);
+}
+
+#bt-desc {
+    font-size: 11px;
+    color: rgba(220, 230, 240, 0.85);
+    line-height: 1.2;
 }
 
 #death-screen {

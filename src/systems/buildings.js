@@ -3,16 +3,23 @@ import { SCALE_FACTOR } from '../world/world_bounds.js';
 import { logToModal } from '../utils/logger.js';
 
 export class Building {
-    constructor(scene, shard, type, pos, rotationY = 0) {
+    constructor(scene, shard, type, pos, rotationY = 0, locationTag = null) {
         this.scene = scene;
         this.shard = shard;
         this.type = type;
         this.isDead = false;
         this.health = 20;
         this.radius = 1.2 * SCALE_FACTOR;
+        this.buildingData = null;
+        this.collisionInitialized = false;
+
+        this.buildingId = `build_${Math.random().toString(36).substr(2, 9)}`;
+        this.locationTag = locationTag;
 
         this.group = new THREE.Group();
         this.group.userData.entity = this; // Link back to entity for physics
+        this.group.userData.buildingId = this.buildingId;
+        this.group.userData.locationTag = this.locationTag;
         this.group.position.copy(pos);
         
         // Align to terrain normal if tent, firepit, or pond
@@ -53,10 +60,18 @@ export class Building {
         try {
             const buildingsData = this.shard.worldManager.buildingsData || 
                                 await fetch('/data/buildings.json').then(r => r.json()).catch(() => null);
+
+            if (!this.shard.worldManager.buildingsData && buildingsData) {
+                this.shard.worldManager.buildingsData = buildingsData;
+            }
             
             if (buildingsData && buildingsData.buildings && buildingsData.buildings[this.type]) {
                 const buildingData = buildingsData.buildings[this.type];
+                this.buildingData = buildingData;
                 this.collisionData = buildingData.collision || null;
+                if (this.collisionData && this.collisionInitialized) {
+                    this.setupCollision();
+                }
             }
         } catch (error) {
             console.warn(`Failed to load collision data for ${this.type}:`, error);
@@ -117,6 +132,8 @@ export class Building {
             // Fall back to hardcoded collision setup
             this.setupHardcodedCollision();
         }
+
+        this.collisionInitialized = true;
     }
     
     setupHardcodedCollision() {
@@ -548,6 +565,40 @@ export class Building {
         return this.radius;
     }
 
+    getDisplayName() {
+        if (this.buildingData?.name) return this.buildingData.name;
+        return this.type ? this.type.replace(/_/g, ' ') : 'Building';
+    }
+
+    getTooltipDescription() {
+        return this.buildingData?.desc || '';
+    }
+
+    getProximityDistance(pos) {
+        const dx = pos.x - this.group.position.x;
+        const dz = pos.z - this.group.position.z;
+
+        if (this.collisionType === 'box' || this.collisionType === 'oriented-box' || this.collisionType === 'doorway') {
+            const rot = this.group.rotation.y;
+            const cos = Math.cos(-rot);
+            const sin = Math.sin(-rot);
+            const lx = dx * cos - dz * sin;
+            const lz = dx * sin + dz * cos;
+            const hw = (this.collisionWidth || this.collisionRadius * 2) / 2;
+            const hd = (this.collisionDepth || this.collisionRadius * 2) / 2;
+            const ox = Math.max(Math.abs(lx) - hw, 0);
+            const oz = Math.max(Math.abs(lz) - hd, 0);
+            return Math.sqrt(ox * ox + oz * oz);
+        }
+
+        const angle = Math.atan2(dz, dx);
+        const radius = (this.collisionType === 'pond' || this.collisionType === 'irregular')
+            ? this.getCollisionRadiusAtAngle(angle)
+            : this.collisionRadius;
+        const dist = Math.sqrt(dx * dx + dz * dz) - radius;
+        return Math.max(dist, 0);
+    }
+
     update() {
         if (this.isCropPlot && this.plantedCrop) {
             const now = Date.now();
@@ -671,14 +722,32 @@ export class Building {
             }
         };
 
+        // Yureigakure-specific visual override: Ghost materials
+        const isYurei = this.locationTag === 'yureigakure-bowl';
+        const getGhostMaterial = (baseColor) => {
+            if (!isYurei) return null;
+            return wm ? wm.getSharedMaterial('standard', {
+                color: baseColor,
+                emissive: 0x4a148c, // Deep purple glow
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.85
+            }) : new THREE.MeshStandardMaterial({
+                color: baseColor,
+                emissive: 0x4a148c,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.85
+            });
+        };
+
         if (this.type === 'tent') {
-            const fabricMat = wm ? wm.getSharedMaterial('standard', { color: 0x5d4037, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ color: 0x5d4037, side: THREE.DoubleSide });
-            const poleMat = wm ? wm.getSharedMaterial('standard', { color: 0x3e2723 }) : new THREE.MeshStandardMaterial({ color: 0x3e2723 });
+            const fabricColor = 0x5d4037;
+            const poleColor = 0x3e2723;
+            const fabricMat = getGhostMaterial(fabricColor) || (wm ? wm.getSharedMaterial('standard', { color: fabricColor, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ color: fabricColor, side: THREE.DoubleSide }));
+            const poleMat = getGhostMaterial(poleColor) || (wm ? wm.getSharedMaterial('standard', { color: poleColor }) : new THREE.MeshStandardMaterial({ color: poleColor }));
             
-            // Triangular prism for the tent
-            const s = 1.4;
-            const h = 1.6;
-            const l = 2.4;
+            // ... remainder of tent setup mesh ...
             
             // Tent geometry is relatively unique but we could cache it if needed.
             // For now, let's keep it as is since tents are few.

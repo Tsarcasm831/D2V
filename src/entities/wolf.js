@@ -15,6 +15,15 @@ export class Wolf {
         this.group.position.copy(pos);
         this.scene.add(this.group);
 
+        // Define a reference for targeting
+        this.mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.8, 0.8, 1.4).scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR),
+            new THREE.MeshStandardMaterial({ visible: false })
+        );
+        this.mesh.position.y = 0.4 * SCALE_FACTOR;
+        this.group.add(this.mesh);
+        this.mesh.userData.entity = this;
+
         const levelCenter = (shard && shard.worldManager && shard.worldManager.levelCenter) ? shard.worldManager.levelCenter : new THREE.Vector3(0, 0, 0);
         const dist = pos.distanceTo(levelCenter);
         this.level = Math.floor(Math.min(100, 1 + (dist / 100)));
@@ -176,8 +185,6 @@ export class Wolf {
 
         this.tailRoot.rotation.x = -0.6;
 
-        // For compatibility with targeting
-        this.mesh = body; 
         this.addLevelLabel();
     }
 

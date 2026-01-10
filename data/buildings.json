@@ -3,6 +3,7 @@
     "hut": {
       "id": "hut",
       "name": "Hut",
+      "desc": "A simple shelter against the frozen winds.",
       "footprint": { "width": 5.0, "depth": 5.0 },
       "collision": {
         "type": "box",
@@ -52,6 +53,7 @@
     "square_hut": {
       "id": "square_hut",
       "name": "Square Hut",
+      "desc": "A sturdy hut with a steep roofline.",
       "footprint": { "width": 5.0, "depth": 5.0 },
       "collision": {
         "type": "box",
@@ -73,6 +75,7 @@
     "long_tavern": {
       "id": "long_tavern",
       "name": "Long Tavern",
+      "desc": "A longhouse where travelers gather for warmth.",
       "footprint": { "width": 15.0, "depth": 5.0 },
       "collision": {
         "type": "box",
@@ -172,14 +175,29 @@
     "well": {
       "id": "well",
       "name": "Well",
+      "desc": "A deep stone well carved into the ice.",
       "footprint": { "width": 3.0, "depth": 3.0 },
+      "collision": {
+        "type": "cylinder",
+        "radius": 1.5,
+        "height": 3.2,
+        "precise": false
+      },
       "requirements": { "stone": 30, "wood": 10 },
       "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
     },
     "blacksmith": {
       "id": "blacksmith",
       "name": "Blacksmith",
+      "desc": "An ember-lit forge that hums with ancient craft.",
       "footprint": { "width": 8.0, "depth": 8.0 },
+      "collision": {
+        "type": "box",
+        "width": 8.0,
+        "depth": 8.0,
+        "height": 3.0,
+        "precise": false
+      },
       "requirements": { "stone": 100, "wood": 50 },
       "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
     },
@@ -193,7 +211,14 @@
     "guard_tower": {
       "id": "guard_tower",
       "name": "Guard Tower",
+      "desc": "A lookout tower watching the snowy pass.",
       "footprint": { "width": 4.0, "depth": 4.0 },
+      "collision": {
+        "type": "cylinder",
+        "radius": 2.5,
+        "height": 12.0,
+        "precise": false
+      },
       "requirements": { "stone": 200, "wood": 80 },
       "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
     },
@@ -203,6 +228,18 @@
       "footprint": { "width": 10.0, "depth": 8.0 },
       "requirements": { "wood": 120, "stone": 20 },
       "snapPoints": [{ "x": 0, "y": 0, "z": 0, "type": "center" }]
+    },
+    "firepit": {
+      "id": "firepit",
+      "name": "Firepit",
+      "desc": "A blazing hearth that holds back the cold.",
+      "footprint": { "width": 1.3, "depth": 1.3 },
+      "collision": {
+        "type": "cylinder",
+        "radius": 0.65,
+        "height": 1.2,
+        "precise": false
+      }
     }
   }
 }

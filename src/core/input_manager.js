@@ -60,15 +60,15 @@ export class InputManager {
             if (key === 'a') this.input.x = -1;
             if (key === 'd') this.input.x = 1;
             if (key === 'shift') this.input.run = true;
-            if (key === 'c') {
+            if (key === 't') {
                 this.game.player.isCrouching = !this.game.player.isCrouching;
                 if (this.game.player.ui) {
                     this.game.player.ui.showStatus(this.game.player.isCrouching ? "STEALTH MODE" : "STEALTH OFF", false);
                 }
-                const cSlot = document.getElementById('slot-c');
-                if (cSlot) {
-                    cSlot.classList.add('active');
-                    setTimeout(() => cSlot.classList.remove('active'), 150);
+                const tSlot = document.getElementById('slot-t');
+                if (tSlot) {
+                    tSlot.classList.add('active');
+                    setTimeout(() => tSlot.classList.remove('active'), 150);
                 }
             }
             if (key === ' ') {
@@ -95,15 +95,7 @@ export class InputManager {
             if (key === 'x') {
                 this.game.player.toggleCombat();
             }
-            if (key === 'c') {
-                const cSlot = document.getElementById('slot-c');
-                if (cSlot) {
-                    cSlot.classList.add('active');
-                    setTimeout(() => cSlot.classList.remove('active'), 150);
-                }
-                this.game.player.summon();
-            }
-            if (key === 'r') {
+                        if (key === 'r') {
                 if (this.game.buildManager.isBuildMode) {
                     this.game.buildManager.rotate();
                 } else {

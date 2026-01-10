@@ -1,0 +1,617 @@
+import { WebSocketServer } from 'ws';
+import { randomUUID } from 'crypto';
+import { createServer, request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
+import { readFile } from 'fs/promises';
+import { join, dirname, extname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 3001;
+const TICK_RATE = 20;
+const MAX_PLAYERS_PER_ROOM = 4; // Increased from 2 to 4 to allow more overhead during testing and re-joins
+const RATE_LIMITS = {
+    connections: { windowMs: 60_000, max: 30 },
+    messages: { windowMs: 10_000, max: 300 }
+};
+const INACTIVITY_TIMEOUT_MS = Number.parseInt(process.env.INACTIVITY_TIMEOUT_MS, 10) || 15 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = Number.parseInt(process.env.HEARTBEAT_INTERVAL_MS, 10) || 30_000;
+const CLEANUP_DELAY_MS = 1000;
+const ESM_ORIGIN = process.env.ESM_ORIGIN || 'https://esm.sh';
+const ESM_REDIRECT_LIMIT = 4;
+const ESM_PROXY_HEADERS = [
+    'content-type',
+    'cache-control',
+    'etag',
+    'last-modified',
+    'content-encoding',
+    'vary',
+    'content-length'
+];
+
+// Mime types for static file serving
+const MIME_TYPES = {
+    '.html': 'text/html',
+    '.js': 'text/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.wav': 'audio/wav',
+    '.mp3': 'audio/mpeg',
+    '.ico': 'image/x-icon'
+};
+
+const shouldProxyEsmPath = (pathname) => {
+    if (pathname.startsWith('/esm/')) {
+        return true;
+    }
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length === 0) {
+        return false;
+    }
+    if (segments[0].includes('@')) {
+        return true;
+    }
+    if (segments[0].startsWith('@') && segments[1]?.includes('@')) {
+        return true;
+    }
+    return false;
+};
+
+const buildUpstreamUrl = (pathname, search) => {
+    let upstreamPath = pathname.startsWith('/esm/')
+        ? pathname.slice('/esm/'.length)
+        : pathname.replace(/^\/+/, '');
+    try {
+        upstreamPath = decodeURIComponent(upstreamPath);
+    } catch {
+        // Keep the raw path if it is not valid percent-encoding.
+    }
+    const origin = ESM_ORIGIN.replace(/\/$/, '');
+    return `${origin}/${encodeURI(upstreamPath)}${search}`;
+};
+
+const proxyEsmModule = (res, upstreamUrl, redirectsLeft = ESM_REDIRECT_LIMIT) => {
+    const targetUrl = new URL(upstreamUrl);
+    const requestFn = targetUrl.protocol === 'https:' ? httpsRequest : httpRequest;
+    const upstreamRequest = requestFn(
+        targetUrl,
+        {
+            method: 'GET',
+            headers: {
+                Accept: 'application/javascript, text/javascript, */*',
+                'User-Agent': 'D2V-ESM-Proxy'
+            }
+        },
+        (upstreamResponse) => {
+            const statusCode = upstreamResponse.statusCode || 502;
+            const redirectLocation = upstreamResponse.headers.location;
+
+            if (statusCode >= 300 && statusCode < 400 && redirectLocation) {
+                if (redirectsLeft <= 0) {
+                    upstreamResponse.resume();
+                    res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+                    res.end('ESM redirect limit exceeded');
+                    return;
+                }
+
+                const nextUrl = new URL(redirectLocation, targetUrl).toString();
+                upstreamResponse.resume();
+                proxyEsmModule(res, nextUrl, redirectsLeft - 1);
+                return;
+            }
+
+            const headers = {};
+            for (const headerName of ESM_PROXY_HEADERS) {
+                const headerValue = upstreamResponse.headers[headerName];
+                if (headerValue) {
+                    headers[headerName] = headerValue;
+                }
+            }
+            res.writeHead(statusCode, headers);
+            upstreamResponse.pipe(res);
+        }
+    );
+
+    upstreamRequest.on('error', (error) => {
+        console.error(`[HTTP] ESM proxy failed: ${error.message}`);
+        res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Upstream module fetch failed');
+    });
+
+    upstreamRequest.end();
+};
+
+const server = createServer(async (req, res) => {
+    // Parse URL to handle query strings
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
+    
+    console.log(`[HTTP] ${req.method} ${pathname}`);
+
+    // Health and Rooms check
+    if (pathname === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'OK' }));
+        return;
+    }
+
+    if (pathname === '/rooms') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        
+        if (req.method === 'OPTIONS') {
+            res.writeHead(204);
+            res.end();
+            return;
+        }
+
+        const roomData = {};
+        rooms.forEach((room, roomCode) => {
+            roomData[roomCode] = {
+                players: room.players.size,
+                maxPlayers: MAX_PLAYERS_PER_ROOM
+            };
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(roomData));
+        return;
+    }
+
+    if (shouldProxyEsmPath(pathname)) {
+        const upstreamPath = pathname.startsWith('/esm/')
+            ? pathname.slice('/esm/'.length)
+            : pathname.replace(/^\/+/, '');
+        if (!upstreamPath) {
+            res.writeHead(400);
+            res.end('Missing ESM module path');
+            return;
+        }
+        const upstreamUrl = buildUpstreamUrl(pathname, url.search);
+        proxyEsmModule(res, upstreamUrl);
+        return;
+    }
+
+    // Static file serving
+    let filePath = join(__dirname, pathname === '/' ? 'index.html' : pathname);
+    
+    // Security: Prevent directory traversal
+    if (!filePath.startsWith(__dirname)) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+    }
+
+    try {
+        const content = await readFile(filePath);
+        const ext = extname(filePath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+        
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(content);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            res.writeHead(404);
+            res.end('File not found');
+        } else {
+            res.writeHead(500);
+            res.end('Internal server error');
+        }
+    }
+});
+
+const wss = new WebSocketServer({ server });
+
+const SINGLE_ROOM_CODE = 'Alpha';
+const rooms = new Map();
+const connectionRate = new Map();
+const messageRate = new Map();
+const guilds = new Map(); // key: guildId, value: { name, leaderId, members: Set, basePos: {x,y,z} }
+
+// Initialize the single room immediately
+rooms.set(SINGLE_ROOM_CODE, {
+    players: new Map(),
+    seed: Math.floor(Math.random() * 1000000)
+});
+
+server.listen(PORT, HOST, () => {
+    console.log(`WebSocket server started on http://${HOST}:${PORT} [Build: ${new Date().toISOString()}]`);
+});
+
+const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((client) => {
+        if (client.readyState !== 1) {
+            return;
+        }
+        if (client.isAlive === false) {
+            client.terminate();
+            return;
+        }
+        client.isAlive = false;
+        client.ping();
+    });
+}, HEARTBEAT_INTERVAL_MS);
+
+wss.on('close', () => {
+    clearInterval(heartbeatInterval);
+});
+
+function getRoom() {
+    return rooms.get(SINGLE_ROOM_CODE);
+}
+
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.socket?.remoteAddress || 'unknown';
+}
+
+function isRateLimited(map, key, limit) {
+    const now = Date.now();
+    const entry = map.get(key);
+    if (!entry || now > entry.resetAt) {
+        map.set(key, { count: 1, resetAt: now + limit.windowMs });
+        return false;
+    }
+    entry.count += 1;
+    return entry.count > limit.max;
+}
+
+function safeSend(ws, message) {
+    if (ws.readyState === 1) {
+        ws.send(JSON.stringify(message));
+        return true;
+    }
+    return false;
+}
+
+function notifyDisconnect(ws, reason, code = 1000) {
+    safeSend(ws, { type: 'disconnected', reason });
+    if (ws.readyState === 0 || ws.readyState === 1) {
+        ws.close(code, reason);
+    }
+}
+
+wss.on('connection', (ws, req) => {
+    const clientIp = getClientIp(req);
+    if (isRateLimited(connectionRate, clientIp, RATE_LIMITS.connections)) {
+        console.warn(`[RateLimit] Connection limit exceeded for ${clientIp}`);
+        notifyDisconnect(ws, 'rate_limit', 1008);
+        return;
+    }
+
+    const playerId = randomUUID();
+    const messageRateKey = playerId;
+    let currentRoomCode = null;
+    let username = "Traveler";
+
+    ws.isAlive = true;
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+    ws.on('error', (error) => {
+        console.warn(`[WebSocket] Error for ${playerId}: ${error.message}`);
+    });
+
+    console.log(`Player ${playerId} connected from ${clientIp}`);
+
+    ws.on('message', (message) => {
+        if (isRateLimited(messageRate, messageRateKey, RATE_LIMITS.messages)) {
+            console.warn(`[RateLimit] Message limit exceeded for player ${playerId}`);
+            notifyDisconnect(ws, 'rate_limit', 1008);
+            return;
+        }
+        try {
+            const payload = typeof message === 'string' ? message : message.toString('utf8');
+            const data = JSON.parse(payload);
+            if (!data || typeof data !== 'object') {
+                return;
+            }
+            if (data.type !== 'input' && Math.random() < 0.1) {
+                console.log(`[Message] From ${playerId}: ${data.type}`);
+            }
+
+            switch (data.type) {
+                case 'join':
+                    handleJoin(data.room || 'default', data.username, data.character);
+                    break;
+                case 'input':
+                    handleInput(data);
+                    break;
+                case 'attack':
+                    handleAttack();
+                    break;
+                case 'placeBuilding':
+                    handlePlaceBuilding(data);
+                    break;
+                case 'chat':
+                    handleChat(data);
+                    break;
+                case 'createGuild':
+                    handleCreateGuild(data);
+                    break;
+                case 'joinGuild':
+                    handleJoinGuild(data);
+                    break;
+            }
+        } catch (e) {
+            console.error('Error handling message:', e);
+        }
+    });
+
+    function handleCreateGuild(data) {
+        if (!currentRoomCode) return;
+        const guildId = randomUUID();
+        const guild = {
+            id: guildId,
+            name: data.name || "New Guild",
+            leaderId: playerId,
+            members: new Set([playerId]),
+            basePos: data.basePos || null
+        };
+        guilds.set(guildId, guild);
+        
+        const playerState = rooms.get(currentRoomCode).players.get(playerId);
+        if (playerState) playerState.guildId = guildId;
+
+        ws.send(JSON.stringify({ type: 'guildCreated', guildId, name: guild.name }));
+        broadcastToRoom(currentRoomCode, {
+            type: 'event',
+            kind: 'chat',
+            username: 'System',
+            text: `${username} has founded the guild [${guild.name}]!`
+        });
+    }
+
+    function handleJoinGuild(data) {
+        const guild = guilds.get(data.guildId);
+        if (guild) {
+            guild.members.add(playerId);
+            const playerState = rooms.get(currentRoomCode).players.get(playerId);
+            if (playerState) playerState.guildId = data.guildId;
+            ws.send(JSON.stringify({ type: 'guildJoined', guildId: data.guildId, name: guild.name }));
+        }
+    }
+
+    function markPlayerSeen() {
+        if (!currentRoomCode) return;
+        const room = rooms.get(currentRoomCode);
+        if (!room) return;
+        const playerState = room.players.get(playerId);
+        if (playerState) {
+            playerState.lastSeen = Date.now();
+        }
+    }
+
+    function handleChat(data) {
+        if (!currentRoomCode) return;
+        markPlayerSeen();
+        const text = typeof data.text === 'string' ? data.text : '';
+        broadcastToRoom(currentRoomCode, {
+            type: 'event',
+            kind: 'chat',
+            username: username,
+            text: text
+        }, playerId); // Don't send back to self (sender already added it locally)
+    }
+
+    function handleJoin(roomCode, requestedUsername, characterData) {
+        // Clear room code if we're joining a new one to prevent close events
+        // from the old room state being processed on the new connection logic.
+        currentRoomCode = null; 
+
+        const room = getRoom();
+        const normalizedRoomCode = SINGLE_ROOM_CODE;
+        
+        // Ensure player is unique by playerId, allowing multiple players with same username.
+        // We explicitly do NOT remove existing sessions by username here anymore.
+
+        if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
+            console.log(`[${new Date().toISOString()}] Room ${normalizedRoomCode} is full. Rejecting ${playerId}`);
+            ws.send(JSON.stringify({ type: 'roomFull' }));
+            return;
+        }
+
+        currentRoomCode = normalizedRoomCode;
+        username = requestedUsername || "Traveler";
+        
+        // Initialize player state
+        room.players.set(playerId, {
+            id: playerId,
+            username: username,
+            character: characterData || {},
+            pos: [0, 0, 0],
+            rot: 0,
+            isMoving: false,
+            isRunning: false,
+            sideMove: 0,
+            isDead: false,
+            weapon: 'none',
+            lastSeen: Date.now(),
+            ws: ws
+        });
+
+        // Send welcome packet
+        ws.send(JSON.stringify({
+            type: 'welcome',
+            id: playerId,
+            room: normalizedRoomCode,
+            tickRate: TICK_RATE,
+            seed: room.seed
+        }));
+
+        console.log(`[${new Date().toISOString()}] Player ${username} (${playerId}) joined room: ${normalizedRoomCode}. Total players: ${room.players.size}`);
+
+        // Announce join to others
+        broadcastToRoom(normalizedRoomCode, {
+            type: 'event',
+            kind: 'playerJoined',
+            username: username,
+            id: playerId
+        }, playerId);
+
+        // Welcome the player themselves via chat
+        ws.send(JSON.stringify({
+            type: 'event',
+            kind: 'chat',
+            username: 'System',
+            text: `Welcome to the realm, ${username}!`
+        }));
+    }
+
+    function handleInput(data) {
+        if (!currentRoomCode) return;
+        const room = rooms.get(currentRoomCode);
+        if (!room) return;
+
+        const playerState = room.players.get(playerId);
+        if (playerState) {
+            playerState.pos = data.pos;
+            playerState.rot = data.rot;
+            playerState.isMoving = data.moving;
+            playerState.isRunning = data.running;
+            playerState.sideMove = data.sideMove;
+            playerState.isDead = data.isDead;
+            playerState.weapon = data.weapon;
+            markPlayerSeen();
+        }
+    }
+
+    function handleAttack() {
+        if (!currentRoomCode) return;
+        markPlayerSeen();
+        broadcastToRoom(currentRoomCode, {
+            type: 'event',
+            kind: 'attack',
+            id: playerId
+        }, playerId); // Don't send back to self
+    }
+
+    function handlePlaceBuilding(data) {
+        if (!currentRoomCode) return;
+        markPlayerSeen();
+        // Server-authoritative relay
+        broadcastToRoom(currentRoomCode, {
+            type: 'event',
+            kind: 'buildingPlaced',
+            building: {
+                buildingId: randomUUID(),
+                ownerId: playerId,
+                type: data.type,
+                x: data.x,
+                y: data.y,
+                z: data.z,
+                rot: data.rot,
+                shardX: data.shardX,
+                shardZ: data.shardZ
+            }
+        }); // Broadcast to everyone including sender
+    }
+
+    ws.on('close', (code, reason) => {
+        const timestamp = new Date().toISOString();
+        const reasonText = reason ? reason.toString() : 'unknown';
+        console.log(`[${timestamp}] Socket closed for player ${playerId} (${username}) code=${code} reason=${reasonText}`);
+        messageRate.delete(messageRateKey);
+        
+        // Use a short delay before cleanup to allow for rapid reconnects
+        // which might use the same playerId or username.
+        setTimeout(() => {
+            if (currentRoomCode) {
+                const room = rooms.get(currentRoomCode);
+                if (room) {
+                    const player = room.players.get(playerId);
+                    
+                    // Only remove if this EXACT socket is still the active one
+                    // and it hasn't been replaced by a newer connection
+                    if (player && player.ws === ws) {
+                        room.players.delete(playerId);
+                        console.log(`[${timestamp}] Player ${username} (${playerId}) officially left room: ${currentRoomCode}. Remaining: ${room.players.size}`);
+                    } else {
+                        console.log(`[${timestamp}] Close event for ${username} (${playerId}) ignored: newer socket is active.`);
+                    }
+                }
+            }
+        }, CLEANUP_DELAY_MS);
+    });
+});
+
+function broadcastToRoom(roomCode, message, excludeId = null) {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+
+    const payload = JSON.stringify(message);
+    let count = 0;
+    room.players.forEach((player, id) => {
+        if (id !== excludeId && player.ws.readyState === 1) {
+            player.ws.send(payload);
+            count++;
+        }
+    });
+    
+    if (message.kind === 'playerJoined') {
+        console.log(`[${new Date().toISOString()}] Broadcasted playerJoined for ${message.username} to ${count} players in room ${roomCode}`);
+    }
+}
+
+// Tick loop for snapshots
+setInterval(() => {
+    const now = Date.now();
+    rooms.forEach((room, roomCode) => {
+        const playersData = {};
+        room.players.forEach((p, id) => {
+            // Basic timeout cleanup if needed
+            // Increased to allow longer idle sessions before cleanup.
+            if (now - p.lastSeen > INACTIVITY_TIMEOUT_MS) {
+                console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) timed out (last seen ${now - p.lastSeen}ms ago)`);
+                
+                // Inform the player they are being disconnected for inactivity
+                notifyDisconnect(p.ws, 'inactivity');
+
+                // Use the same delayed cleanup logic as socket close
+                setTimeout(() => {
+                    const currentRoom = rooms.get(roomCode);
+                    if (currentRoom) {
+                        const currentPlayer = currentRoom.players.get(id);
+                        if (currentPlayer && currentPlayer.ws === p.ws) {
+                            currentRoom.players.delete(id);
+                            console.log(`[${new Date().toISOString()}] Player ${p.username} (${id}) removed due to timeout.`);
+                        }
+                    }
+                }, CLEANUP_DELAY_MS);
+                return;
+            }
+
+            playersData[id] = {
+                pos: p.pos,
+                rot: p.rot,
+                isMoving: p.isMoving,
+                isRunning: p.isRunning,
+                sideMove: p.sideMove,
+                isDead: p.isDead,
+                weapon: p.weapon,
+                username: p.username,
+                character: p.character
+            };
+        });
+
+        const snapshot = JSON.stringify({
+            type: 'snapshot',
+            t: now,
+            players: playersData
+        });
+
+        room.players.forEach((p) => {
+            if (p.ws.readyState === 1) {
+                p.ws.send(snapshot);
+            }
+        });
+    });
+}, 1000 / TICK_RATE);
