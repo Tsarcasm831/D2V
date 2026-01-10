@@ -381,38 +381,17 @@
 
     <div id="location-display" style="position: absolute; bottom: 20px; right: 20px; font-family: monospace; font-size: 12px; color: #888;">Shard: 0, 0</div>
 
-    <div id="shard-map-container" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 10, 20, 0.9); z-index: 1000; flex-direction: column; align-items: center; justify-content: center;">
-        <div style="position: relative; width: 80%; height: 80%; background: #0a0f1a; border: 2px solid #334466; box-shadow: 0 0 50px rgba(0,0,0,0.8);">
-            <div style="position: absolute; top: -40px; left: 0; color: #00aaff; font-family: 'Cinzel', serif; font-size: 24px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,170,255,0.5);">LAND MAP</div>
-            <canvas id="shard-map-canvas" style="width: 100%; height: 100%;"></canvas>
-            <div id="map-ui-overlay" style="position: absolute; top: 20px; left: 20px; color: white; font-family: 'Cinzel', serif; pointer-events: none; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
-                <div id="map-coords" style="font-size: 18px; margin-bottom: 5px;">Pos: 0, 0</div>
-                <div id="map-shard" style="font-size: 14px; opacity: 0.7;">Shard: 0, 0</div>
+    <div id="shard-map-container" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+            <div>
+                <h2 style="margin: 0; color: var(--primary);">WORLD MAP</h2>
+                <div id="map-coords" style="font-size: 12px; opacity: 0.6;">Pos: 0, 0</div>
+                <div id="map-shard" style="font-size: 12px; opacity: 0.6;">Shard: 0, 0</div>
             </div>
-            <div id="map-legend" style="position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 15px; border: 1px solid rgba(255,255,255,0.1); color: white; font-family: 'Cinzel', serif; pointer-events: none;">
-                <div id="stats-biome" style="font-weight: bold; margin-bottom: 10px; color: #00aaff; border-bottom: 1px solid rgba(0,170,255,0.3); padding-bottom: 5px;">FROZEN PEAKS</div>
-                <div style="font-size: 11px; display: grid; grid-template-columns: 100px 100px; gap: 5px;">
-                    <div>Visited Shards:</div><div id="stats-shards-visited" style="text-align: right;">0</div>
-                    <div>Active Shards:</div><div id="stats-active-shards" style="text-align: right;">0</div>
-                    <div>Peak Distance:</div><div id="stats-peak-dist" style="text-align: right;">0m</div>
-                    <div>Total Area:</div><div id="stats-total-area" style="text-align: right;">0 m²</div>
-                </div>
-                <div style="margin-top: 10px;">
-                    <div style="font-size: 10px; margin-bottom: 3px;">DISCOVERY PROGRESS</div>
-                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                        <div id="stats-discovery-fill" style="width: 0%; height: 100%; background: #00aaff; box-shadow: 0 0 10px #00aaff;"></div>
-                    </div>
-                </div>
-            </div>
-            <div style="position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.4); font-family: monospace; font-size: 10px;">
-                SCROLL TO ZOOM • [M] TO CLOSE
-            </div>
+            <div style="text-align: right; font-size: 12px;">[Scroll] Zoom | [N] Close</div>
         </div>
-        <div style="margin-top: 20px; display: flex; gap: 30px; color: rgba(255,255,255,0.6); font-family: 'Cinzel', serif; font-size: 12px;">
-            <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #9c27b0;"></div> HUMAN NPC</div>
-            <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></div> HOSTILE</div>
-            <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #2196f3;"></div> NEUTRAL</div>
-            <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #aa00ff; box-shadow: 0 0 5px #aa00ff;"></div> CITY</div>
+        <div style="flex-grow: 1; position: relative; border: 1px solid var(--border); overflow: hidden; border-radius: 8px;">
+            <canvas id="shard-map-canvas"></canvas>
         </div>
     </div>
 </div>

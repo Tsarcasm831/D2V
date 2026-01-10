@@ -9,6 +9,8 @@ import { generateItemLore } from './services/geminiService';
 type ActiveTab = 'GENERAL' | 'QUEST ITEMS' | 'GEMS';
 type SortOption = 'NAME' | 'TYPE' | 'RARITY';
 
+type LeftTab = 'EQUIPPED' | 'ATTRIBUTES';
+
 const App: React.FC = () => {
   const [items, setItems] = useState<Item[]>(INITIAL_ITEMS);
   const [inventoryIds, setInventoryIds] = useState<string[]>(INITIAL_ITEMS.map(i => i.id));
@@ -28,6 +30,7 @@ const App: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('GENERAL');
+  const [leftTab, setLeftTab] = useState<LeftTab>('EQUIPPED');
   const [hoveredItem, setHoveredItem] = useState<{item: any, x: number, y: number} | null>(null);
 
   // Styling constants reused for Inventory and Hotbar
@@ -313,266 +316,288 @@ const App: React.FC = () => {
               {/* Texture Background */}
               <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] bg-repeat" />
               
-              {/* 1. Upper: Equipment Grid (Paper Doll) */}
-              <div className="flex-1 flex flex-col items-center justify-center relative min-h-0 overflow-hidden">
-                {/* Silhouette behind equipment */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02]">
-                    <svg className="h-[80%]" viewBox="0 0 100 200" fill="#ffffff">
-                       <path d="M50 10 C 65 10, 75 25, 75 40 C 75 55, 65 65, 50 65 C 35 65, 25 55, 25 40 C 25 25, 35 10, 50 10 Z M 20 70 L 80 70 L 90 120 L 80 140 L 50 140 L 20 140 L 10 120 Z M 30 145 L 70 145 L 75 190 L 25 190 Z" />
-                    </svg>
-                </div>
-
-                <div className="relative z-10 flex gap-6 xl:gap-8 items-center justify-center">
-                    {/* Paper Doll */}
-                    <div className="flex flex-col items-center gap-2 transform scale-[0.85] lg:scale-100 origin-center transition-transform duration-300">
-                        
-                        {/* Row 1: Helm/Amulet/Trinket */}
-                        <div className="flex items-end justify-center gap-4 mb-1">
-                            <EquipSlot 
-                                slotType="AMULET"
-                                item={getItemById(equipped['AMULET'])}
-                                className="w-10 h-10 rounded-full mb-1"
-                                label="Neck"
-                                onMouseEnter={handleMouseEnter}
-                                onMouseLeave={handleMouseLeave}
-                                onDoubleClick={() => handleUnequip('AMULET')}
-                            />
-                            <EquipSlot 
-                                slotType={SlotType.HELMET}
-                                item={getItemById(equipped[SlotType.HELMET])}
-                                className="w-16 h-16"
-                                label="Head"
-                                onMouseEnter={handleMouseEnter}
-                                onMouseLeave={handleMouseLeave}
-                                onDoubleClick={() => handleUnequip(SlotType.HELMET)}
-                            />
-                             <EquipSlot 
-                                slotType="TRINKET"
-                                className="w-10 h-10 rounded-full mb-1"
-                                label="Relic"
-                                onMouseEnter={handleMouseEnter}
-                                onMouseLeave={handleMouseLeave}
-                            />
-                        </div>
-
-                        {/* Row 2: Main Gear Block */}
-                        <div className="flex items-start gap-3">
-                            
-                            {/* Main Hand - Left of Hands */}
-                            <div className="pt-2">
-                                <EquipSlot 
-                                    slotType={SlotType.WEAPON_MAIN}
-                                    item={getItemById(equipped[SlotType.WEAPON_MAIN])}
-                                    className="w-20 h-40"
-                                    label="Main Hand"
-                                    onMouseEnter={handleMouseEnter}
-                                    onMouseLeave={handleMouseLeave}
-                                    onDoubleClick={() => handleUnequip(SlotType.WEAPON_MAIN)}
-                                />
-                            </div>
-
-                            {/* Center Column: Arms, Body, Belt */}
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="flex items-start gap-3">
-                                    {/* Left Arm */}
-                                    <div className="flex flex-col gap-3 items-end pt-2">
-                                        <EquipSlot 
-                                            slotType="RING_1"
-                                            item={getItemById(equipped['RING_1'])}
-                                            className="w-10 h-10"
-                                            label="Ring"
-                                            onMouseEnter={handleMouseEnter}
-                                            onMouseLeave={handleMouseLeave}
-                                            onDoubleClick={() => handleUnequip('RING_1')}
-                                        />
-                                        <EquipSlot 
-                                            slotType={SlotType.GLOVES}
-                                            item={getItemById(equipped[SlotType.GLOVES])}
-                                            className="w-16 h-16"
-                                            label="Hands"
-                                            onMouseEnter={handleMouseEnter}
-                                            onMouseLeave={handleMouseLeave}
-                                            onDoubleClick={() => handleUnequip(SlotType.GLOVES)}
-                                        />
-                                        <EquipSlot 
-                                            slotType={SlotType.SUMMON}
-                                            item={getItemById(equipped[SlotType.SUMMON])}
-                                            className="w-12 h-12 rounded-full"
-                                            label="Summon"
-                                            onMouseEnter={handleMouseEnter}
-                                            onMouseLeave={handleMouseLeave}
-                                            onDoubleClick={() => handleUnequip(SlotType.SUMMON)}
-                                        />
-                                    </div>
-
-                                    {/* Body */}
-                                    <EquipSlot 
-                                        slotType={SlotType.BODY}
-                                        item={getItemById(equipped[SlotType.BODY])}
-                                        className="w-28 h-40"
-                                        label="Torso"
-                                        onMouseEnter={handleMouseEnter}
-                                        onMouseLeave={handleMouseLeave}
-                                        onDoubleClick={() => handleUnequip(SlotType.BODY)}
-                                    />
-
-                                    {/* Right Arm */}
-                                    <div className="flex flex-col gap-3 items-start pt-2">
-                                        <EquipSlot 
-                                            slotType="RING_2"
-                                            item={getItemById(equipped['RING_2'])}
-                                            className="w-10 h-10"
-                                            label="Ring"
-                                            onMouseEnter={handleMouseEnter}
-                                            onMouseLeave={handleMouseLeave}
-                                            onDoubleClick={() => handleUnequip('RING_2')}
-                                        />
-                                        <EquipSlot 
-                                            slotType={SlotType.BOOTS}
-                                            item={getItemById(equipped[SlotType.BOOTS])}
-                                            className="w-16 h-16"
-                                            label="Feet"
-                                            onMouseEnter={handleMouseEnter}
-                                            onMouseLeave={handleMouseLeave}
-                                            onDoubleClick={() => handleUnequip(SlotType.BOOTS)}
-                                        />
-                                        <EquipSlot 
-                                            slotType={SlotType.RESONANT}
-                                            item={getItemById(equipped[SlotType.RESONANT])}
-                                            className="w-12 h-12 rounded-full"
-                                            label="Resonant"
-                                            onMouseEnter={handleMouseEnter}
-                                            onMouseLeave={handleMouseLeave}
-                                            onDoubleClick={() => handleUnequip(SlotType.RESONANT)}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Belt */}
-                                <EquipSlot 
-                                    slotType={SlotType.BELT}
-                                    item={getItemById(equipped[SlotType.BELT])}
-                                    className="w-28 h-10"
-                                    label="Waist"
-                                    onMouseEnter={handleMouseEnter}
-                                    onMouseLeave={handleMouseLeave}
-                                    onDoubleClick={() => handleUnequip(SlotType.BELT)}
-                                />
-                            </div>
-
-                            {/* Off Hand - Right of Boots */}
-                            <div className="pt-2">
-                                <EquipSlot 
-                                    slotType={SlotType.WEAPON_OFF}
-                                    item={getItemById(equipped[SlotType.WEAPON_OFF])}
-                                    className="w-20 h-40"
-                                    label="Off Hand"
-                                    onMouseEnter={handleMouseEnter}
-                                    onMouseLeave={handleMouseLeave}
-                                    onDoubleClick={() => handleUnequip(SlotType.WEAPON_OFF)}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+              {/* Left Pane Tab Bar */}
+              <div className="flex h-10 border-b border-[#1f1a14] bg-[#0c0c0c] px-3 items-end gap-1 z-30">
+                {(['EQUIPPED', 'ATTRIBUTES'] as LeftTab[]).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setLeftTab(tab)}
+                    className={`text-[10px] font-cinzel font-bold tracking-wider px-4 py-2 transition-all relative ${
+                      leftTab === tab
+                        ? 'text-[#c8aa6e] bg-[#141414] border-t border-x border-[#2a221a] rounded-t-sm -mb-[1px] z-10'
+                        : 'text-neutral-500 hover:text-neutral-300 hover:bg-[#111]'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
+              
+              {leftTab === 'EQUIPPED' && (
+                <div className="flex-1 flex flex-col items-center justify-center relative min-h-0 overflow-hidden animate-fade-in">
+                  {/* Silhouette behind equipment */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02]">
+                      <svg className="h-[80%]" viewBox="0 0 100 200" fill="#ffffff">
+                        <path d="M50 10 C 65 10, 75 25, 75 40 C 75 55, 65 65, 50 65 C 35 65, 25 55, 25 40 C 25 25, 35 10, 50 10 Z M 20 70 L 80 70 L 90 120 L 80 140 L 50 140 L 20 140 L 10 120 Z M 30 145 L 70 145 L 75 190 L 25 190 Z" />
+                      </svg>
+                  </div>
+
+                  <div className="relative z-10 flex gap-6 xl:gap-8 items-center justify-center">
+                      {/* Paper Doll */}
+                      <div className="flex flex-col items-center gap-2 transform scale-[0.85] lg:scale-100 origin-center transition-transform duration-300">
+                          
+                          {/* Row 1: Helm/Amulet/Trinket */}
+                          <div className="flex items-end justify-center gap-4 mb-1">
+                              <EquipSlot 
+                                  slotType="AMULET"
+                                  item={getItemById(equipped['AMULET'])}
+                                  className="w-10 h-10 rounded-full mb-1"
+                                  label="Neck"
+                                  onMouseEnter={handleMouseEnter}
+                                  onMouseLeave={handleMouseLeave}
+                                  onDoubleClick={() => handleUnequip('AMULET')}
+                              />
+                              <EquipSlot 
+                                  slotType={SlotType.HELMET}
+                                  item={getItemById(equipped[SlotType.HELMET])}
+                                  className="w-16 h-16"
+                                  label="Head"
+                                  onMouseEnter={handleMouseEnter}
+                                  onMouseLeave={handleMouseLeave}
+                                  onDoubleClick={() => handleUnequip(SlotType.HELMET)}
+                              />
+                              <EquipSlot 
+                                  slotType="TRINKET"
+                                  className="w-10 h-10 rounded-full mb-1"
+                                  label="Relic"
+                                  onMouseEnter={handleMouseEnter}
+                                  onMouseLeave={handleMouseLeave}
+                              />
+                          </div>
+
+                          {/* Row 2: Main Gear Block */}
+                          <div className="flex items-start gap-3">
+                              
+                              {/* Main Hand - Left of Hands */}
+                              <div className="pt-2">
+                                  <EquipSlot 
+                                      slotType={SlotType.WEAPON_MAIN}
+                                      item={getItemById(equipped[SlotType.WEAPON_MAIN])}
+                                      className="w-20 h-40"
+                                      label="Main Hand"
+                                      onMouseEnter={handleMouseEnter}
+                                      onMouseLeave={handleMouseLeave}
+                                      onDoubleClick={() => handleUnequip(SlotType.WEAPON_MAIN)}
+                                  />
+                              </div>
+
+                              {/* Center Column: Arms, Body, Belt */}
+                              <div className="flex flex-col items-center gap-2">
+                                  <div className="flex items-start gap-3">
+                                      {/* Left Arm */}
+                                      <div className="flex flex-col gap-3 items-end pt-2">
+                                          <EquipSlot 
+                                              slotType="RING_1"
+                                              item={getItemById(equipped['RING_1'])}
+                                              className="w-10 h-10"
+                                              label="Ring"
+                                              onMouseEnter={handleMouseEnter}
+                                              onMouseLeave={handleMouseLeave}
+                                              onDoubleClick={() => handleUnequip('RING_1')}
+                                          />
+                                          <EquipSlot 
+                                              slotType={SlotType.GLOVES}
+                                              item={getItemById(equipped[SlotType.GLOVES])}
+                                              className="w-16 h-16"
+                                              label="Hands"
+                                              onMouseEnter={handleMouseEnter}
+                                              onMouseLeave={handleMouseLeave}
+                                              onDoubleClick={() => handleUnequip(SlotType.GLOVES)}
+                                          />
+                                          <EquipSlot 
+                                              slotType={SlotType.SUMMON}
+                                              item={getItemById(equipped[SlotType.SUMMON])}
+                                              className="w-12 h-12 rounded-full"
+                                              label="Summon"
+                                              onMouseEnter={handleMouseEnter}
+                                              onMouseLeave={handleMouseLeave}
+                                              onDoubleClick={() => handleUnequip(SlotType.SUMMON)}
+                                          />
+                                      </div>
+
+                                      {/* Body */}
+                                      <EquipSlot 
+                                          slotType={SlotType.BODY}
+                                          item={getItemById(equipped[SlotType.BODY])}
+                                          className="w-28 h-40"
+                                          label="Torso"
+                                          onMouseEnter={handleMouseEnter}
+                                          onMouseLeave={handleMouseLeave}
+                                          onDoubleClick={() => handleUnequip(SlotType.BODY)}
+                                      />
+
+                                      {/* Right Arm */}
+                                      <div className="flex flex-col gap-3 items-start pt-2">
+                                          <EquipSlot 
+                                              slotType="RING_2"
+                                              item={getItemById(equipped['RING_2'])}
+                                              className="w-10 h-10"
+                                              label="Ring"
+                                              onMouseEnter={handleMouseEnter}
+                                              onMouseLeave={handleMouseLeave}
+                                              onDoubleClick={() => handleUnequip('RING_2')}
+                                          />
+                                          <EquipSlot 
+                                              slotType={SlotType.BOOTS}
+                                              item={getItemById(equipped[SlotType.BOOTS])}
+                                              className="w-16 h-16"
+                                              label="Feet"
+                                              onMouseEnter={handleMouseEnter}
+                                              onMouseLeave={handleMouseLeave}
+                                              onDoubleClick={() => handleUnequip(SlotType.BOOTS)}
+                                          />
+                                          <EquipSlot 
+                                              slotType={SlotType.RESONANT}
+                                              item={getItemById(equipped[SlotType.RESONANT])}
+                                              className="w-12 h-12 rounded-full"
+                                              label="Resonant"
+                                              onMouseEnter={handleMouseEnter}
+                                              onMouseLeave={handleMouseLeave}
+                                              onDoubleClick={() => handleUnequip(SlotType.RESONANT)}
+                                          />
+                                      </div>
+                                  </div>
+
+                                  {/* Belt */}
+                                  <EquipSlot 
+                                      slotType={SlotType.BELT}
+                                      item={getItemById(equipped[SlotType.BELT])}
+                                      className="w-28 h-10"
+                                      label="Waist"
+                                      onMouseEnter={handleMouseEnter}
+                                      onMouseLeave={handleMouseLeave}
+                                      onDoubleClick={() => handleUnequip(SlotType.BELT)}
+                                  />
+                              </div>
+
+                              {/* Off Hand - Right of Boots */}
+                              <div className="pt-2">
+                                  <EquipSlot 
+                                      slotType={SlotType.WEAPON_OFF}
+                                      item={getItemById(equipped[SlotType.WEAPON_OFF])}
+                                      className="w-20 h-40"
+                                      label="Off Hand"
+                                      onMouseEnter={handleMouseEnter}
+                                      onMouseLeave={handleMouseLeave}
+                                      onDoubleClick={() => handleUnequip(SlotType.WEAPON_OFF)}
+                                  />
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                </div>
+              )}
 
               {/* 2. Lower: Character Stats Panel */}
-              <div className="relative z-20 bg-[#0a0a0a] border-t border-[#2a221a] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-                {/* Decorative Top Border Highlight */}
-                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#c8aa6e]/40 to-transparent" />
-                
-                <div className="flex flex-col p-6 gap-6">
-                    {/* Header: Name & Class */}
-                    <div className="flex justify-between items-end border-b border-[#1f1a14] pb-3">
-                        <div>
-                            <h2 className="text-2xl font-cinzel text-[#c8aa6e] tracking-wider font-bold drop-shadow-sm leading-none">
-                                KAELTHOS
-                            </h2>
-                            <div className="flex items-center gap-2 mt-1 opacity-80">
-                                <span className="text-xs font-cinzel text-neutral-400 tracking-[0.2em] uppercase">Level 82</span>
-                                <span className="w-1 h-1 rounded-full bg-[#444]" />
-                                <span className="text-xs font-cinzel text-[#a3a3a3] uppercase">Necromancer</span>
-                                <span className="w-1 h-1 rounded-full bg-[#444]" />
-                                <span className="text-xs font-cinzel text-[#8c7648] uppercase">Lich Lord</span>
+              {leftTab === 'ATTRIBUTES' && (
+                <div className="flex-1 flex flex-col overflow-auto custom-scrollbar animate-fade-in">
+                  <div className="relative z-20 bg-[#0a0a0a] border-t border-[#2a221a] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] flex-1">
+                    {/* Decorative Top Border Highlight */}
+                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#c8aa6e]/40 to-transparent" />
+                    
+                    <div className="flex flex-col p-6 gap-6">
+                        {/* Header: Name & Class */}
+                        <div className="flex justify-between items-end border-b border-[#1f1a14] pb-3">
+                            <div>
+                                <h2 className="text-2xl font-cinzel text-[#c8aa6e] tracking-wider font-bold drop-shadow-sm leading-none">
+                                    KAELTHOS
+                                </h2>
+                                <div className="flex items-center gap-2 mt-1 opacity-80">
+                                    <span className="text-xs font-cinzel text-neutral-400 tracking-[0.2em] uppercase">Level 82</span>
+                                    <span className="w-1 h-1 rounded-full bg-[#444]" />
+                                    <span className="text-xs font-cinzel text-[#a3a3a3] uppercase">Necromancer</span>
+                                    <span className="w-1 h-1 rounded-full bg-[#444]" />
+                                    <span className="text-xs font-cinzel text-[#8c7648] uppercase">Lich Lord</span>
+                                </div>
+                            </div>
+                            {/* Emblem */}
+                            <div className="w-10 h-10 border border-[#2a221a] bg-[#0f0f0f] flex items-center justify-center opacity-50 rounded-sm">
+                                <svg className="w-6 h-6 text-[#555]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
                             </div>
                         </div>
-                        {/* Emblem */}
-                        <div className="w-10 h-10 border border-[#2a221a] bg-[#0f0f0f] flex items-center justify-center opacity-50 rounded-sm">
-                            <svg className="w-6 h-6 text-[#555]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20h-13L12 5.5z"/></svg>
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Attributes */}
+                            <div className="space-y-1">
+                                <h4 className="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Attributes</h4>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Strength</span> <span className="text-white">145</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Dexterity</span> <span className="text-white">88</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#60a5fa] border-b border-[#1a1a1a] pb-1">
+                                    <span>Intelligence</span> <span className="font-bold">342</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Vitality</span> <span className="text-white">215</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Luck</span> <span className="text-white">42</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Fame</span> <span className="text-[#c8aa6e] font-bold">12,500</span>
+                                </div>
+                            </div>
+
+                            {/* Defenses */}
+                            <div className="space-y-1">
+                                <h4 className="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Defenses</h4>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Armour</span> <span className="text-white">850</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Natural Soak</span> <span className="text-white">18%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
+                                    <span>Evasion</span> <span className="text-white">420</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#60a5fa] border-b border-[#1a1a1a] pb-1">
+                                    <span>Energy Shield</span> <span className="font-bold">1,250</span>
+                                </div>
+                            </div>
+
+                            {/* Resistances */}
+                            <div className="space-y-1">
+                                <h4 className="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Resistances</h4>
+                                <div className="flex justify-between text-xs font-serif text-[#ef4444] border-b border-[#1a1a1a] pb-1">
+                                    <span>Fire</span> <span>75%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#3b82f6] border-b border-[#1a1a1a] pb-1">
+                                    <span>Water</span> <span>75%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#10b981] border-b border-[#1a1a1a] pb-1">
+                                    <span>Wind</span> <span>68%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#eab308] border-b border-[#1a1a1a] pb-1">
+                                    <span>Lightning</span> <span>76%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#d97706] border-b border-[#1a1a1a] pb-1">
+                                    <span>Earth</span> <span>52%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#a855f7] border-b border-[#1a1a1a] pb-1">
+                                    <span>Shadow</span> <span>30%</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-serif text-[#fcd34d] border-b border-[#1a1a1a] pb-1">
+                                    <span>Light</span> <span>-15%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-6">
-                        {/* Attributes */}
-                        <div className="space-y-1">
-                            <h4 className="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Attributes</h4>
-                            <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Strength</span> <span className="text-white">145</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Dexterity</span> <span className="text-white">88</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#60a5fa] border-b border-[#1a1a1a] pb-1">
-                                <span>Intelligence</span> <span className="font-bold">342</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Vitality</span> <span className="text-white">215</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Luck</span> <span className="text-white">42</span>
-                            </div>
-                             <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Fame</span> <span className="text-[#c8aa6e] font-bold">12,500</span>
-                            </div>
-                        </div>
-
-                        {/* Defenses */}
-                        <div className="space-y-1">
-                            <h4 className="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Defenses</h4>
-                             <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Armour</span> <span className="text-white">850</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Natural Soak</span> <span className="text-white">18%</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#d1d1d1] border-b border-[#1a1a1a] pb-1">
-                                <span>Evasion</span> <span className="text-white">420</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#60a5fa] border-b border-[#1a1a1a] pb-1">
-                                <span>Energy Shield</span> <span className="font-bold">1,250</span>
-                            </div>
-                        </div>
-
-                        {/* Resistances */}
-                        <div className="space-y-1">
-                            <h4 className="text-[10px] font-cinzel text-[#666] uppercase tracking-widest mb-2">Resistances</h4>
-                            <div className="flex justify-between text-xs font-serif text-[#ef4444] border-b border-[#1a1a1a] pb-1">
-                                <span>Fire</span> <span>75%</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#3b82f6] border-b border-[#1a1a1a] pb-1">
-                                <span>Water</span> <span>75%</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#10b981] border-b border-[#1a1a1a] pb-1">
-                                <span>Wind</span> <span>68%</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#eab308] border-b border-[#1a1a1a] pb-1">
-                                <span>Lightning</span> <span>76%</span>
-                            </div>
-                            <div className="flex justify-between text-xs font-serif text-[#d97706] border-b border-[#1a1a1a] pb-1">
-                                <span>Earth</span> <span>52%</span>
-                            </div>
-                             <div className="flex justify-between text-xs font-serif text-[#a855f7] border-b border-[#1a1a1a] pb-1">
-                                <span>Shadow</span> <span>30%</span>
-                            </div>
-                             <div className="flex justify-between text-xs font-serif text-[#fcd34d] border-b border-[#1a1a1a] pb-1">
-                                <span>Light</span> <span>-15%</span>
-                            </div>
-                        </div>
-                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* RIGHT: Inventory Pane */}

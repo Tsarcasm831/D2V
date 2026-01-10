@@ -6,6 +6,13 @@
     <div class="password-panel">
         <div class="password-title">ACCESS REQUIRED</div>
         <form id="password-form" autocomplete="on">
+            <input
+                id="password-username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                aria-label="Username"
+                class="visually-hidden">
             <input id="password-input" type="password" placeholder="Enter password" autocomplete="current-password" autocapitalize="off" spellcheck="false">
             <div id="password-error" class="password-error" style="display: none;"></div>
             <button id="password-submit" class="btn" type="submit">ENTER</button>

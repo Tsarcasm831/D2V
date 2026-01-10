@@ -5,6 +5,17 @@
 - The frontend is native ES modules loaded directly by `index.html` via an import map.
 - The backend serves static files and real-time multiplayer snapshots from memory (no DB).
 
+
+## Requirements
+Before you consider a task completed. Make sure to:
+- Check all your code for any console errors, warnings, or deprecations.
+- Check all your code for any memory leaks.
+- Check all your code for any performance issues.
+- Check all your code for any accessibility issues.
+- Check all your code for any security issues.
+- If you've touched a file that is more than 300 lines consider refactoring it.
+
+
 ## Quick Start
 - `npm install`
 - `npm start` (or `node server.js`)

@@ -46,7 +46,8 @@ export class InventoryUI {
         FLASK_5: null,
         SHORTS: null
       },
-      activeTab: 'GENERAL'
+      activeTab: 'GENERAL',
+      leftTab: 'EQUIPPED'
     };
     
     this.appEl = document.getElementById('app');
@@ -252,7 +253,7 @@ export class InventoryUI {
       .join('');
 
     return `
-      <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+      <div class="bg-[#2a221a] p-[1px] shadow-2xl w-full select-none">
         <div class="new-inventory-grid">${currencyCells}${emptyCells}</div>
       </div>
     `;
@@ -274,7 +275,7 @@ export class InventoryUI {
       .join('');
 
     return `
-      <div class="bg-[#2a221a] p-[1px] shadow-2xl mx-auto w-fit select-none">
+      <div class="bg-[#2a221a] p-[1px] shadow-2xl w-full select-none">
         <div class="new-inventory-grid">${gemCells}${emptyCells}</div>
       </div>
     `;
@@ -289,7 +290,7 @@ export class InventoryUI {
       const item = this.getItemById(itemId);
 
       return `
-        <div class="${cellClass} ${item ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : ''}" data-slot-type="STORAGE" data-slot-index="${idx}">
+        <div class="${cellClass} ${item ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : ''}" data-slot-type="STORAGE" data-slot-index="${idx}" style="width: 100%; height: auto; aspect-ratio: 1/1;">
           ${!item ? `<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)] pointer-events-none"></div>` : ''}
           ${item ? `
             <div class="inventory-item-container" draggable="true" 
@@ -312,9 +313,9 @@ export class InventoryUI {
     }).join('');
 
     return `
-      <div class="flex flex-col gap-4 mx-auto w-fit select-none">
-        <div class="bg-[#5c4d3c] p-[1px] shadow-2xl">
-          <div class="new-inventory-grid">${cells}</div>
+      <div class="flex flex-col gap-6 w-full select-none" style="width: 100% !important;">
+        <div class="bg-[#5c4d3c] p-[1px] shadow-2xl w-full" style="display: block; width: 100% !important;">
+          <div class="new-inventory-grid" style="display: grid !important; grid-template-columns: repeat(7, 1fr) !important; width: 100% !important; max-width: none !important;">${cells}</div>
         </div>
         ${this.renderHotbarSection()}
       </div>
@@ -327,7 +328,7 @@ export class InventoryUI {
     
     const cells = hotbarItems.map((item, idx) => {
       return `
-        <div class="${cellClass} hotbar-slot-v3 ${item ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : ''}" data-slot-type="HOTBAR" data-slot-index="${idx}">
+        <div class="${cellClass} hotbar-slot-v3 ${item ? `rarity-${(item.rarity || 'normal').toLowerCase()}` : ''}" data-slot-type="HOTBAR" data-slot-index="${idx}" style="width: 100%; height: auto; aspect-ratio: 1/1;">
           ${!item ? `<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)] pointer-events-none"></div>` : ''}
           ${item ? `
             <div class="inventory-item-container" draggable="true"
@@ -351,9 +352,9 @@ export class InventoryUI {
     }).join('');
 
     return `
-      <div class="hotbar-container-v3">
+      <div class="hotbar-container-v3" style="max-width: none !important; width: 100% !important; margin: 24px 0 0 !important;">
         <div class="hotbar-label-v3">Quick Access</div>
-        <div class="hotbar-grid-v3">${cells}</div>
+        <div class="hotbar-grid-v3" style="display: grid !important; grid-template-columns: repeat(8, 1fr) !important; width: 100% !important;">${cells}</div>
       </div>
     `;
   }
@@ -496,12 +497,26 @@ export class InventoryUI {
 
   renderEquipmentSection() {
     const equipped = this.state.equipped;
-    return `
-      <div class="background-doll relative overflow-hidden">
-        <div class="doll-texture"></div>
-        ${this.renderPreviewContainer()}
-        <div class="flex-1 flex flex-col items-center justify-center relative z-10 overflow-hidden">
-          <div class="paper-doll-container">
+    const isEquippedActive = this.state.leftTab === 'EQUIPPED';
+    
+    const tabs = ['EQUIPPED', 'ATTRIBUTES'].map(tab => {
+      const isActive = this.state.leftTab === tab;
+      return `
+        <div
+          data-left-tab="${tab}"
+          class="inventory-tab-premium ${isActive ? 'active' : ''}"
+        >
+          <span class="tab-label-v3">${tab}</span>
+        </div>
+      `;
+    }).join('');
+
+    let content = '';
+    if (isEquippedActive) {
+      content = `
+        <div class="flex flex-col items-center justify-center h-full relative z-10 overflow-hidden animate-fade-in">
+          ${this.renderPreviewContainer()}
+          <div class="paper-doll-container scale-[0.9] lg:scale-100">
             <div class="equip-row-top">
               ${this.renderEquipSlot({ slotKey: 'AMULET', item: equipped.AMULET, className: 'w-10 h-10 rounded-full amulet-slot', label: 'Neck' })}
               ${this.renderEquipSlot({ slotKey: 'HELMET', item: equipped.HELMET, className: 'w-16 h-16 helmet-slot', label: 'Head' })}
@@ -539,27 +554,36 @@ export class InventoryUI {
             </div>
           </div>
         </div>
-        ${this.renderStatsPanel()}
-      </div>
-    `;
-  }
-
-  renderStatsPanel() {
-    const stats = this.player?.stats;
-    const charName = (this.player?.characterData?.name || 'ADVENTURER').toUpperCase();
-    const charLevel = this.player?.level || 1;
-    const charClass = this.player?.characterData?.class || 'Nomad';
+      `;
+    } else {
+      content = `
+        <div class="flex flex-col h-full overflow-auto custom-scrollbar animate-fade-in relative z-10 bg-[#0a0a0a]">
+          <div class="stats-panel-doll relative z-20 flex-1">
+            <div class="stats-panel-glow"></div>
+            <div class="flex flex-col p-6 gap-6">
+              ${this.renderStatsHeader((this.player?.characterData?.name || 'ADVENTURER').toUpperCase(), this.player?.level || 1, this.player?.characterData?.class || 'Nomad')}
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                ${this.renderAttributes(this.player?.stats)}
+                ${this.renderDefenses(this.player?.stats)}
+                ${this.renderResistances(this.player?.stats)}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
-      <div class="stats-panel-doll relative z-20">
-        <div class="stats-panel-glow"></div>
-        <div class="flex flex-col p-6 gap-2">
-          ${this.renderStatsHeader(charName, charLevel, charClass)}
-          <div class="stats-grid-doll">
-            ${this.renderAttributes(stats)}
-            ${this.renderDefenses(stats)}
-            ${this.renderResistances(stats)}
-          </div>
+      <div class="background-doll relative overflow-hidden flex flex-col h-full">
+        <div class="doll-texture"></div>
+        
+        <!-- Left Pane Tab Bar -->
+        <div class="inventory-tabs-container shrink-0">
+          ${tabs}
+        </div>
+
+        <div class="flex-1 min-h-0 relative">
+          ${content}
         </div>
       </div>
     `;
@@ -643,7 +667,7 @@ export class InventoryUI {
 
   renderResistances(stats) {
     return `
-      <div class="stats-col-doll">
+      <div class="stats-col-doll resistances-col">
         <h4 class="stats-header-doll">Resistances</h4>
         <div class="stats-row-v3 highlight-red">
           <span class="stat-label-v3">Fire</span>
@@ -704,7 +728,7 @@ export class InventoryUI {
         </div>
 
         <div class="inventory-main-content-v3 custom-scrollbar">
-          <div class="mx-auto w-fit py-4">
+          <div class="w-full py-4">
             ${this.renderInventoryContent()}
           </div>
         </div>
@@ -824,6 +848,17 @@ export class InventoryUI {
         const tabName = tab.dataset.tab;
         if (this.state.activeTab !== tabName) {
           this.state.activeTab = tabName;
+          this.render();
+        }
+      };
+    });
+
+    wrapper.querySelectorAll('[data-left-tab]').forEach(tab => {
+      tab.onclick = (e) => {
+        e.stopPropagation();
+        const tabName = tab.dataset.leftTab;
+        if (this.state.leftTab !== tabName) {
+          this.state.leftTab = tabName;
           this.render();
         }
       };

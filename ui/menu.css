@@ -143,6 +143,18 @@
     letter-spacing: 1px;
 }
 
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 1px, 1px);
+    white-space: nowrap;
+    border: 0;
+}
+
 @media (max-width: 600px) {
     .password-panel {
         width: 85%;
@@ -155,4 +167,38 @@
     background: rgba(40, 0, 0, 0.7); display: none;
     flex-direction: column; align-items: center; justify-content: center;
     z-index: 1000; backdrop-filter: blur(5px);
+}
+
+/* Skill selection context menu */
+#skill-selection-menu {
+    position: fixed;
+    background: rgba(10, 10, 10, 0.85);
+    border: 1px solid var(--primary, #00aaff);
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    padding: 6px;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+}
+
+.menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-item:hover {
+    background: rgba(0, 170, 255, 0.2);
+}
+
+.menu-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
 }
